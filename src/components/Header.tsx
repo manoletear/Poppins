@@ -45,7 +45,10 @@ export function Header() {
         boxShadow: isScrolled ? "0 2px 20px rgba(45, 45, 144, 0.1)" : "none"
       }}
     >
-      <div className="max-w-7xl mx-auto px-6 py-4">
+      <div
+        className="max-w-7xl mx-auto px-6 py-4"
+        style={{ color: "rgba(255, 0, 0, 1)" }}
+      >
         <div className="flex items-center justify-between">
           {/* Logo */}
           <motion.a
