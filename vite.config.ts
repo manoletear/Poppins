@@ -4,7 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/Poppins/', // 👈 NECESARIO para GitHub Pages
+  base: '/Poppins/', // 👈 Necesario para GitHub Pages
   resolve: {
     extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
     alias: {
