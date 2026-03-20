@@ -1,82 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Stethoscope,
   Building2,
-  Palmtree,
+  Umbrella,
   Clock,
   Check,
   X,
+  Send,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+
+const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
 
 type TabKey = 'pendientes' | 'aprobadas' | 'rechazadas' | 'todas';
-
 type EstadoSolicitud = 'pendiente' | 'aprobada' | 'rechazada';
 
 interface Solicitud {
-  id: number;
+  id: string;
   tipo: string;
-  icon: typeof Stethoscope;
-  iconColor: string;
-  empleado: string;
-  fecha: string;
-  duracion: string;
-  motivo: string;
+  descripcion: string | null;
+  fecha_inicio: string;
+  fecha_fin: string | null;
+  dias: number;
   estado: EstadoSolicitud;
-  aprobadaEl: string | null;
+  fecha_respuesta: string | null;
+  created_at: string;
+  trabajador_nombre: string;
+  trabajador_apellido: string;
+  numero_contrato: string | null;
 }
-
-const initialSolicitudes: Solicitud[] = [
-  {
-    id: 1,
-    tipo: 'Permiso Médico',
-    icon: Stethoscope,
-    iconColor: 'text-rose-500 bg-rose-50',
-    empleado: 'María López',
-    fecha: '22 Mar 2026',
-    duracion: '1 día',
-    motivo: 'Control médico rutinario',
-    estado: 'pendiente',
-    aprobadaEl: null,
-  },
-  {
-    id: 2,
-    tipo: 'Día Administrativo',
-    icon: Building2,
-    iconColor: 'text-blue-500 bg-blue-50',
-    empleado: 'Juan Pérez',
-    fecha: '25 Mar 2026',
-    duracion: '1 día',
-    motivo: 'Trámite en Registro Civil',
-    estado: 'pendiente',
-    aprobadaEl: null,
-  },
-  {
-    id: 3,
-    tipo: 'Vacaciones',
-    icon: Palmtree,
-    iconColor: 'text-emerald-500 bg-emerald-50',
-    empleado: 'María López',
-    fecha: '1 - 10 Abr 2026',
-    duracion: '8 días',
-    motivo: 'Vacaciones familiares',
-    estado: 'aprobada',
-    aprobadaEl: 'Aprobada el 15 Mar',
-  },
-  {
-    id: 4,
-    tipo: 'Permiso sin goce',
-    icon: Clock,
-    iconColor: 'text-zinc-500 bg-zinc-100',
-    empleado: 'Pedro Soto',
-    fecha: '5 Mar 2026',
-    duracion: '1 día',
-    motivo: 'Asunto personal',
-    estado: 'aprobada',
-    aprobadaEl: 'Aprobada el 3 Mar',
-  },
-];
 
 const tabs: { key: TabKey; label: string }[] = [
   { key: 'pendientes', label: 'Pendientes' },
@@ -85,85 +41,162 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: 'todas', label: 'Todas' },
 ];
 
+function getTipoIcon(tipo: string) {
+  switch (tipo) {
+    case 'permiso_medico': return { icon: Stethoscope, color: 'text-rose-500 bg-rose-50', label: 'Permiso Médico' };
+    case 'vacaciones': return { icon: Umbrella, color: 'text-emerald-500 bg-emerald-50', label: 'Vacaciones' };
+    case 'dia_administrativo': return { icon: Building2, color: 'text-blue-500 bg-blue-50', label: 'Día Administrativo' };
+    case 'permiso_sin_goce': return { icon: Clock, color: 'text-zinc-500 bg-zinc-100', label: 'Permiso Sin Goce' };
+    case 'antiguedad': return { icon: Clock, color: 'text-violet-500 bg-violet-50', label: 'Día Antigüedad' };
+    default: return { icon: Send, color: 'text-zinc-500 bg-zinc-100', label: tipo };
+  }
+}
+
 function getEstadoStyle(estado: EstadoSolicitud): string {
   switch (estado) {
-    case 'pendiente':
-      return 'bg-amber-50 text-amber-700';
-    case 'aprobada':
-      return 'bg-emerald-50 text-emerald-700';
-    case 'rechazada':
-      return 'bg-red-50 text-red-700';
+    case 'pendiente': return 'bg-amber-50 text-amber-700';
+    case 'aprobada': return 'bg-emerald-50 text-emerald-700';
+    case 'rechazada': return 'bg-red-50 text-red-700';
   }
 }
 
 function getEstadoLabel(estado: EstadoSolicitud): string {
   switch (estado) {
-    case 'pendiente':
-      return 'Pendiente';
-    case 'aprobada':
-      return 'Aprobada';
-    case 'rechazada':
-      return 'Rechazada';
+    case 'pendiente': return 'Pendiente';
+    case 'aprobada': return 'Aprobada';
+    case 'rechazada': return 'Rechazada';
   }
+}
+
+function formatDate(d: string) {
+  return new Date(d + 'T12:00:00').toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
 export default function SolicitudesPage() {
   const [activeTab, setActiveTab] = useState<TabKey>('todas');
-  const [solicitudes, setSolicitudes] = useState<Solicitud[]>(initialSolicitudes);
+  const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
-  const handleAprobar = (id: number) => {
-    setSolicitudes((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              estado: 'aprobada' as EstadoSolicitud,
-              aprobadaEl: `Aprobada el ${new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`,
-            }
-          : s
-      )
-    );
+  const loadSolicitudes = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const supabase = createClient();
+      const { data, error: err } = await supabase
+        .from('solicitudes_empleado')
+        .select('*, trabajadores!inner(nombre, apellido_paterno), contratos(numero_contrato)')
+        .eq('empleador_id', EMPLEADOR_ID)
+        .order('created_at', { ascending: false });
+
+      if (err) throw err;
+
+      const mapped: Solicitud[] = (data || []).map((s: any) => ({
+        id: s.id,
+        tipo: s.tipo,
+        descripcion: s.descripcion,
+        fecha_inicio: s.fecha_inicio,
+        fecha_fin: s.fecha_fin,
+        dias: s.dias,
+        estado: s.estado,
+        fecha_respuesta: s.fecha_respuesta,
+        created_at: s.created_at,
+        trabajador_nombre: s.trabajadores?.nombre || '',
+        trabajador_apellido: s.trabajadores?.apellido_paterno || '',
+        numero_contrato: s.contratos?.numero_contrato || null,
+      }));
+
+      setSolicitudes(mapped);
+    } catch (e: any) {
+      setError(e.message || 'Error al cargar solicitudes');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadSolicitudes(); }, [loadSolicitudes]);
+
+  // Auto-refresh every 30 seconds to catch new requests
+  useEffect(() => {
+    const interval = setInterval(loadSolicitudes, 30000);
+    return () => clearInterval(interval);
+  }, [loadSolicitudes]);
+
+  const handleAprobar = async (id: string) => {
+    setProcessingId(id);
+    try {
+      const supabase = createClient();
+      await supabase
+        .from('solicitudes_empleado')
+        .update({ estado: 'aprobada', fecha_respuesta: new Date().toISOString() })
+        .eq('id', id);
+      await loadSolicitudes();
+    } finally {
+      setProcessingId(null);
+    }
   };
 
-  const handleRechazar = (id: number) => {
-    setSolicitudes((prev) =>
-      prev.map((s) =>
-        s.id === id
-          ? {
-              ...s,
-              estado: 'rechazada' as EstadoSolicitud,
-              aprobadaEl: `Rechazada el ${new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'short' })}`,
-            }
-          : s
-      )
-    );
+  const handleRechazar = async (id: string) => {
+    setProcessingId(id);
+    try {
+      const supabase = createClient();
+      await supabase
+        .from('solicitudes_empleado')
+        .update({ estado: 'rechazada', fecha_respuesta: new Date().toISOString() })
+        .eq('id', id);
+      await loadSolicitudes();
+    } finally {
+      setProcessingId(null);
+    }
   };
 
   const filtered =
     activeTab === 'todas'
       ? solicitudes
-      : solicitudes.filter((s) =>
-          activeTab === 'pendientes'
-            ? s.estado === 'pendiente'
-            : activeTab === 'aprobadas'
-            ? s.estado === 'aprobada'
-            : s.estado === 'rechazada'
-        );
+      : solicitudes.filter((s) => s.estado === (activeTab === 'pendientes' ? 'pendiente' : activeTab === 'aprobadas' ? 'aprobada' : 'rechazada'));
 
   const pendingCount = solicitudes.filter((s) => s.estado === 'pendiente').length;
+
+  if (loading && solicitudes.length === 0) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-zinc-400" />
+        <span className="ml-3 text-sm text-zinc-500">Cargando solicitudes...</span>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-3">
+        <AlertCircle className="h-8 w-8 text-red-400" />
+        <p className="text-sm text-red-600">{error}</p>
+        <button onClick={loadSolicitudes} className="text-sm text-blue-600 hover:underline">Reintentar</button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-zinc-900">Solicitudes</h1>
           {pendingCount > 0 && (
-            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
-              {pendingCount} pendientes
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-700 animate-pulse">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
             </span>
           )}
         </div>
+        <button
+          onClick={loadSolicitudes}
+          className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+          title="Actualizar"
+        >
+          Actualizar
+        </button>
       </div>
 
       {/* Tabs */}
@@ -179,6 +212,11 @@ export default function SolicitudesPage() {
             }`}
           >
             {tab.label}
+            {tab.key === 'pendientes' && pendingCount > 0 && (
+              <span className="ml-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-white">
+                {pendingCount}
+              </span>
+            )}
           </button>
         ))}
       </div>
@@ -186,36 +224,42 @@ export default function SolicitudesPage() {
       {/* Solicitudes list */}
       <div className="space-y-4">
         {filtered.map((sol) => {
-          const Icon = sol.icon;
+          const { icon: Icon, color, label } = getTipoIcon(sol.tipo);
+          const isProcessing = processingId === sol.id;
+
           return (
-            <div
-              key={sol.id}
-              className="rounded-xl border border-zinc-200 bg-white p-5"
-            >
+            <div key={sol.id} className={`rounded-xl border bg-white p-5 transition-all ${sol.estado === 'pendiente' ? 'border-amber-200 shadow-sm' : 'border-zinc-200'}`}>
               <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <div
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg ${sol.iconColor}`}
-                  >
+                  <div className={`flex h-10 w-10 items-center justify-center rounded-lg shrink-0 ${color}`}>
                     <Icon className="h-5 w-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-zinc-900">{sol.tipo}</p>
-                    <p className="text-sm text-zinc-600 mt-0.5">{sol.empleado}</p>
-                    <p className="text-xs text-zinc-500 mt-1">
-                      {sol.fecha} &middot; {sol.duracion}
+                    <p className="text-sm font-semibold text-zinc-900">{label}</p>
+                    <p className="text-sm text-zinc-600 mt-0.5">
+                      {sol.trabajador_nombre} {sol.trabajador_apellido}
+                      {sol.numero_contrato && (
+                        <span className="ml-2 text-xs text-zinc-400">#{sol.numero_contrato}</span>
+                      )}
                     </p>
-                    <p className="text-sm text-zinc-500 mt-2">{sol.motivo}</p>
-                    {sol.aprobadaEl && (
-                      <p className="text-xs text-zinc-400 mt-1">{sol.aprobadaEl}</p>
+                    <p className="text-xs text-zinc-500 mt-1">
+                      {formatDate(sol.fecha_inicio)}
+                      {sol.fecha_fin && sol.fecha_fin !== sol.fecha_inicio && ` → ${formatDate(sol.fecha_fin)}`}
+                      {' · '}{sol.dias} día{sol.dias > 1 ? 's' : ''}
+                    </p>
+                    {sol.descripcion && (
+                      <p className="text-sm text-zinc-500 mt-2">{sol.descripcion}</p>
+                    )}
+                    {sol.fecha_respuesta && (
+                      <p className="text-xs text-zinc-400 mt-1">
+                        {sol.estado === 'aprobada' ? 'Aprobada' : 'Rechazada'} el {formatDate(sol.fecha_respuesta.split('T')[0])}
+                      </p>
                     )}
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2 sm:flex-col sm:items-end">
-                  <span
-                    className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${getEstadoStyle(sol.estado)}`}
-                  >
+                  <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors ${getEstadoStyle(sol.estado)}`}>
                     {getEstadoLabel(sol.estado)}
                   </span>
 
@@ -223,16 +267,18 @@ export default function SolicitudesPage() {
                     <div className="flex gap-2 mt-0 sm:mt-2">
                       <button
                         onClick={() => handleAprobar(sol.id)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+                        disabled={isProcessing}
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
                       >
-                        <Check className="h-3.5 w-3.5" />
+                        {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
                         Aprobar
                       </button>
                       <button
                         onClick={() => handleRechazar(sol.id)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors"
+                        disabled={isProcessing}
+                        className="inline-flex items-center gap-1 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
                       >
-                        <X className="h-3.5 w-3.5" />
+                        {isProcessing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
                         Rechazar
                       </button>
                     </div>
@@ -245,7 +291,9 @@ export default function SolicitudesPage() {
 
         {filtered.length === 0 && (
           <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center">
-            <p className="text-sm text-zinc-500">No hay solicitudes en esta categoría</p>
+            <p className="text-sm text-zinc-500">
+              {activeTab === 'pendientes' ? 'No hay solicitudes pendientes' : 'No hay solicitudes en esta categoría'}
+            </p>
           </div>
         )}
       </div>
