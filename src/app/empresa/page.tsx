@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -12,42 +12,13 @@ import {
   Bell,
   ChevronDown,
   Check,
+  Loader2,
 } from 'lucide-react';
+import { useEmployees, useAbsences } from '@/hooks/useBuk';
 
 /* ------------------------------------------------------------------ */
-/*  Mock data                                                          */
+/*  Mock data (employer-specific features not in BUK)                  */
 /* ------------------------------------------------------------------ */
-
-const kpis = [
-  {
-    label: 'Colaboradores Activos',
-    value: '3',
-    sub: '1 nana, 1 jardinero, 1 piscinero',
-    icon: Users,
-    color: 'bg-emerald-500',
-  },
-  {
-    label: 'Solicitudes Pendientes',
-    value: '2',
-    sub: 'Requieren tu atención',
-    icon: MessageSquare,
-    color: 'bg-amber-500',
-  },
-  {
-    label: 'Tareas Hoy',
-    value: '5',
-    sub: '2 completadas',
-    icon: CheckSquare,
-    color: 'bg-blue-500',
-  },
-  {
-    label: 'Puntos Acumulados',
-    value: '12.450',
-    sub: 'Tarjeta ****4521',
-    icon: CreditCard,
-    color: 'bg-violet-500',
-  },
-];
 
 const quickActions = [
   { label: 'Asignar Tarea', icon: ClipboardList, href: '/empresa/tareas' },
@@ -70,17 +41,6 @@ const initialTasks: Task[] = [
   { id: 3, title: 'Cortar pasto sector norte', assignee: 'Juan', role: 'jardinero', completed: false },
   { id: 4, title: 'Limpiar piscina y revisar pH', assignee: 'Pedro', role: 'piscinero', completed: false },
   { id: 5, title: 'Preparar almuerzo', assignee: 'María', role: 'nana', completed: false },
-];
-
-const solicitudes = [
-  { id: 1, type: 'Permiso médico', name: 'María López', date: '22 Mar', status: 'pendiente' },
-  { id: 2, type: 'Día administrativo', name: 'Juan Pérez', date: '25 Mar', status: 'pendiente' },
-];
-
-const marcaje = [
-  { name: 'María López', entrada: '08:02', salida: '-', estado: 'En turno', color: 'bg-emerald-100 text-emerald-700' },
-  { name: 'Juan Pérez', entrada: '08:30', salida: '-', estado: 'En turno', color: 'bg-emerald-100 text-emerald-700' },
-  { name: 'Pedro Soto', entrada: 'No marcó', salida: '-', estado: 'Sin marcar', color: 'bg-red-100 text-red-700' },
 ];
 
 interface ShoppingItem {
@@ -112,10 +72,105 @@ const periodos = ['Marzo 2026', 'Febrero 2026', 'Enero 2026'];
 /* ------------------------------------------------------------------ */
 
 export default function EmpresaDashboard() {
+  /* ── Real data from hooks ── */
+  const { data: employees, loading: loadingEmployees } = useEmployees();
+  const { data: absences, loading: loadingAbsences } = useAbsences();
+
+  /* ── Derived real data ── */
+  const activeEmployees = useMemo(
+    () => (employees ?? []).filter((e) => e.estado === 'activo'),
+    [employees]
+  );
+
+  const pendingAbsences = useMemo(
+    () => (absences ?? []).filter((a) => a.estado === 'pendiente'),
+    [absences]
+  );
+
+  const employeeCountLabel = useMemo(() => {
+    if (!activeEmployees.length) return '';
+    const roles = activeEmployees.map((e) => e.cargo.toLowerCase());
+    const grouped: Record<string, number> = {};
+    roles.forEach((r) => {
+      grouped[r] = (grouped[r] || 0) + 1;
+    });
+    return Object.entries(grouped)
+      .map(([role, count]) => `${count} ${role}`)
+      .join(', ');
+  }, [activeEmployees]);
+
+  /* ── Marcaje built from real employee data ── */
+  const marcaje = useMemo(() => {
+    if (!activeEmployees.length) {
+      return [
+        { name: 'Cargando...', entrada: '-', salida: '-', estado: '-', color: 'bg-zinc-100 text-zinc-500' },
+      ];
+    }
+    // Use real employee names with mock attendance data
+    return activeEmployees.map((emp, idx) => ({
+      name: emp.nombreCompleto,
+      entrada: idx === 0 ? '08:02' : idx === 1 ? '08:30' : 'No marcó',
+      salida: '-',
+      estado: idx < 2 ? 'En turno' : 'Sin marcar',
+      color: idx < 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
+    }));
+  }, [activeEmployees]);
+
+  /* ── Solicitudes from absences data ── */
+  const solicitudesDashboard = useMemo(() => {
+    return pendingAbsences.slice(0, 3).map((a) => {
+      const emp = (employees ?? []).find((e) => e.id === a.empleadoId);
+      return {
+        id: a.id,
+        type: a.tipo,
+        name: emp?.nombreCompleto ?? `Empleado #${a.empleadoId}`,
+        date: a.inicio,
+        status: a.estado,
+      };
+    });
+  }, [pendingAbsences, employees]);
+
+  /* ── KPI cards with real data where available ── */
+  const kpis = useMemo(
+    () => [
+      {
+        label: 'Colaboradores Activos',
+        value: loadingEmployees ? '...' : String(activeEmployees.length),
+        sub: loadingEmployees ? 'Cargando...' : employeeCountLabel || 'Sin colaboradores',
+        icon: Users,
+        color: 'bg-emerald-500',
+      },
+      {
+        label: 'Solicitudes Pendientes',
+        value: loadingAbsences ? '...' : String(pendingAbsences.length),
+        sub: loadingAbsences ? 'Cargando...' : pendingAbsences.length > 0 ? 'Requieren tu atención' : 'Todo al día',
+        icon: MessageSquare,
+        color: 'bg-amber-500',
+      },
+      {
+        label: 'Tareas Hoy',
+        value: '5',
+        sub: '2 completadas',
+        icon: CheckSquare,
+        color: 'bg-blue-500',
+      },
+      {
+        label: 'Puntos Acumulados',
+        value: '12.450',
+        sub: 'Tarjeta ****4521',
+        icon: CreditCard,
+        color: 'bg-violet-500',
+      },
+    ],
+    [loadingEmployees, loadingAbsences, activeEmployees, pendingAbsences, employeeCountLabel]
+  );
+
+  /* ── Local state for interactive features ── */
   const [tasks, setTasks] = useState<Task[]>(initialTasks);
   const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(initialShoppingItems);
   const [periodoOpen, setPeriodoOpen] = useState(false);
   const [periodoSelected, setPeriodoSelected] = useState(periodos[0]);
+  const [resolvedSolicitudes, setResolvedSolicitudes] = useState<Record<number, 'aprobada' | 'rechazada'>>({});
 
   const toggleTask = (id: number) => {
     setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
@@ -125,7 +180,13 @@ export default function EmpresaDashboard() {
     setShoppingItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
   };
 
+  const handleSolicitud = (id: number, action: 'aprobada' | 'rechazada') => {
+    setResolvedSolicitudes((prev) => ({ ...prev, [id]: action }));
+  };
+
   const checkedCount = shoppingItems.filter((i) => i.checked).length;
+
+  const isLoading = loadingEmployees || loadingAbsences;
 
   return (
     <div className="space-y-6">
@@ -167,6 +228,14 @@ export default function EmpresaDashboard() {
           )}
         </div>
       </div>
+
+      {/* ── Loading indicator ──────────────────────────────────── */}
+      {isLoading && (
+        <div className="flex items-center gap-2 text-sm text-zinc-500">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Conectando con BUK...</span>
+        </div>
+      )}
 
       {/* ── KPI Cards ──────────────────────────────────────────── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -251,34 +320,64 @@ export default function EmpresaDashboard() {
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold text-zinc-900">Solicitudes Pendientes</h2>
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-700">
-                {solicitudes.length}
+                {loadingAbsences ? '...' : pendingAbsences.length}
               </span>
             </div>
           </div>
           <div className="divide-y divide-zinc-100">
-            {solicitudes.map((s) => (
-              <div key={s.id} className="px-5 py-4 flex flex-col gap-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-zinc-800">{s.type}</p>
-                    <p className="text-xs text-zinc-400">
-                      {s.name} &middot; {s.date}
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-medium text-amber-700">
-                    {s.status}
-                  </span>
-                </div>
-                <div className="flex gap-2">
-                  <button className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors">
-                    Aprobar
-                  </button>
-                  <button className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors">
-                    Rechazar
-                  </button>
-                </div>
+            {loadingAbsences ? (
+              <div className="px-5 py-8 text-center">
+                <Loader2 className="h-5 w-5 animate-spin text-zinc-400 mx-auto" />
+                <p className="text-sm text-zinc-400 mt-2">Cargando solicitudes...</p>
               </div>
-            ))}
+            ) : solicitudesDashboard.length === 0 ? (
+              <div className="px-5 py-8 text-center">
+                <p className="text-sm text-zinc-400">No hay solicitudes pendientes</p>
+              </div>
+            ) : (
+              solicitudesDashboard.map((s) => {
+                const resolved = resolvedSolicitudes[s.id];
+                return (
+                  <div key={s.id} className="px-5 py-4 flex flex-col gap-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-zinc-800">{s.type}</p>
+                        <p className="text-xs text-zinc-400">
+                          {s.name} &middot; {s.date}
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 text-[11px] font-medium ${
+                          resolved === 'aprobada'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : resolved === 'rechazada'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-amber-100 text-amber-700'
+                        }`}
+                      >
+                        {resolved === 'aprobada' ? 'Aprobada' : resolved === 'rechazada' ? 'Rechazada' : 'pendiente'}
+                      </span>
+                    </div>
+                    {!resolved && (
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleSolicitud(s.id, 'aprobada')}
+                          className="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+                        >
+                          Aprobar
+                        </button>
+                        <button
+                          onClick={() => handleSolicitud(s.id, 'rechazada')}
+                          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors"
+                        >
+                          Rechazar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       </div>

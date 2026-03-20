@@ -10,6 +10,8 @@ import {
   Calendar,
   Palmtree,
   ChevronRight,
+  DollarSign,
+  CalendarClock,
 } from 'lucide-react';
 
 const empleados = [
@@ -28,6 +30,8 @@ const empleados = [
     estado: 'Activa',
     antiguedad: '2 años, 1 mes',
     vacaciones: '8.5 días',
+    ultimaLiquidacion: { periodo: 'Mar 2026', liquido: '$543.200' },
+    proximoPago: '30 Mar 2026',
   },
   {
     id: 2,
@@ -44,6 +48,8 @@ const empleados = [
     estado: 'Activo',
     antiguedad: '1 año, 6 meses',
     vacaciones: '5 días',
+    ultimaLiquidacion: { periodo: 'Mar 2026', liquido: '$543.200' },
+    proximoPago: '30 Mar 2026',
   },
   {
     id: 3,
@@ -60,6 +66,8 @@ const empleados = [
     estado: 'Activo',
     antiguedad: '8 meses',
     vacaciones: '3 días',
+    ultimaLiquidacion: { periodo: 'Mar 2026', liquido: '$543.200' },
+    proximoPago: '30 Mar 2026',
   },
 ];
 
@@ -122,7 +130,13 @@ export default function EmpleadosPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <FileText className="h-4 w-4 text-zinc-400" />
-                  <span>Contrato: {emp.contrato}</span>
+                  <span>Contrato: </span>
+                  <Link
+                    href={`/empresa/empleados/${emp.id}?tab=contrato`}
+                    className="font-semibold text-zinc-900 hover:text-blue-600 underline underline-offset-2 transition-colors"
+                  >
+                    {emp.contrato}
+                  </Link>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-zinc-400 text-base font-medium ml-0.5">$</span>
@@ -135,6 +149,22 @@ export default function EmpleadosPage() {
                 <div className="flex items-center gap-2">
                   <Palmtree className="h-4 w-4 text-zinc-400" />
                   <span>Vacaciones pendientes: {emp.vacaciones}</span>
+                </div>
+              </div>
+
+              {/* Payment summary */}
+              <div className="rounded-lg bg-zinc-50 border border-zinc-100 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-sm">
+                  <DollarSign className="h-4 w-4 text-zinc-400" />
+                  <span className="text-zinc-500">Última liquidación:</span>
+                  <span className="font-medium text-zinc-800">
+                    {emp.ultimaLiquidacion.periodo} - {emp.ultimaLiquidacion.liquido} líquido
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm">
+                  <CalendarClock className="h-4 w-4 text-zinc-400" />
+                  <span className="text-zinc-500">Próximo pago:</span>
+                  <span className="font-medium text-zinc-800">{emp.proximoPago}</span>
                 </div>
               </div>
 
