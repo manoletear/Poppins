@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { createClient } from '@/lib/supabase/client';
 import {
   Pencil,
   Heart,
-  User,
   Mail,
   Phone,
   MapPin,
@@ -12,83 +12,234 @@ import {
   CreditCard,
   Dog,
   Cat,
-  GripVertical,
-  StickyNote,
+  X,
+  Plus,
+  ChevronUp,
+  ChevronDown,
+  Loader2,
+  AlertCircle,
+  Save,
 } from 'lucide-react';
+
+const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
 
 const tabs = ['Familia', 'Mascotas', 'Preferencias'] as const;
 type Tab = (typeof tabs)[number];
 
-const hijos = [
-  {
-    nombre: 'Sebastián Aravena Pérez',
-    edad: 28,
-    alergias: 'Ninguna',
-    condiciones: 'Ninguna',
-    badge: 'Adulto',
-    badgeClass: 'bg-zinc-100 text-zinc-700',
-    nota: null,
-  },
-  {
-    nombre: 'Catalina Aravena Pérez',
-    edad: 24,
-    alergias: 'Frutos secos',
-    condiciones: 'Ninguna',
-    badge: 'Adulto',
-    badgeClass: 'bg-zinc-100 text-zinc-700',
-    nota: null,
-  },
-  {
-    nombre: 'Martín Aravena Pérez',
-    edad: 15,
-    alergias: 'Ninguna',
-    condiciones: 'Asma leve',
-    badge: 'Menor',
-    badgeClass: 'bg-amber-100 text-amber-700',
-    nota: 'Requiere supervisión escolar',
-  },
-];
+interface Empleador {
+  id: string;
+  cliente_id: string;
+  nombre: string;
+  apellido: string;
+  rut: string;
+  email: string;
+  telefono: string;
+  fecha_nacimiento: string;
+  direccion: string;
+  comuna: string;
+  ciudad: string;
+  plan: string;
+  max_cuentas: number;
+}
 
-const mascotas = [
-  {
-    nombre: 'Rocky',
-    tipo: 'Perro',
-    raza: 'Golden Retriever',
-    edad: 5,
-    notas: 'Paseo diario 2 veces. Comida especial para alergia cutánea.',
-    icon: 'dog' as const,
-    colorFrom: 'from-amber-50',
-    colorTo: 'to-amber-100',
-    iconColor: 'text-amber-600',
-    iconBg: 'bg-amber-100',
-  },
-  {
-    nombre: 'Luna',
-    tipo: 'Gata',
-    raza: 'Siamés',
-    edad: 3,
-    notas: 'Solo comida húmeda. Arena sanitaria cambiar cada 2 días.',
-    icon: 'cat' as const,
-    colorFrom: 'from-violet-50',
-    colorTo: 'to-violet-100',
-    iconColor: 'text-violet-600',
-    iconBg: 'bg-violet-100',
-  },
-];
+interface Familiar {
+  id: string;
+  empleador_id: string;
+  tipo: string;
+  nombre: string;
+  apellido: string;
+  fecha_nacimiento: string;
+  alergias: string;
+  condiciones_medicas: string;
+  telefono: string;
+  email: string;
+  es_cuenta_activa: boolean;
+  notas: string;
+}
 
-const prioridades = [
-  { titulo: 'Aseo y limpieza general', badge: 'Máxima' },
-  { titulo: 'Cuidado de los niños', badge: null },
-  { titulo: 'Cocina y preparación de alimentos', badge: null },
-  { titulo: 'Lavado y planchado de ropa', badge: null },
-  { titulo: 'Cuidado de mascotas', badge: null },
-  { titulo: 'Orden y organización', badge: null },
-  { titulo: 'Compras del hogar', badge: null },
-  { titulo: 'Jardinería', badge: 'Baja' },
-];
+interface Mascota {
+  id: string;
+  empleador_id: string;
+  nombre: string;
+  tipo: string;
+  raza: string;
+  edad: number;
+  instrucciones_cuidado: string;
+  veterinario_nombre: string;
+  veterinario_telefono: string;
+}
+
+interface Preferencia {
+  id: string;
+  empleador_id: string;
+  prioridades: { titulo: string }[];
+  notas_generales: string;
+}
+
+function calcularEdad(fechaNacimiento: string): number {
+  const hoy = new Date();
+  const nacimiento = new Date(fechaNacimiento);
+  let edad = hoy.getFullYear() - nacimiento.getFullYear();
+  const m = hoy.getMonth() - nacimiento.getMonth();
+  if (m < 0 || (m === 0 && hoy.getDate() < nacimiento.getDate())) {
+    edad--;
+  }
+  return edad;
+}
+
+function formatFecha(fecha: string): string {
+  const d = new Date(fecha);
+  const meses = [
+    'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+    'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+  ];
+  return `${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}`;
+}
+
+// --- Modal wrapper ---
+function Modal({
+  open,
+  onClose,
+  title,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="relative w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-zinc-900">{title}</h2>
+          <button onClick={onClose} className="rounded-full p-1 hover:bg-zinc-100">
+            <X className="h-5 w-5 text-zinc-500" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// --- Form field helper ---
+function FormField({
+  label,
+  value,
+  onChange,
+  type = 'text',
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-xs font-medium text-zinc-500">{label}</label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+      />
+    </div>
+  );
+}
 
 export default function PerfilEmpleadorPage() {
   const [activeTab, setActiveTab] = useState<Tab>('Familia');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [empleador, setEmpleador] = useState<Empleador | null>(null);
+  const [conyuge, setConyuge] = useState<Familiar | null>(null);
+  const [hijos, setHijos] = useState<Familiar[]>([]);
+  const [mascotas, setMascotas] = useState<Mascota[]>([]);
+  const [preferencias, setPreferencias] = useState<Preferencia | null>(null);
+  const [cuentasActivas, setCuentasActivas] = useState(0);
+
+  // Modals
+  const [editPerfilOpen, setEditPerfilOpen] = useState(false);
+
+  const supabase = createClient();
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const [empRes, famRes, mascRes, prefRes, cuentasRes] = await Promise.all([
+        supabase.from('empleadores').select('*').eq('id', EMPLEADOR_ID).single(),
+        supabase.from('familiares_empleador').select('*').eq('empleador_id', EMPLEADOR_ID),
+        supabase.from('mascotas_empleador').select('*').eq('empleador_id', EMPLEADOR_ID),
+        supabase.from('preferencias_trabajo').select('*').eq('empleador_id', EMPLEADOR_ID).single(),
+        supabase.from('cuentas_empleador').select('*').eq('empleador_id', EMPLEADOR_ID).eq('activa', true),
+      ]);
+
+      if (empRes.error) throw new Error('Error cargando perfil: ' + empRes.error.message);
+      setEmpleador(empRes.data);
+
+      if (famRes.error) throw new Error('Error cargando familiares: ' + famRes.error.message);
+      const familiares = famRes.data as Familiar[];
+      setConyuge(familiares.find((f) => f.tipo === 'conyuge') || null);
+      setHijos(familiares.filter((f) => f.tipo === 'hijo'));
+
+      if (mascRes.error) throw new Error('Error cargando mascotas: ' + mascRes.error.message);
+      setMascotas(mascRes.data as Mascota[]);
+
+      if (prefRes.error && prefRes.error.code !== 'PGRST116') {
+        throw new Error('Error cargando preferencias: ' + prefRes.error.message);
+      }
+      setPreferencias(prefRes.data as Preferencia | null);
+
+      setCuentasActivas(cuentasRes.data?.length ?? 0);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Error desconocido');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <p className="text-sm text-zinc-500">Cargando perfil...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-50">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <AlertCircle className="h-8 w-8 text-red-500" />
+          <p className="text-sm text-red-600">{error}</p>
+          <button
+            onClick={fetchData}
+            className="mt-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!empleador) return null;
+
+  const initials = `${empleador.nombre.charAt(0)}${empleador.apellido.charAt(0)}`.toUpperCase();
 
   return (
     <div className="min-h-screen bg-zinc-50 p-6">
@@ -98,43 +249,59 @@ export default function PerfilEmpleadorPage() {
           <h1 className="text-2xl font-bold text-zinc-900">Mi Perfil</h1>
           <p className="text-sm text-zinc-500">Datos personales y familiares</p>
         </div>
-        <button className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+        <button
+          onClick={() => setEditPerfilOpen(true)}
+          className="flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
           <Pencil className="h-4 w-4" />
           Editar Perfil
         </button>
       </div>
+
+      {/* Edit Profile Modal */}
+      <EditPerfilModal
+        open={editPerfilOpen}
+        onClose={() => setEditPerfilOpen(false)}
+        empleador={empleador}
+        onSaved={fetchData}
+      />
 
       {/* Layout */}
       <div className="flex flex-col gap-6 lg:flex-row">
         {/* Left Panel */}
         <div className="w-full lg:w-80 shrink-0">
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-            {/* Profile Card Header */}
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 pt-8 pb-6 flex flex-col items-center text-center">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-2xl font-bold text-white mb-3">
-                RA
+                {initials}
               </div>
               <h2 className="text-base font-bold text-zinc-900">
-                Rene Alejandro Aravena Riffo
+                {empleador.nombre} {empleador.apellido}
               </h2>
               <p className="text-sm text-zinc-500">Empleador</p>
               <span className="mt-2 rounded-full bg-blue-100 px-3 py-0.5 text-xs font-semibold text-blue-700">
-                Plan Premium
+                Plan {empleador.plan}
               </span>
             </div>
-
-            {/* Personal Info */}
             <div className="px-5 py-4 space-y-3">
-              <InfoField icon={<CreditCard className="h-4 w-4 text-zinc-400" />} label="RUT" value="6.836.579-1" />
-              <InfoField icon={<Mail className="h-4 w-4 text-zinc-400" />} label="Email" value="manuel.aravenal@gmail.com" />
-              <InfoField icon={<Phone className="h-4 w-4 text-zinc-400" />} label="Teléfono" value="+56 9 1234 5678" />
-              <InfoField icon={<Calendar className="h-4 w-4 text-zinc-400" />} label="Fecha Nacimiento" value="19 octubre 1951" />
-              <InfoField icon={<MapPin className="h-4 w-4 text-zinc-400" />} label="Dirección" value="Av. Principal 1234, Las Condes, Santiago" />
+              <InfoField icon={<CreditCard className="h-4 w-4 text-zinc-400" />} label="RUT" value={empleador.rut} />
+              <InfoField icon={<Mail className="h-4 w-4 text-zinc-400" />} label="Email" value={empleador.email} />
+              <InfoField icon={<Phone className="h-4 w-4 text-zinc-400" />} label="Teléfono" value={empleador.telefono} />
+              <InfoField
+                icon={<Calendar className="h-4 w-4 text-zinc-400" />}
+                label="Fecha Nacimiento"
+                value={empleador.fecha_nacimiento ? formatFecha(empleador.fecha_nacimiento) : '-'}
+              />
+              <InfoField
+                icon={<MapPin className="h-4 w-4 text-zinc-400" />}
+                label="Dirección"
+                value={[empleador.direccion, empleador.comuna, empleador.ciudad].filter(Boolean).join(', ')}
+              />
               <div>
-                <dt className="text-[11px] font-medium uppercase text-zinc-400">
-                  Cuentas Activas
-                </dt>
-                <dd className="text-sm font-medium text-amber-600">2 de 2</dd>
+                <dt className="text-[11px] font-medium uppercase text-zinc-400">Cuentas Activas</dt>
+                <dd className="text-sm font-medium text-amber-600">
+                  {cuentasActivas} de {empleador.max_cuentas}
+                </dd>
               </div>
             </div>
           </div>
@@ -142,7 +309,6 @@ export default function PerfilEmpleadorPage() {
 
         {/* Right Panel */}
         <div className="flex-1 space-y-6">
-          {/* Tab Bar */}
           <div className="flex gap-6 border-b border-zinc-200">
             {tabs.map((tab) => (
               <button
@@ -159,16 +325,116 @@ export default function PerfilEmpleadorPage() {
             ))}
           </div>
 
-          {/* Tab Content */}
-          {activeTab === 'Familia' && <FamiliaTab />}
-          {activeTab === 'Mascotas' && <MascotasTab />}
-          {activeTab === 'Preferencias' && <PreferenciasTab />}
+          {activeTab === 'Familia' && (
+            <FamiliaTab conyuge={conyuge} hijos={hijos} onRefresh={fetchData} />
+          )}
+          {activeTab === 'Mascotas' && (
+            <MascotasTab mascotas={mascotas} onRefresh={fetchData} />
+          )}
+          {activeTab === 'Preferencias' && (
+            <PreferenciasTab preferencias={preferencias} onRefresh={fetchData} />
+          )}
         </div>
       </div>
     </div>
   );
 }
 
+// --- Edit Profile Modal ---
+function EditPerfilModal({
+  open,
+  onClose,
+  empleador,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  empleador: Empleador;
+  onSaved: () => void;
+}) {
+  const [form, setForm] = useState({
+    nombre: empleador.nombre,
+    apellido: empleador.apellido,
+    rut: empleador.rut,
+    email: empleador.email,
+    telefono: empleador.telefono,
+    fecha_nacimiento: empleador.fecha_nacimiento || '',
+    direccion: empleador.direccion || '',
+    comuna: empleador.comuna || '',
+    ciudad: empleador.ciudad || '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      setForm({
+        nombre: empleador.nombre,
+        apellido: empleador.apellido,
+        rut: empleador.rut,
+        email: empleador.email,
+        telefono: empleador.telefono,
+        fecha_nacimiento: empleador.fecha_nacimiento || '',
+        direccion: empleador.direccion || '',
+        comuna: empleador.comuna || '',
+        ciudad: empleador.ciudad || '',
+      });
+    }
+  }, [open, empleador]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('empleadores')
+      .update(form)
+      .eq('id', empleador.id);
+    setSaving(false);
+    if (!error) {
+      onSaved();
+      onClose();
+    }
+  };
+
+  const set = (field: string) => (v: string) => setForm((prev) => ({ ...prev, [field]: v }));
+
+  return (
+    <Modal open={open} onClose={onClose} title="Editar Perfil">
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Nombre" value={form.nombre} onChange={set('nombre')} />
+          <FormField label="Apellido" value={form.apellido} onChange={set('apellido')} />
+        </div>
+        <FormField label="RUT" value={form.rut} onChange={set('rut')} />
+        <FormField label="Email" value={form.email} onChange={set('email')} type="email" />
+        <FormField label="Teléfono" value={form.telefono} onChange={set('telefono')} />
+        <FormField label="Fecha Nacimiento" value={form.fecha_nacimiento} onChange={set('fecha_nacimiento')} type="date" />
+        <FormField label="Dirección" value={form.direccion} onChange={set('direccion')} />
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Comuna" value={form.comuna} onChange={set('comuna')} />
+          <FormField label="Ciudad" value={form.ciudad} onChange={set('ciudad')} />
+        </div>
+      </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button
+          onClick={onClose}
+          className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          Guardar
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// --- Info field ---
 function InfoField({
   icon,
   label,
@@ -182,44 +448,322 @@ function InfoField({
     <div className="flex items-start gap-2">
       <div className="mt-0.5">{icon}</div>
       <div>
-        <dt className="text-[11px] font-medium uppercase text-zinc-400">
-          {label}
-        </dt>
+        <dt className="text-[11px] font-medium uppercase text-zinc-400">{label}</dt>
         <dd className="text-sm font-medium text-zinc-900">{value}</dd>
       </div>
     </div>
   );
 }
 
-function FamiliaTab() {
+// --- Edit Familiar Modal ---
+function EditFamiliarModal({
+  open,
+  onClose,
+  familiar,
+  tipo,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  familiar: Familiar | null;
+  tipo: string;
+  onSaved: () => void;
+}) {
+  const isNew = !familiar;
+  const [form, setForm] = useState({
+    nombre: '',
+    apellido: '',
+    fecha_nacimiento: '',
+    alergias: '',
+    condiciones_medicas: '',
+    telefono: '',
+    email: '',
+    notas: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      if (familiar) {
+        setForm({
+          nombre: familiar.nombre || '',
+          apellido: familiar.apellido || '',
+          fecha_nacimiento: familiar.fecha_nacimiento || '',
+          alergias: familiar.alergias || '',
+          condiciones_medicas: familiar.condiciones_medicas || '',
+          telefono: familiar.telefono || '',
+          email: familiar.email || '',
+          notas: familiar.notas || '',
+        });
+      } else {
+        setForm({
+          nombre: '',
+          apellido: '',
+          fecha_nacimiento: '',
+          alergias: '',
+          condiciones_medicas: '',
+          telefono: '',
+          email: '',
+          notas: '',
+        });
+      }
+    }
+  }, [open, familiar]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const supabase = createClient();
+    if (isNew) {
+      await supabase.from('familiares_empleador').insert({
+        empleador_id: EMPLEADOR_ID,
+        tipo,
+        ...form,
+      });
+    } else {
+      await supabase
+        .from('familiares_empleador')
+        .update(form)
+        .eq('id', familiar!.id);
+    }
+    setSaving(false);
+    onSaved();
+    onClose();
+  };
+
+  const set = (field: string) => (v: string) => setForm((prev) => ({ ...prev, [field]: v }));
+
+  const title = isNew
+    ? tipo === 'hijo' ? 'Agregar Hijo' : 'Agregar Cónyuge'
+    : tipo === 'hijo' ? 'Editar Hijo' : 'Editar Cónyuge';
+
+  return (
+    <Modal open={open} onClose={onClose} title={title}>
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Nombre" value={form.nombre} onChange={set('nombre')} />
+          <FormField label="Apellido" value={form.apellido} onChange={set('apellido')} />
+        </div>
+        <FormField label="Fecha Nacimiento" value={form.fecha_nacimiento} onChange={set('fecha_nacimiento')} type="date" />
+        <FormField label="Alergias" value={form.alergias} onChange={set('alergias')} placeholder="Ninguna" />
+        <FormField label="Condiciones Médicas" value={form.condiciones_medicas} onChange={set('condiciones_medicas')} placeholder="Ninguna" />
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Teléfono" value={form.telefono} onChange={set('telefono')} />
+          <FormField label="Email" value={form.email} onChange={set('email')} type="email" />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">Notas</label>
+          <textarea
+            value={form.notas}
+            onChange={(e) => setForm((prev) => ({ ...prev, notas: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            rows={2}
+          />
+        </div>
+      </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+          Cancelar
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          Guardar
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// --- Edit Mascota Modal ---
+function EditMascotaModal({
+  open,
+  onClose,
+  mascota,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  mascota: Mascota | null;
+  onSaved: () => void;
+}) {
+  const isNew = !mascota;
+  const [form, setForm] = useState({
+    nombre: '',
+    tipo: '',
+    raza: '',
+    edad: 0,
+    instrucciones_cuidado: '',
+    veterinario_nombre: '',
+    veterinario_telefono: '',
+  });
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      if (mascota) {
+        setForm({
+          nombre: mascota.nombre || '',
+          tipo: mascota.tipo || '',
+          raza: mascota.raza || '',
+          edad: mascota.edad || 0,
+          instrucciones_cuidado: mascota.instrucciones_cuidado || '',
+          veterinario_nombre: mascota.veterinario_nombre || '',
+          veterinario_telefono: mascota.veterinario_telefono || '',
+        });
+      } else {
+        setForm({
+          nombre: '',
+          tipo: '',
+          raza: '',
+          edad: 0,
+          instrucciones_cuidado: '',
+          veterinario_nombre: '',
+          veterinario_telefono: '',
+        });
+      }
+    }
+  }, [open, mascota]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    const supabase = createClient();
+    if (isNew) {
+      await supabase.from('mascotas_empleador').insert({
+        empleador_id: EMPLEADOR_ID,
+        ...form,
+      });
+    } else {
+      await supabase
+        .from('mascotas_empleador')
+        .update(form)
+        .eq('id', mascota!.id);
+    }
+    setSaving(false);
+    onSaved();
+    onClose();
+  };
+
+  const set = (field: string) => (v: string) => setForm((prev) => ({ ...prev, [field]: v }));
+
+  return (
+    <Modal open={open} onClose={onClose} title={isNew ? 'Agregar Mascota' : 'Editar Mascota'}>
+      <div className="space-y-3">
+        <FormField label="Nombre" value={form.nombre} onChange={set('nombre')} />
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Tipo" value={form.tipo} onChange={set('tipo')} placeholder="Perro, Gato..." />
+          <FormField label="Raza" value={form.raza} onChange={set('raza')} />
+        </div>
+        <FormField
+          label="Edad (años)"
+          value={String(form.edad)}
+          onChange={(v) => setForm((prev) => ({ ...prev, edad: parseInt(v) || 0 }))}
+          type="number"
+        />
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">Instrucciones de Cuidado</label>
+          <textarea
+            value={form.instrucciones_cuidado}
+            onChange={(e) => setForm((prev) => ({ ...prev, instrucciones_cuidado: e.target.value }))}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+            rows={3}
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <FormField label="Veterinario" value={form.veterinario_nombre} onChange={set('veterinario_nombre')} />
+          <FormField label="Tel. Veterinario" value={form.veterinario_telefono} onChange={set('veterinario_telefono')} />
+        </div>
+      </div>
+      <div className="mt-5 flex justify-end gap-2">
+        <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+          Cancelar
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+          Guardar
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// --- Familia Tab ---
+function FamiliaTab({
+  conyuge,
+  hijos,
+  onRefresh,
+}: {
+  conyuge: Familiar | null;
+  hijos: Familiar[];
+  onRefresh: () => void;
+}) {
+  const [editFamiliar, setEditFamiliar] = useState<Familiar | null>(null);
+  const [editTipo, setEditTipo] = useState<string>('hijo');
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const openEdit = (fam: Familiar | null, tipo: string) => {
+    setEditFamiliar(fam);
+    setEditTipo(tipo);
+    setModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
-      {/* Cónyuge */}
+      <EditFamiliarModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        familiar={editFamiliar}
+        tipo={editTipo}
+        onSaved={onRefresh}
+      />
+
+      {/* Conyuge */}
       <div>
         <h3 className="mb-3 text-sm font-semibold text-zinc-700">Cónyuge</h3>
-        <div className="rounded-xl border border-zinc-200 bg-white p-5">
-          <div className="flex items-start gap-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50">
-              <Heart className="h-5 w-5 text-rose-500" />
-            </div>
-            <div className="flex-1">
-              <h4 className="font-bold text-zinc-900">
-                Carmen Gloria Pérez Muñoz
-              </h4>
-              <p className="text-xs text-zinc-500">Cónyuge</p>
-              <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1">
-                <div className="flex items-center gap-1.5 text-sm text-zinc-600">
-                  <Phone className="h-3.5 w-3.5 text-zinc-400" />
-                  +56 9 8765 4321
-                </div>
-                <div className="flex items-center gap-1.5 text-sm text-zinc-600">
-                  <Mail className="h-3.5 w-3.5 text-zinc-400" />
-                  carmen.perez@gmail.com
+        {conyuge ? (
+          <div className="rounded-xl border border-zinc-200 bg-white p-5">
+            <div className="flex items-start gap-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50">
+                <Heart className="h-5 w-5 text-rose-500" />
+              </div>
+              <div className="flex-1">
+                <h4 className="font-bold text-zinc-900">
+                  {conyuge.nombre} {conyuge.apellido}
+                </h4>
+                <p className="text-xs text-zinc-500">Cónyuge</p>
+                <div className="mt-3 flex flex-wrap gap-x-6 gap-y-1">
+                  {conyuge.telefono && (
+                    <div className="flex items-center gap-1.5 text-sm text-zinc-600">
+                      <Phone className="h-3.5 w-3.5 text-zinc-400" />
+                      {conyuge.telefono}
+                    </div>
+                  )}
+                  {conyuge.email && (
+                    <div className="flex items-center gap-1.5 text-sm text-zinc-600">
+                      <Mail className="h-3.5 w-3.5 text-zinc-400" />
+                      {conyuge.email}
+                    </div>
+                  )}
                 </div>
               </div>
+              <button
+                onClick={() => openEdit(conyuge, 'conyuge')}
+                className="rounded-lg p-1.5 hover:bg-zinc-100"
+                title="Editar"
+              >
+                <Pencil className="h-4 w-4 text-zinc-400" />
+              </button>
             </div>
           </div>
-        </div>
+        ) : (
+          <p className="text-sm text-zinc-400 italic">Sin cónyuge registrado.</p>
+        )}
       </div>
 
       {/* Hijos */}
@@ -227,145 +771,332 @@ function FamiliaTab() {
         <div className="mb-3 flex items-center gap-2">
           <h3 className="text-sm font-semibold text-zinc-700">Hijos</h3>
           <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-600">
-            3 hijos
+            {hijos.length} {hijos.length === 1 ? 'hijo' : 'hijos'}
           </span>
+          <button
+            onClick={() => openEdit(null, 'hijo')}
+            className="ml-auto flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            Agregar Hijo
+          </button>
         </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-          {hijos.map((hijo) => (
-            <div
-              key={hijo.nombre}
-              className="rounded-xl border border-zinc-200 bg-white p-4"
-            >
-              <div className="mb-2 flex items-center justify-between">
-                <h4 className="text-sm font-bold text-zinc-900">
-                  {hijo.nombre}
-                </h4>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${hijo.badgeClass}`}
-                >
-                  {hijo.badge}
-                </span>
-              </div>
-              <div className="space-y-1.5">
-                <div className="text-xs">
-                  <span className="text-zinc-400">Edad: </span>
-                  <span className="text-zinc-700">{hijo.edad} años</span>
+        {hijos.length === 0 ? (
+          <p className="text-sm text-zinc-400 italic">Sin hijos registrados.</p>
+        ) : (
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            {hijos.map((hijo) => {
+              const edad = hijo.fecha_nacimiento ? calcularEdad(hijo.fecha_nacimiento) : null;
+              const esMenor = edad !== null && edad < 18;
+              return (
+                <div key={hijo.id} className="rounded-xl border border-zinc-200 bg-white p-4">
+                  <div className="mb-2 flex items-center justify-between">
+                    <h4 className="text-sm font-bold text-zinc-900">
+                      {hijo.nombre} {hijo.apellido}
+                    </h4>
+                    <div className="flex items-center gap-1">
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                          esMenor ? 'bg-amber-100 text-amber-700' : 'bg-zinc-100 text-zinc-700'
+                        }`}
+                      >
+                        {esMenor ? 'Menor' : 'Adulto'}
+                      </span>
+                      <button
+                        onClick={() => openEdit(hijo, 'hijo')}
+                        className="rounded-lg p-1 hover:bg-zinc-100"
+                        title="Editar"
+                      >
+                        <Pencil className="h-3.5 w-3.5 text-zinc-400" />
+                      </button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {edad !== null && (
+                      <div className="text-xs">
+                        <span className="text-zinc-400">Edad: </span>
+                        <span className="text-zinc-700">{edad} años</span>
+                      </div>
+                    )}
+                    <div className="text-xs">
+                      <span className="text-zinc-400">Alergias: </span>
+                      <span className="text-zinc-700">{hijo.alergias || 'Ninguna'}</span>
+                    </div>
+                    <div className="text-xs">
+                      <span className="text-zinc-400">Condiciones: </span>
+                      <span className="text-zinc-700">{hijo.condiciones_medicas || 'Ninguna'}</span>
+                    </div>
+                  </div>
+                  {hijo.notas && (
+                    <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-700">
+                      {hijo.notas}
+                    </p>
+                  )}
                 </div>
-                <div className="text-xs">
-                  <span className="text-zinc-400">Alergias: </span>
-                  <span className="text-zinc-700">{hijo.alergias}</span>
-                </div>
-                <div className="text-xs">
-                  <span className="text-zinc-400">Condiciones: </span>
-                  <span className="text-zinc-700">{hijo.condiciones}</span>
-                </div>
-              </div>
-              {hijo.nota && (
-                <p className="mt-2 rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-700">
-                  {hijo.nota}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function MascotasTab() {
+// --- Mascotas Tab ---
+function MascotasTab({
+  mascotas,
+  onRefresh,
+}: {
+  mascotas: Mascota[];
+  onRefresh: () => void;
+}) {
+  const [editMascota, setEditMascota] = useState<Mascota | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
+
+  const openEdit = (m: Mascota | null) => {
+    setEditMascota(m);
+    setModalOpen(true);
+  };
+
+  const getMascotaStyle = (tipo: string) => {
+    const t = tipo.toLowerCase();
+    if (t.includes('perr') || t === 'dog') {
+      return {
+        icon: 'dog' as const,
+        colorFrom: 'from-amber-50',
+        colorTo: 'to-amber-100',
+        iconColor: 'text-amber-600',
+        iconBg: 'bg-amber-100',
+      };
+    }
+    return {
+      icon: 'cat' as const,
+      colorFrom: 'from-violet-50',
+      colorTo: 'to-violet-100',
+      iconColor: 'text-violet-600',
+      iconBg: 'bg-violet-100',
+    };
+  };
+
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {mascotas.map((mascota) => (
-        <div
-          key={mascota.nombre}
-          className="rounded-xl border border-zinc-200 bg-white overflow-hidden"
+    <div>
+      <div className="mb-4 flex justify-end">
+        <button
+          onClick={() => openEdit(null)}
+          className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50"
         >
-          <div
-            className={`bg-gradient-to-r ${mascota.colorFrom} ${mascota.colorTo} px-5 py-4 flex items-center gap-3`}
-          >
-            <div
-              className={`flex h-10 w-10 items-center justify-center rounded-full ${mascota.iconBg}`}
-            >
-              {mascota.icon === 'dog' ? (
-                <Dog className={`h-5 w-5 ${mascota.iconColor}`} />
-              ) : (
-                <Cat className={`h-5 w-5 ${mascota.iconColor}`} />
-              )}
-            </div>
-            <div>
-              <h4 className="text-sm font-bold text-zinc-900">
-                {mascota.nombre}
-              </h4>
-              <p className="text-xs text-zinc-500">
-                {mascota.tipo} &middot; {mascota.raza}
-              </p>
-            </div>
-          </div>
-          <div className="px-5 py-4 space-y-2">
-            <div className="text-xs">
-              <span className="text-zinc-400">Edad: </span>
-              <span className="text-zinc-700">{mascota.edad} años</span>
-            </div>
-            <div className="text-xs">
-              <span className="text-zinc-400">Notas: </span>
-              <span className="text-zinc-700">{mascota.notas}</span>
-            </div>
-          </div>
+          <Plus className="h-3.5 w-3.5" />
+          Agregar Mascota
+        </button>
+      </div>
+
+      <EditMascotaModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        mascota={editMascota}
+        onSaved={onRefresh}
+      />
+
+      {mascotas.length === 0 ? (
+        <p className="text-sm text-zinc-400 italic">Sin mascotas registradas.</p>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {mascotas.map((mascota) => {
+            const style = getMascotaStyle(mascota.tipo);
+            return (
+              <div
+                key={mascota.id}
+                className="rounded-xl border border-zinc-200 bg-white overflow-hidden"
+              >
+                <div
+                  className={`bg-gradient-to-r ${style.colorFrom} ${style.colorTo} px-5 py-4 flex items-center gap-3`}
+                >
+                  <div
+                    className={`flex h-10 w-10 items-center justify-center rounded-full ${style.iconBg}`}
+                  >
+                    {style.icon === 'dog' ? (
+                      <Dog className={`h-5 w-5 ${style.iconColor}`} />
+                    ) : (
+                      <Cat className={`h-5 w-5 ${style.iconColor}`} />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-bold text-zinc-900">{mascota.nombre}</h4>
+                    <p className="text-xs text-zinc-500">
+                      {mascota.tipo} &middot; {mascota.raza}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => openEdit(mascota)}
+                    className="rounded-lg p-1.5 hover:bg-white/50"
+                    title="Editar"
+                  >
+                    <Pencil className="h-4 w-4 text-zinc-400" />
+                  </button>
+                </div>
+                <div className="px-5 py-4 space-y-2">
+                  <div className="text-xs">
+                    <span className="text-zinc-400">Edad: </span>
+                    <span className="text-zinc-700">{mascota.edad} años</span>
+                  </div>
+                  {mascota.instrucciones_cuidado && (
+                    <div className="text-xs">
+                      <span className="text-zinc-400">Cuidado: </span>
+                      <span className="text-zinc-700">{mascota.instrucciones_cuidado}</span>
+                    </div>
+                  )}
+                  {mascota.veterinario_nombre && (
+                    <div className="text-xs">
+                      <span className="text-zinc-400">Veterinario: </span>
+                      <span className="text-zinc-700">
+                        {mascota.veterinario_nombre}
+                        {mascota.veterinario_telefono ? ` (${mascota.veterinario_telefono})` : ''}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      ))}
+      )}
     </div>
   );
 }
 
-function PreferenciasTab() {
+// --- Preferencias Tab ---
+function PreferenciasTab({
+  preferencias,
+  onRefresh,
+}: {
+  preferencias: Preferencia | null;
+  onRefresh: () => void;
+}) {
+  const [prioridades, setPrioridades] = useState<{ titulo: string }[]>(
+    preferencias?.prioridades || []
+  );
+  const [notas, setNotas] = useState(preferencias?.notas_generales || '');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    setPrioridades(preferencias?.prioridades || []);
+    setNotas(preferencias?.notas_generales || '');
+  }, [preferencias]);
+
+  const moveUp = (index: number) => {
+    if (index === 0) return;
+    const next = [...prioridades];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setPrioridades(next);
+  };
+
+  const moveDown = (index: number) => {
+    if (index === prioridades.length - 1) return;
+    const next = [...prioridades];
+    [next[index], next[index + 1]] = [next[index + 1], next[index]];
+    setPrioridades(next);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setSaved(false);
+    const supabase = createClient();
+    if (preferencias) {
+      await supabase
+        .from('preferencias_trabajo')
+        .update({ prioridades, notas_generales: notas })
+        .eq('id', preferencias.id);
+    } else {
+      await supabase.from('preferencias_trabajo').insert({
+        empleador_id: EMPLEADOR_ID,
+        prioridades,
+        notas_generales: notas,
+      });
+    }
+    setSaving(false);
+    setSaved(true);
+    onRefresh();
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const getBadge = (index: number, total: number) => {
+    if (index === 0) return { text: 'Máxima', cls: 'bg-green-100 text-green-700' };
+    if (index === total - 1) return { text: 'Baja', cls: 'bg-zinc-100 text-zinc-500' };
+    return null;
+  };
+
   return (
     <div className="space-y-6">
-      {/* Prioridades de trabajo */}
+      {/* Prioridades */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700">
-          Prioridades de trabajo
-        </h3>
+        <h3 className="mb-3 text-sm font-semibold text-zinc-700">Prioridades de trabajo</h3>
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-          {prioridades.map((item, index) => (
-            <div
-              key={item.titulo}
-              className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-b-0"
-            >
-              <GripVertical className="h-4 w-4 text-zinc-300" />
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
-                {index + 1}
+          {prioridades.map((item, index) => {
+            const badge = getBadge(index, prioridades.length);
+            return (
+              <div
+                key={index}
+                className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-b-0"
+              >
+                <div className="flex flex-col">
+                  <button
+                    onClick={() => moveUp(index)}
+                    disabled={index === 0}
+                    className="rounded p-0.5 hover:bg-zinc-100 disabled:opacity-20"
+                  >
+                    <ChevronUp className="h-3.5 w-3.5 text-zinc-500" />
+                  </button>
+                  <button
+                    onClick={() => moveDown(index)}
+                    disabled={index === prioridades.length - 1}
+                    className="rounded p-0.5 hover:bg-zinc-100 disabled:opacity-20"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
+                  </button>
+                </div>
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
+                  {index + 1}
+                </div>
+                <span className="flex-1 text-sm font-medium text-zinc-800">{item.titulo}</span>
+                {badge && (
+                  <span
+                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${badge.cls}`}
+                  >
+                    {badge.text}
+                  </span>
+                )}
               </div>
-              <span className="flex-1 text-sm font-medium text-zinc-800">
-                {item.titulo}
-              </span>
-              {item.badge && (
-                <span
-                  className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${
-                    item.badge === 'Máxima'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-zinc-100 text-zinc-500'
-                  }`}
-                >
-                  {item.badge}
-                </span>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {/* Notas generales */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700">
-          Notas generales
-        </h3>
-        <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm italic text-zinc-700">
-          Me preocupa más el aseo que la cocina. La nana debe priorizar el orden
-          y limpieza de la casa antes de cocinar. Los niños son la prioridad
-          cuando están en casa (fines de semana y después de las 16:00). Rocky
-          necesita paseo a las 7:00 y 18:00 sin falta.
-        </div>
+        <h3 className="mb-3 text-sm font-semibold text-zinc-700">Notas generales</h3>
+        <textarea
+          value={notas}
+          onChange={(e) => setNotas(e.target.value)}
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          rows={4}
+        />
+      </div>
+
+      {/* Save button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Save className="h-4 w-4" />
+          )}
+          {saved ? 'Guardado' : 'Guardar Cambios'}
+        </button>
       </div>
     </div>
   );
