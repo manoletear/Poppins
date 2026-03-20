@@ -11,6 +11,7 @@ import {
   ShoppingCart,
   Bell,
   ChevronDown,
+  ChevronRight,
   Check,
   Loader2,
 } from 'lucide-react';
@@ -27,20 +28,27 @@ const quickActions = [
   { label: 'Ver Solicitudes', icon: MessageSquare, href: '/empresa/solicitudes' },
 ];
 
+type TaskStatus = 'completed' | 'in_progress' | 'pending';
+
 interface Task {
   id: number;
   title: string;
   assignee: string;
   role: string;
-  completed: boolean;
+  status: TaskStatus;
 }
 
 const initialTasks: Task[] = [
-  { id: 1, title: 'Aseo general living y comedor', assignee: 'María', role: 'nana', completed: true },
-  { id: 2, title: 'Lavar y planchar ropa', assignee: 'María', role: 'nana', completed: false },
-  { id: 3, title: 'Cortar pasto sector norte', assignee: 'Juan', role: 'jardinero', completed: false },
-  { id: 4, title: 'Limpiar piscina y revisar pH', assignee: 'Pedro', role: 'piscinero', completed: false },
-  { id: 5, title: 'Preparar almuerzo', assignee: 'María', role: 'nana', completed: false },
+  { id: 1, title: 'Aseo general living y comedor', assignee: 'María', role: 'nana', status: 'completed' },
+  { id: 2, title: 'Lavar y planchar ropa', assignee: 'María', role: 'nana', status: 'completed' },
+  { id: 3, title: 'Preparar almuerzo', assignee: 'María', role: 'nana', status: 'completed' },
+  { id: 4, title: 'Planchar uniformes', assignee: 'María', role: 'nana', status: 'in_progress' },
+  { id: 5, title: 'Cortar pasto sector norte', assignee: 'Juan', role: 'jardinero', status: 'pending' },
+  { id: 6, title: 'Podar arbustos entrada', assignee: 'Juan', role: 'jardinero', status: 'pending' },
+  { id: 7, title: 'Limpiar piscina y revisar pH', assignee: 'Pedro', role: 'piscinero', status: 'pending' },
+  { id: 8, title: 'Revisar filtro piscina', assignee: 'Pedro', role: 'piscinero', status: 'pending' },
+  { id: 9, title: 'Regar jardín trasero', assignee: 'Juan', role: 'jardinero', status: 'pending' },
+  { id: 10, title: 'Limpiar terraza', assignee: 'María', role: 'nana', status: 'pending' },
 ];
 
 interface ShoppingItem {
@@ -130,6 +138,35 @@ export default function EmpresaDashboard() {
     });
   }, [pendingAbsences, employees]);
 
+  /* ── Local state for interactive features ── */
+  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(initialShoppingItems);
+  const [periodoOpen, setPeriodoOpen] = useState(false);
+  const [periodoSelected, setPeriodoSelected] = useState(periodos[0]);
+  const [resolvedSolicitudes, setResolvedSolicitudes] = useState<Record<number, 'aprobada' | 'rechazada'>>({});
+  const [taskDetailOpen, setTaskDetailOpen] = useState(false);
+
+  const toggleTask = (id: number) => {
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id !== id) return t;
+        // Cycle: pending -> in_progress -> completed -> pending
+        const next: TaskStatus =
+          t.status === 'pending' ? 'in_progress' : t.status === 'in_progress' ? 'completed' : 'pending';
+        return { ...t, status: next };
+      })
+    );
+  };
+
+  const taskStats = useMemo(() => {
+    const completed = tasks.filter((t) => t.status === 'completed');
+    const inProgress = tasks.filter((t) => t.status === 'in_progress');
+    const pending = tasks.filter((t) => t.status === 'pending');
+    const total = tasks.length;
+    const pct = total > 0 ? Math.round((completed.length / total) * 100) : 0;
+    return { completed, inProgress, pending, total, pct };
+  }, [tasks]);
+
   /* ── KPI cards with real data where available ── */
   const kpis = useMemo(
     () => [
@@ -149,8 +186,8 @@ export default function EmpresaDashboard() {
       },
       {
         label: 'Tareas Hoy',
-        value: '5',
-        sub: '2 completadas',
+        value: `${taskStats.completed.length}/${taskStats.total}`,
+        sub: `${taskStats.pct}% completado`,
         icon: CheckSquare,
         color: 'bg-blue-500',
       },
@@ -162,19 +199,8 @@ export default function EmpresaDashboard() {
         color: 'bg-violet-500',
       },
     ],
-    [loadingEmployees, loadingAbsences, activeEmployees, pendingAbsences, employeeCountLabel]
+    [loadingEmployees, loadingAbsences, activeEmployees, pendingAbsences, employeeCountLabel, taskStats]
   );
-
-  /* ── Local state for interactive features ── */
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(initialShoppingItems);
-  const [periodoOpen, setPeriodoOpen] = useState(false);
-  const [periodoSelected, setPeriodoSelected] = useState(periodos[0]);
-  const [resolvedSolicitudes, setResolvedSolicitudes] = useState<Record<number, 'aprobada' | 'rechazada'>>({});
-
-  const toggleTask = (id: number) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
-  };
 
   const toggleShoppingItem = (id: number) => {
     setShoppingItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
@@ -281,16 +307,66 @@ export default function EmpresaDashboard() {
         {/* Tareas del Día */}
         <div className="rounded-xl border border-zinc-200 bg-white">
           <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
-            <h2 className="text-base font-semibold text-zinc-900">Tareas del Día</h2>
+            <div className="flex items-center gap-3">
+              {/* Circular progress indicator */}
+              <div className="relative h-11 w-11 shrink-0">
+                <svg className="h-11 w-11 -rotate-90" viewBox="0 0 44 44">
+                  <circle
+                    cx="22"
+                    cy="22"
+                    r="18"
+                    fill="none"
+                    stroke="#e4e4e7"
+                    strokeWidth="4"
+                  />
+                  <circle
+                    cx="22"
+                    cy="22"
+                    r="18"
+                    fill="none"
+                    stroke="#3b82f6"
+                    strokeWidth="4"
+                    strokeLinecap="round"
+                    strokeDasharray={`${2 * Math.PI * 18}`}
+                    strokeDashoffset={`${2 * Math.PI * 18 * (1 - taskStats.pct / 100)}`}
+                    className="transition-all duration-500"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[11px] font-bold text-zinc-700">
+                  {taskStats.pct}%
+                </span>
+              </div>
+              <h2 className="text-base font-semibold text-zinc-900">Tareas del Día</h2>
+            </div>
             <Link href="/empresa/tareas" className="text-xs font-medium text-blue-600 hover:text-blue-700">
               Ver todas &rarr;
             </Link>
           </div>
+
+          {/* Stats bar */}
+          <div className="flex items-center gap-4 px-5 py-2.5 border-b border-zinc-100 text-xs text-zinc-500">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              {taskStats.completed.length} completadas
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              {taskStats.inProgress.length} en progreso
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-500" />
+              {taskStats.pending.length} pendientes
+            </span>
+          </div>
+
+          {/* Task toggles */}
           <div className="divide-y divide-zinc-100">
             {tasks.map((task) => (
               <div key={task.id} className="flex items-center justify-between px-5 py-3">
                 <div>
-                  <p className={`text-sm font-medium ${task.completed ? 'text-zinc-400 line-through' : 'text-zinc-800'}`}>
+                  <p className={`text-sm font-medium ${
+                    task.status === 'completed' ? 'text-zinc-400 line-through' : 'text-zinc-800'
+                  }`}>
                     {task.title}
                   </p>
                   <p className="text-xs text-zinc-400">
@@ -300,17 +376,92 @@ export default function EmpresaDashboard() {
                 <button
                   onClick={() => toggleTask(task.id)}
                   className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-                    task.completed ? 'bg-emerald-500' : 'bg-zinc-200'
+                    task.status === 'completed'
+                      ? 'bg-emerald-500'
+                      : task.status === 'in_progress'
+                      ? 'bg-blue-500'
+                      : 'bg-zinc-200'
                   }`}
                 >
                   <span
                     className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                      task.completed ? 'translate-x-5' : 'translate-x-0'
+                      task.status === 'completed'
+                        ? 'translate-x-5'
+                        : task.status === 'in_progress'
+                        ? 'translate-x-2.5'
+                        : 'translate-x-0'
                     }`}
                   />
                 </button>
               </div>
             ))}
+          </div>
+
+          {/* Expandable detail section */}
+          <div className="border-t border-zinc-100">
+            <button
+              onClick={() => setTaskDetailOpen(!taskDetailOpen)}
+              className="flex items-center gap-1.5 px-5 py-3 text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors w-full text-left"
+            >
+              <ChevronRight
+                className={`h-3.5 w-3.5 transition-transform duration-200 ${
+                  taskDetailOpen ? 'rotate-90' : ''
+                }`}
+              />
+              Ver detalle
+            </button>
+            {taskDetailOpen && (
+              <div className="px-5 pb-4 space-y-4">
+                {/* Completadas */}
+                {taskStats.completed.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-emerald-700 mb-1.5 flex items-center gap-1.5">
+                      <span className="text-sm">&#x2705;</span> Completadas
+                    </p>
+                    <ul className="space-y-1 pl-1">
+                      {taskStats.completed.map((t) => (
+                        <li key={t.id} className="text-xs text-zinc-500 flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-emerald-400 shrink-0" />
+                          {t.title} <span className="text-zinc-400">— {t.assignee}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {/* En progreso */}
+                {taskStats.inProgress.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-blue-700 mb-1.5 flex items-center gap-1.5">
+                      <span className="text-sm">&#x1F504;</span> En progreso
+                    </p>
+                    <ul className="space-y-1 pl-1">
+                      {taskStats.inProgress.map((t) => (
+                        <li key={t.id} className="text-xs text-zinc-500 flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-blue-400 shrink-0" />
+                          {t.title} <span className="text-zinc-400">— {t.assignee}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {/* Pendientes */}
+                {taskStats.pending.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold text-amber-700 mb-1.5 flex items-center gap-1.5">
+                      <span className="text-sm">&#x23F3;</span> Pendientes
+                    </p>
+                    <ul className="space-y-1 pl-1">
+                      {taskStats.pending.map((t) => (
+                        <li key={t.id} className="text-xs text-zinc-500 flex items-start gap-1.5">
+                          <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+                          {t.title} <span className="text-zinc-400">— {t.assignee}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
