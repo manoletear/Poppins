@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -12,9 +12,21 @@ import {
   ChevronRight,
   DollarSign,
   CalendarClock,
+  Loader2,
 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
 
-const empleados = [
+const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
+
+interface ContratoView {
+  contrato_id: string;
+  numero_contrato: string;
+  trabajador_id: string;
+  trabajador_nombre: string;
+  [key: string]: unknown;
+}
+
+const empleadosFallback = [
   {
     id: 1,
     nombre: 'María López Soto',
@@ -72,6 +84,34 @@ const empleados = [
 ];
 
 export default function EmpleadosPage() {
+  const [contratos, setContratos] = useState<ContratoView[]>([]);
+  const [loadingContratos, setLoadingContratos] = useState(true);
+
+  useEffect(() => {
+    const supabase = createClient();
+    async function loadContratos() {
+      const { data } = await supabase
+        .from('v_contratos_empleador')
+        .select('*')
+        .eq('empleador_id', EMPLEADOR_ID);
+      if (data) setContratos(data);
+      setLoadingContratos(false);
+    }
+    loadContratos();
+  }, []);
+
+  // Merge real contract numbers into the fallback employee data
+  const empleados = empleadosFallback.map((emp) => {
+    // Match by name or position - find matching contract from view
+    const matchingContrato = contratos.find(
+      (c) => c.trabajador_nombre && emp.nombre.includes(c.trabajador_nombre.split(' ')[0])
+    );
+    return {
+      ...emp,
+      contrato: matchingContrato ? matchingContrato.numero_contrato : emp.contrato,
+      trabajador_id: matchingContrato?.trabajador_id,
+    };
+  });
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -135,7 +175,7 @@ export default function EmpleadosPage() {
                     href={`/empresa/empleados/${emp.id}?tab=contrato`}
                     className="font-semibold text-zinc-900 hover:text-blue-600 underline underline-offset-2 transition-colors"
                   >
-                    {emp.contrato}
+                    {emp.contrato.startsWith('#') ? emp.contrato : `#${emp.contrato}`}
                   </Link>
                 </div>
                 <div className="flex items-center gap-2">

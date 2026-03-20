@@ -12,6 +12,8 @@ import {
   Circle,
   ArrowRight,
   Loader2,
+  FileText,
+  Building2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -95,6 +97,9 @@ export default function PortalDashboard() {
   const [vacacionesDias, setVacacionesDias] = useState<number>(8.5);
   const [sueldoLiquido, setSueldoLiquido] = useState<number>(576750);
   const [horasTrabajadas, setHorasTrabajadas] = useState<string>('0h 00m');
+  const [numeroContrato, setNumeroContrato] = useState<string | null>(null);
+  const [empleadorNombre, setEmpleadorNombre] = useState<string | null>(null);
+  const [lugarTrabajo, setLugarTrabajo] = useState<string | null>(null);
 
   // Update clock every minute
   useEffect(() => {
@@ -199,6 +204,19 @@ export default function PortalDashboard() {
         .maybeSingle();
 
       if (liqData) setSueldoLiquido(liqData.sueldo_liquido);
+
+      // Load contract and employer info
+      const { data: contratoData } = await supabase
+        .from('v_mi_empleador')
+        .select('*')
+        .eq('trabajador_id', TRABAJADOR_ID)
+        .single();
+
+      if (contratoData) {
+        setNumeroContrato(contratoData.numero_contrato);
+        setEmpleadorNombre(contratoData.empleador_nombre);
+        setLugarTrabajo(contratoData.lugar_trabajo);
+      }
     } catch (error) {
       console.error('Error loading portal data:', error);
     } finally {
@@ -300,11 +318,28 @@ export default function PortalDashboard() {
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">{greeting}, María</h1>
           <p className="text-sm text-zinc-500">{formatDate(currentTime)}</p>
+          {numeroContrato && (
+            <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">
+              <FileText className="h-3.5 w-3.5" />
+              Contrato #{numeroContrato}
+            </span>
+          )}
         </div>
         <div className="text-right">
           <p className="text-2xl font-semibold text-zinc-900 tabular-nums">{formatTime(currentTime)}</p>
         </div>
       </div>
+
+      {/* Employer Info Card */}
+      {empleadorNombre && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-5 py-3 flex items-center gap-3">
+          <Building2 className="h-5 w-5 text-blue-600 shrink-0" />
+          <div className="text-sm text-blue-800">
+            <span className="font-semibold">Empleador: {empleadorNombre}</span>
+            {lugarTrabajo && <span className="text-blue-600"> &middot; {lugarTrabajo}</span>}
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

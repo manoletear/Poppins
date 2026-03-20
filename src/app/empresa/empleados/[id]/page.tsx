@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/client';
 import {
   ArrowLeft,
   Download,
@@ -252,7 +253,7 @@ function formatCLP(amount: number): string {
   return '$' + amount.toLocaleString('es-CL');
 }
 
-function downloadContractPDF(employee: EmployeeData) {
+function downloadContractPDF(employee: EmployeeData, numeroContrato?: string) {
   const contractHTML = `
     <!DOCTYPE html>
     <html lang="es">
@@ -310,6 +311,7 @@ function downloadContractPDF(employee: EmployeeData) {
     </head>
     <body>
       <h1>Contrato de Trabajo</h1>
+      ${numeroContrato ? `<p style="text-align:center;color:#2563eb;font-size:14px;font-weight:bold;margin-bottom:20px">Ref: ${numeroContrato}</p>` : ''}
       <p class="parties">
         En Santiago de Chile, a ${employee.fechaIngreso}, entre <strong>Rene Alejandro Aravena Riffo</strong>,
         RUT <strong>6.836.579-1</strong>, domiciliado en Av. Las Condes 1234, Las Condes, Santiago,
@@ -494,13 +496,47 @@ const tabs: { key: TabKey; label: string }[] = [
 // Component
 // ---------------------------------------------------------------------------
 
+interface ContratoData {
+  id: string;
+  numero_contrato: string;
+  empleador_id: string;
+  trabajadores?: { nombre: string; apellido: string; rut: string } | null;
+  empleadores?: { nombre: string; rut: string; direccion: string } | null;
+  [key: string]: unknown;
+}
+
 export default function EmpleadoDetallePage() {
   const params = useParams();
   const id = params.id as string;
   const [activeTab, setActiveTab] = useState<TabKey>('resumen');
   const [expandedLiq, setExpandedLiq] = useState<number | null>(null);
+  const [contratoData, setContratoData] = useState<ContratoData | null>(null);
 
   const employee = empleadosData[id];
+
+  // Load real contract data from Supabase
+  useEffect(() => {
+    if (!employee) return;
+    const supabase = createClient();
+    async function loadContrato() {
+      // Query contratos table joined with trabajadores and empleadores
+      const { data } = await supabase
+        .from('contratos')
+        .select('*, trabajadores(*), empleadores(*)')
+        .order('created_at', { ascending: false });
+
+      if (data && data.length > 0) {
+        // Match contract to this employee by index (id 1 = first contract, etc.)
+        const matchIndex = parseInt(id) - 1;
+        if (data[matchIndex]) {
+          setContratoData(data[matchIndex]);
+        } else if (data[0]) {
+          setContratoData(data[0]);
+        }
+      }
+    }
+    loadContrato();
+  }, [id, employee]);
 
   if (!employee) {
     return (
@@ -531,7 +567,7 @@ export default function EmpleadoDetallePage() {
 
   function handleDocumentDownload(docName: string) {
     if (docName.startsWith('Contrato')) {
-      downloadContractPDF(employee);
+      downloadContractPDF(employee, contratoData?.numero_contrato);
     } else if (docName.startsWith('Liquidación')) {
       const liq = docName.includes('Marzo') ? liquidaciones[0] : liquidaciones[1];
       downloadLiquidacionPDF(employee, liq);
@@ -602,6 +638,12 @@ export default function EmpleadoDetallePage() {
               <span className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700">
                 {employee.estado}
               </span>
+              {contratoData?.numero_contrato && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700">
+                  <FileText className="h-3 w-3" />
+                  {contratoData.numero_contrato}
+                </span>
+              )}
             </div>
             <p className="text-sm text-zinc-500 mt-0.5">
               {employee.cargo} &middot; {employee.modalidad}
@@ -687,10 +729,23 @@ export default function EmpleadoDetallePage() {
       {/* ============ CONTRATO ============ */}
       {activeTab === 'contrato' && (
         <div className="space-y-4">
+          {/* Contract KEY ID badge */}
+          {contratoData?.numero_contrato && (
+            <div className="rounded-xl border-2 border-blue-200 bg-blue-50 px-5 py-4 flex items-center gap-4">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+                <FileText className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-blue-600 uppercase">N° Contrato</p>
+                <p className="text-xl font-bold text-blue-900">{contratoData.numero_contrato}</p>
+              </div>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex gap-3">
             <button
-              onClick={() => downloadContractPDF(employee)}
+              onClick={() => downloadContractPDF(employee, contratoData?.numero_contrato)}
               className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
             >
               <Download className="h-4 w-4" />
@@ -708,9 +763,14 @@ export default function EmpleadoDetallePage() {
 
           {/* Contract display */}
           <div className="rounded-xl border border-zinc-200 bg-white p-8 lg:p-12 max-w-3xl">
-            <h2 className="text-center text-xl font-bold tracking-widest text-zinc-900 mb-8 font-serif uppercase">
+            <h2 className="text-center text-xl font-bold tracking-widest text-zinc-900 mb-2 font-serif uppercase">
               Contrato de Trabajo
             </h2>
+            {contratoData?.numero_contrato && (
+              <p className="text-center text-sm font-semibold text-blue-600 mb-8">
+                Ref: {contratoData.numero_contrato}
+              </p>
+            )}
 
             <p className="text-sm text-zinc-700 leading-relaxed mb-6 font-serif">
               En Santiago de Chile, a {employee.fechaIngreso}, entre{' '}

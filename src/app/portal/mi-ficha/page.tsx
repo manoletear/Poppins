@@ -2,10 +2,19 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { User, Briefcase, Shield, Mail, Phone, MapPin, Calendar, Clock, Send } from 'lucide-react';
+import { User, Briefcase, Shield, Mail, Phone, MapPin, Calendar, Clock, Send, FileText, Building2 } from 'lucide-react';
 import type { Employee } from '@/types/database';
 
 const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
+
+interface ContratoEmpleador {
+  numero_contrato: string;
+  empleador_nombre: string;
+  empleador_rut: string;
+  lugar_trabajo: string;
+  tipo_vivienda: string;
+  [key: string]: unknown;
+}
 
 type TabId = 'resumen' | 'contrato' | 'prevision';
 
@@ -21,6 +30,7 @@ function calcAntiguedad(fechaIngreso: string): string {
 
 export default function MiFichaPage() {
   const [employee, setEmployee] = useState<Employee | null>(null);
+  const [contratoInfo, setContratoInfo] = useState<ContratoEmpleador | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('resumen');
   const [showSolicitud, setShowSolicitud] = useState(false);
@@ -32,12 +42,12 @@ export default function MiFichaPage() {
   useEffect(() => {
     const supabase = createClient();
     async function load() {
-      const { data } = await supabase
-        .from('employees')
-        .select('*')
-        .eq('id', WORKER_ID)
-        .single();
-      setEmployee(data);
+      const [empResult, contratoResult] = await Promise.all([
+        supabase.from('employees').select('*').eq('id', WORKER_ID).single(),
+        supabase.from('v_mi_empleador').select('*').eq('trabajador_id', WORKER_ID).single(),
+      ]);
+      setEmployee(empResult.data);
+      setContratoInfo(contratoResult.data);
       setLoading(false);
     }
     load();
@@ -79,6 +89,7 @@ export default function MiFichaPage() {
         </head>
         <body>
           <h1>Contrato de Trabajo</h1>
+          ${contratoInfo?.numero_contrato ? `<h2 style="color:#059669;font-size:14px;margin-bottom:4px">Ref: ${contratoInfo.numero_contrato}</h2>` : ''}
           <h2>${nombreCompleto}</h2>
           <div class="row"><span class="label">Tipo de Contrato</span><span class="value">${employee.tipo_contrato}</span></div>
           <div class="row"><span class="label">Cargo</span><span class="value">${employee.cargo}</span></div>
@@ -113,6 +124,12 @@ export default function MiFichaPage() {
               <span className="mt-3 text-[11px] font-semibold px-3 py-1 rounded-full bg-emerald-400/30 text-white">
                 {employee.estado === 'activo' ? 'Activa' : employee.estado}
               </span>
+              {contratoInfo?.numero_contrato && (
+                <span className="mt-2 text-[11px] font-semibold px-3 py-1 rounded-full bg-white/20 text-white flex items-center gap-1.5">
+                  <FileText size={12} />
+                  Contrato: {contratoInfo.numero_contrato}
+                </span>
+              )}
             </div>
 
             <div className="p-5 space-y-4">
@@ -244,6 +261,47 @@ export default function MiFichaPage() {
                       Descargar Contrato PDF
                     </button>
                   </div>
+
+                  {/* Contract KEY ID */}
+                  {contratoInfo?.numero_contrato && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 flex items-center gap-3">
+                      <FileText size={20} className="text-emerald-600 shrink-0" />
+                      <div>
+                        <div className="text-xs text-emerald-600 font-semibold uppercase">N° Contrato</div>
+                        <div className="text-lg font-bold text-emerald-800">{contratoInfo.numero_contrato}</div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Employer info from view */}
+                  {contratoInfo && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Building2 size={16} className="text-blue-600" />
+                        <div className="text-xs text-blue-600 font-semibold uppercase">Informacion del Empleador</div>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {contratoInfo.empleador_nombre && (
+                          <div>
+                            <div className="text-xs text-blue-500">Empleador</div>
+                            <div className="text-sm font-medium text-blue-900">{contratoInfo.empleador_nombre}</div>
+                          </div>
+                        )}
+                        {contratoInfo.lugar_trabajo && (
+                          <div>
+                            <div className="text-xs text-blue-500">Lugar de Trabajo</div>
+                            <div className="text-sm font-medium text-blue-900">{contratoInfo.lugar_trabajo}</div>
+                          </div>
+                        )}
+                        {contratoInfo.tipo_vivienda && (
+                          <div>
+                            <div className="text-xs text-blue-500">Tipo de Vivienda</div>
+                            <div className="text-sm font-medium text-blue-900">{contratoInfo.tipo_vivienda}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-3">
                     {[
