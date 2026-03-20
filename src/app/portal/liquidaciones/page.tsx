@@ -78,7 +78,7 @@ function FirmaModal({ liq, onClose, onFirma }: { liq: Payroll; onClose: () => vo
   const handleFirmar = async () => {
     const supabase = createClient();
     await supabase
-      .from('payroll')
+      .from('liquidaciones')
       .update({ estado: 'aprobado' as const })
       .eq('id', liq.id);
     setFirmado(true);
@@ -195,9 +195,9 @@ export default function MisLiquidacionesPage() {
   const loadPayroll = async () => {
     const supabase = createClient();
     const { data } = await supabase
-      .from('payroll')
+      .from('liquidaciones')
       .select('*')
-      .eq('employee_id', WORKER_ID)
+      .eq('trabajador_id', WORKER_ID)
       .order('periodo', { ascending: false });
     setPayroll(data || []);
     setLoading(false);

@@ -38,9 +38,9 @@ export default function MisDocumentosPage() {
     const supabase = createClient();
     async function load() {
       const { data } = await supabase
-        .from('documents')
+        .from('documentos_empleado')
         .select('*')
-        .eq('employee_id', WORKER_ID)
+        .eq('trabajador_id', WORKER_ID)
         .order('created_at', { ascending: false });
       setDocuments(data || []);
       setLoading(false);

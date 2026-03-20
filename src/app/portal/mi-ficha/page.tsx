@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { User, Briefcase, Shield, Mail, Phone, MapPin, Calendar, Clock, Send, FileText, Building2 } from 'lucide-react';
-import type { Employee } from '@/types/database';
+// Using any for trabajadores since DB schema has apellido_paterno but types have apellido
+type Trabajador = Record<string, any>;
 
 const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
@@ -29,7 +30,7 @@ function calcAntiguedad(fechaIngreso: string): string {
 }
 
 export default function MiFichaPage() {
-  const [employee, setEmployee] = useState<Employee | null>(null);
+  const [employee, setEmployee] = useState<Trabajador | null>(null);
   const [contratoInfo, setContratoInfo] = useState<ContratoEmpleador | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<TabId>('resumen');
@@ -43,7 +44,7 @@ export default function MiFichaPage() {
     const supabase = createClient();
     async function load() {
       const [empResult, contratoResult] = await Promise.all([
-        supabase.from('employees').select('*').eq('id', WORKER_ID).single(),
+        supabase.from('trabajadores').select('*').eq('id', WORKER_ID).single(),
         supabase.from('v_mi_empleador').select('*').eq('trabajador_id', WORKER_ID).single(),
       ]);
       setEmployee(empResult.data);
@@ -61,8 +62,8 @@ export default function MiFichaPage() {
     return <div className="p-6 text-red-500">No se encontró la ficha del empleado.</div>;
   }
 
-  const initials = `${employee.nombre.charAt(0)}${employee.apellido.charAt(0)}`.toUpperCase();
-  const nombreCompleto = `${employee.nombre} ${employee.apellido}`;
+  const initials = `${employee.nombre.charAt(0)}${employee.apellido_paterno.charAt(0)}`.toUpperCase();
+  const nombreCompleto = `${employee.nombre} ${employee.apellido_paterno}`;
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'resumen', label: 'Resumen' },
