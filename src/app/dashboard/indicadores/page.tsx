@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Save, Loader2, TrendingUp, RefreshCw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 interface Indicador {
   id: number;
@@ -13,6 +13,7 @@ interface Indicador {
 }
 
 export default function IndicadoresPage() {
+  const supabase = createClient();
   const [indicadores, setIndicadores] = useState<Indicador[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

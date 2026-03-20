@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createTrabajador, createContrato, getInstituciones } from "@/lib/supabase-queries";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 const ESTADOS_CIVILES = ["Soltero", "Casado", "Divorciado", "Viudo", "Conviviente Civil"];
 const REGIONES = ["Arica y Parinacota", "Tarapacá", "Antofagasta", "Atacama", "Coquimbo", "Valparaíso",
@@ -57,6 +57,7 @@ function SelectObj({ value, onChange, options, placeholder }: {
 
 export default function NuevoColaboradorPage() {
   const router = useRouter();
+  const supabase = createClient();
   const [instituciones, setInstituciones] = useState<Record<string, unknown>[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");

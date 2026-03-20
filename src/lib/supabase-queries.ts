@@ -1,4 +1,7 @@
-import { supabase } from "./supabase";
+import { createClient } from "./supabase/client";
+
+const supabase = createClient();
+
 import type { InputLiquidacion, TramoImpuesto, TramoAsignacionFamiliar } from "./payroll/types";
 
 // ============================================================

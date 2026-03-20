@@ -1,0 +1,14 @@
+{
+  "name": "buk-scraper",
+  "version": "1.0.0",
+  "description": "Playwright scraper for Buk HR platform structure extraction",
+  "scripts": {
+    "scrape": "npx tsx scrape-buk.ts",
+    "scrape:employee": "npx tsx scrape-employee-detail.ts",
+    "scrape:all": "npx tsx scrape-buk.ts && npx tsx scrape-employee-detail.ts"
+  },
+  "dependencies": {
+    "playwright": "^1.58.0",
+    "tsx": "^4.19.0"
+  }
+}
