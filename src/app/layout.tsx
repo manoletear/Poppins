@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/context";
+import { LoadingScreen } from "@/components/LoadingScreen";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
@@ -20,6 +21,7 @@ export default function RootLayout({
     <html lang="es">
       <body className={`${inter.variable} antialiased`}>
         <AuthProvider>
+          <LoadingScreen />
           {children}
         </AuthProvider>
       </body>
