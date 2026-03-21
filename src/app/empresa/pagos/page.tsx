@@ -16,6 +16,10 @@ import {
   Filter,
   ArrowUpDown,
   X,
+  Droplets,
+  Zap,
+  Flame,
+  Wifi,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -31,9 +35,14 @@ const PERIODOS = [
 const TIPO_CONFIG: Record<string, { icon: typeof Home; iconColor: string; label: string }> = {
   arriendo:          { icon: Home,      iconColor: 'text-blue-500 bg-blue-50',      label: 'Arriendo' },
   gastos_comunes:    { icon: Building2, iconColor: 'text-zinc-500 bg-zinc-100',     label: 'Gastos Comunes' },
-  sueldo:            { icon: User,      iconColor: 'text-rose-500 bg-rose-50',      label: 'Sueldos' },
+  sueldo_empleado:   { icon: User,      iconColor: 'text-rose-500 bg-rose-50',      label: 'Sueldo Empleado' },
   leyes_sociales:    { icon: Shield,    iconColor: 'text-violet-500 bg-violet-50',  label: 'Leyes Sociales' },
   servicio_poppins:  { icon: Sparkles,  iconColor: 'text-amber-500 bg-amber-50',    label: 'Servicio Poppins' },
+  agua:              { icon: Droplets,  iconColor: 'text-cyan-500 bg-cyan-50',      label: 'Agua' },
+  luz:               { icon: Zap,       iconColor: 'text-yellow-500 bg-yellow-50',  label: 'Electricidad' },
+  gas:               { icon: Flame,     iconColor: 'text-orange-500 bg-orange-50',  label: 'Gas' },
+  internet:          { icon: Wifi,      iconColor: 'text-indigo-500 bg-indigo-50',  label: 'Internet / TV' },
+  otro:              { icon: CreditCard,iconColor: 'text-zinc-500 bg-zinc-100',     label: 'Otro' },
 };
 
 const ESTADO_BADGE: Record<string, string> = {
@@ -588,9 +597,13 @@ export default function PagosPage() {
               <option value="todos">Todos los tipos</option>
               <option value="arriendo">Arriendo</option>
               <option value="gastos_comunes">Gastos Comunes</option>
-              <option value="sueldo">Sueldos</option>
+              <option value="sueldo_empleado">Sueldos</option>
               <option value="leyes_sociales">Leyes Sociales</option>
               <option value="servicio_poppins">Servicio Poppins</option>
+              <option value="agua">Agua</option>
+              <option value="luz">Electricidad</option>
+              <option value="gas">Gas</option>
+              <option value="internet">Internet / TV</option>
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-400 pointer-events-none" />
           </div>
