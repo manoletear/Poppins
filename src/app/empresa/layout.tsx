@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
+import { useAuth } from '@/lib/auth/context';
+import { getInitials, getRolLabel } from '@/lib/auth/helpers';
 import {
   LayoutDashboard,
   CircleUser,
@@ -78,13 +80,18 @@ const plans = [
 function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
   const [open, setOpen] = useState(false);
   const [showPlan, setShowPlan] = useState(false);
-  const router = useRouter();
+  const { profile, signOut } = useAuth();
 
   const handleCerrarSesion = () => {
     setOpen(false);
     onNavigate?.();
-    router.push('/');
+    signOut();
   };
+
+  const displayName = profile ? `${profile.nombre}${profile.apellido ? ' ' + profile.apellido : ''}` : 'Cargando...';
+  const displayShortName = profile?.nombre || 'Cargando...';
+  const displayInitials = getInitials(profile?.nombre || '', profile?.apellido);
+  const displayEmail = profile?.email || '';
 
   const handleVerPlan = () => {
     setOpen(false);
@@ -100,10 +107,10 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
           className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-zinc-100 transition-colors text-left"
         >
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-semibold text-white shrink-0">
-            RA
+            {displayInitials}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-medium text-zinc-900 truncate">Rene Alejandro</p>
+            <p className="text-sm font-medium text-zinc-900 truncate">{displayShortName}</p>
             <p className="text-[11px] text-zinc-500">Plan Premium</p>
           </div>
           <ChevronUp className={`h-4 w-4 text-zinc-400 transition-transform ${open ? 'rotate-0' : 'rotate-180'}`} />
@@ -116,8 +123,8 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
             <div className="absolute bottom-full left-0 right-0 mb-2 z-50 rounded-xl border border-zinc-200 bg-white shadow-lg overflow-hidden">
               {/* User info header */}
               <div className="px-4 py-3 border-b border-zinc-100 bg-zinc-50">
-                <p className="text-sm font-semibold text-zinc-900">Rene Alejandro Aravena</p>
-                <p className="text-xs text-zinc-500">manuel.aravenal@gmail.com</p>
+                <p className="text-sm font-semibold text-zinc-900">{displayName}</p>
+                <p className="text-xs text-zinc-500">{displayEmail}</p>
               </div>
 
               {/* Actions */}
@@ -233,13 +240,15 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
 }
 
 function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
+  const { profile } = useAuth();
+
   return (
     <div className="flex h-full flex-col">
       <div className="mb-6">
         <Link href="/empresa" className="text-xl font-bold text-zinc-900" onClick={onNavigate}>
           Poppins
         </Link>
-        <p className="text-xs text-zinc-500">Portal Empleador</p>
+        <p className="text-xs text-zinc-500">{profile ? `Portal ${getRolLabel(profile.rol)}` : 'Portal Empleador'}</p>
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto">

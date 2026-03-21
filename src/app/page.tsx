@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Shield, Building2, CircleUser } from 'lucide-react';
+import { AuthBar } from '@/components/AuthBar';
 
 const roles = [
   {
@@ -34,6 +35,8 @@ const roles = [
 export default function Home() {
   return (
     <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center px-4 py-16">
+      <AuthBar />
+
       <div className="text-center mb-10">
         <h1 className="text-4xl font-bold text-zinc-900">Poppins</h1>
         <p className="text-lg text-zinc-500 mt-2">ERP RRHH Chile 2026</p>

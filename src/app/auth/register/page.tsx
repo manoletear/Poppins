@@ -1,0 +1,348 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+
+type AccountRole = 'empleador' | 'empleado';
+
+export default function RegisterPage() {
+  const router = useRouter();
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<AccountRole>('empleador');
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+
+    // Validation
+    if (password.length < 6) {
+      setError('La contraseña debe tener al menos 6 caracteres.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Las contraseñas no coinciden.');
+      return;
+    }
+
+    if (!acceptTerms) {
+      setError('Debes aceptar los términos y condiciones.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const supabase = createClient();
+
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            nombre,
+            apellido,
+            rol: selectedRole,
+          },
+        },
+      });
+
+      if (signUpError) {
+        setError(signUpError.message);
+        setLoading(false);
+        return;
+      }
+
+      // Check if email confirmation is required
+      if (data.user?.identities?.length === 0) {
+        setError('Este email ya está registrado. Intenta iniciar sesión.');
+        setLoading(false);
+        return;
+      }
+
+      if (data.session) {
+        // Auto-confirmed, redirect
+        router.push('/dashboard');
+      } else {
+        // Email confirmation required
+        setSuccess(true);
+      }
+    } catch {
+      setError('Ocurrió un error inesperado. Intenta nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4">
+        <div className="max-w-md w-full rounded-2xl border border-zinc-200 bg-white shadow-lg p-8 text-center">
+          <div className="text-3xl font-bold text-zinc-900">Poppins</div>
+          <p className="text-sm text-zinc-500 mt-1">ERP RRHH Chile</p>
+
+          <div className="mt-8">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+              <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold text-zinc-900 mt-4">¡Cuenta creada!</h1>
+            <p className="text-sm text-zinc-600 mt-2">
+              Te hemos enviado un email de confirmación a <strong>{email}</strong>. Revisa tu bandeja de entrada para activar tu cuenta.
+            </p>
+          </div>
+
+          <div className="mt-8">
+            <Link
+              href="/auth/login"
+              className="inline-block w-full bg-zinc-900 text-white rounded-lg py-3 text-sm font-medium hover:bg-zinc-800 transition-colors text-center"
+            >
+              Ir a Iniciar Sesión
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 py-12">
+      <div className="max-w-md w-full rounded-2xl border border-zinc-200 bg-white shadow-lg p-8">
+        {/* Logo */}
+        <div className="text-center">
+          <h2 className="text-3xl font-bold text-zinc-900">Poppins</h2>
+          <p className="text-sm text-zinc-500 mt-1">ERP RRHH Chile</p>
+        </div>
+
+        {/* Title */}
+        <h1 className="text-xl font-bold text-zinc-900 mt-8">Crear Cuenta</h1>
+
+        {/* Error Banner */}
+        {error && (
+          <div className="mt-4 rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
+          {/* Name fields */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label htmlFor="nombre" className="block text-sm font-medium text-zinc-700 mb-1">
+                Nombre
+              </label>
+              <input
+                id="nombre"
+                type="text"
+                required
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                placeholder="María"
+                disabled={loading}
+              />
+            </div>
+            <div>
+              <label htmlFor="apellido" className="block text-sm font-medium text-zinc-700 mb-1">
+                Apellido
+              </label>
+              <input
+                id="apellido"
+                type="text"
+                required
+                value={apellido}
+                onChange={(e) => setApellido(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                placeholder="González"
+                disabled={loading}
+              />
+            </div>
+          </div>
+
+          {/* Email */}
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+              placeholder="tu@email.com"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Password */}
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-zinc-700 mb-1">
+              Contraseña
+            </label>
+            <div className="relative">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 pr-10 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                placeholder="Mínimo 6 caracteres"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                tabIndex={-1}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Confirm Password */}
+          <div>
+            <label htmlFor="confirmPassword" className="block text-sm font-medium text-zinc-700 mb-1">
+              Confirmar Contraseña
+            </label>
+            <div className="relative">
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                required
+                minLength={6}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 pr-10 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
+                placeholder="Repite tu contraseña"
+                disabled={loading}
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-600"
+                tabIndex={-1}
+              >
+                {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          {/* Account Type */}
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 mb-2">
+              Tipo de cuenta
+            </label>
+            <div className="space-y-2">
+              <label
+                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                  selectedRole === 'empleador'
+                    ? 'border-zinc-900 bg-zinc-50'
+                    : 'border-zinc-200 hover:border-zinc-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value="empleador"
+                  checked={selectedRole === 'empleador'}
+                  onChange={() => setSelectedRole('empleador')}
+                  className="mt-0.5 h-4 w-4 border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                  disabled={loading}
+                />
+                <div>
+                  <span className="text-sm font-medium text-zinc-900">Empleador</span>
+                  <p className="text-xs text-zinc-500 mt-0.5">Gestiona tu hogar y empleados</p>
+                </div>
+              </label>
+              <label
+                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
+                  selectedRole === 'empleado'
+                    ? 'border-zinc-900 bg-zinc-50'
+                    : 'border-zinc-200 hover:border-zinc-300'
+                }`}
+              >
+                <input
+                  type="radio"
+                  name="role"
+                  value="empleado"
+                  checked={selectedRole === 'empleado'}
+                  onChange={() => setSelectedRole('empleado')}
+                  className="mt-0.5 h-4 w-4 border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+                  disabled={loading}
+                />
+                <div>
+                  <span className="text-sm font-medium text-zinc-900">Empleado</span>
+                  <p className="text-xs text-zinc-500 mt-0.5">Accede a tu portal de trabajo</p>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          {/* Terms */}
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900"
+              disabled={loading}
+            />
+            <span className="text-sm text-zinc-600">
+              Acepto los{' '}
+              <Link href="/terminos" className="text-zinc-900 underline underline-offset-4 hover:text-zinc-700">
+                términos y condiciones
+              </Link>
+            </span>
+          </label>
+
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-zinc-900 text-white rounded-lg py-3 text-sm font-medium hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Creando cuenta...
+              </>
+            ) : (
+              'Crear Cuenta'
+            )}
+          </button>
+        </form>
+
+        {/* Footer */}
+        <p className="mt-6 text-center text-sm text-zinc-600">
+          ¿Ya tienes cuenta?{' '}
+          <Link
+            href="/auth/login"
+            className="font-medium text-zinc-900 hover:underline underline-offset-4"
+          >
+            Inicia sesión
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+}
