@@ -6,13 +6,13 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes - no auth needed
-  const publicRoutes = ['/', '/auth/login', '/auth/register', '/auth/forgot-password'];
-  if (publicRoutes.some(route => pathname === route)) {
+  const publicRoutes = ['/', '/auth/login', '/auth/register', '/auth/forgot-password', '/auth/callback'];
+  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
     return NextResponse.next();
   }
 
-  // API routes - let them handle their own auth
-  if (pathname.startsWith('/api/')) {
+  // API routes and auth callback - let them handle their own auth
+  if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) {
     return NextResponse.next();
   }
 
