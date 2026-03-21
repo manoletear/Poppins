@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User } from '@supabase/supabase-js';
 
@@ -21,8 +21,7 @@ interface AuthContextType {
   user: User | null;
   profile: UserProfile | null;
   loading: boolean;
-  error: string | null;
-  signOut: () => Promise<void>;
+  signOut: () => void;
   refreshProfile: () => Promise<void>;
 }
 
@@ -30,8 +29,7 @@ const AuthContext = createContext<AuthContextType>({
   user: null,
   profile: null,
   loading: true,
-  error: null,
-  signOut: async () => {},
+  signOut: () => {},
   refreshProfile: async () => {},
 });
 
@@ -39,104 +37,80 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClient();
+  // Singleton client - no recreations
+  const supabase = useMemo(() => createClient(), []);
 
-  const loadProfile = useCallback(async (userId: string) => {
-    try {
-      const { data, error: profileError } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('auth_user_id', userId)
-        .single();
+  const loadProfile = useCallback(async (authUser: User) => {
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('auth_user_id', authUser.id)
+      .single();
 
-      if (profileError) {
-        console.error('Error loading profile:', profileError.message);
-        // Profile might not exist yet (Google OAuth first login, trigger delay)
-        // Create a basic profile from auth user data
-        const { data: { user: authUser } } = await supabase.auth.getUser();
-        if (authUser) {
-          setProfile({
-            id: '',
-            auth_user_id: userId,
-            email: authUser.email || '',
-            nombre: authUser.user_metadata?.full_name || authUser.user_metadata?.nombre || authUser.email?.split('@')[0] || 'Usuario',
-            apellido: authUser.user_metadata?.apellido || null,
-            rol: (authUser.user_metadata?.rol as 'admin' | 'empleador' | 'empleado') || 'empleador',
-            empleador_id: null,
-            trabajador_id: null,
-            onboarding_completado: false,
-            avatar_url: authUser.user_metadata?.avatar_url || null,
-          });
-        }
-        return;
-      }
-
+    if (data) {
       setProfile(data);
-    } catch (e) {
-      console.error('Profile load error:', e);
-      setError('Error al cargar perfil');
+    } else {
+      // Fallback from auth metadata (Google OAuth first login)
+      setProfile({
+        id: '',
+        auth_user_id: authUser.id,
+        email: authUser.email || '',
+        nombre: authUser.user_metadata?.full_name || authUser.user_metadata?.nombre || authUser.email?.split('@')[0] || 'Usuario',
+        apellido: authUser.user_metadata?.apellido || null,
+        rol: (authUser.user_metadata?.rol as 'empleador') || 'empleador',
+        empleador_id: null,
+        trabajador_id: null,
+        onboarding_completado: false,
+        avatar_url: authUser.user_metadata?.avatar_url || null,
+      });
     }
   }, [supabase]);
-
-  const refreshProfile = useCallback(async () => {
-    if (user) await loadProfile(user.id);
-  }, [user, loadProfile]);
 
   useEffect(() => {
     let mounted = true;
 
-    const init = async () => {
-      try {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
-        if (!mounted) return;
-
-        setUser(currentUser);
-        if (currentUser) {
-          await loadProfile(currentUser.id);
-        }
-      } catch (e) {
-        console.error('Auth init error:', e);
-        if (mounted) setError('Error de autenticación');
-      } finally {
-        if (mounted) setLoading(false);
+    // Single init call - no duplicates
+    supabase.auth.getUser().then(({ data: { user: u } }: { data: { user: User | null } }) => {
+      if (!mounted) return;
+      setUser(u);
+      if (u) {
+        loadProfile(u).finally(() => mounted && setLoading(false));
+      } else {
+        setLoading(false);
       }
-    };
-
-    init();
+    });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event: string, session: { user: User | null } | null) => {
         if (!mounted) return;
-        const currentUser = session?.user ?? null;
-        setUser(currentUser);
-        if (currentUser) {
-          await loadProfile(currentUser.id);
+        const u = session?.user ?? null;
+        setUser(u);
+        if (u) {
+          loadProfile(u).finally(() => mounted && setLoading(false));
         } else {
           setProfile(null);
+          setLoading(false);
         }
-        setLoading(false);
       }
     );
 
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
+    return () => { mounted = false; subscription.unsubscribe(); };
   }, [supabase, loadProfile]);
 
-  const signOut = useCallback(async () => {
-    // Redirect immediately, don't wait for Supabase
+  const signOut = useCallback(() => {
     setUser(null);
     setProfile(null);
-    window.location.href = '/auth/login';
-    // Fire and forget
     supabase.auth.signOut().catch(() => {});
+    window.location.href = '/auth/login';
   }, [supabase]);
 
+  const refreshProfile = useCallback(async () => {
+    if (user) await loadProfile(user);
+  }, [user, loadProfile]);
+
   return (
-    <AuthContext.Provider value={{ user, profile, loading, error, signOut, refreshProfile }}>
+    <AuthContext.Provider value={{ user, profile, loading, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

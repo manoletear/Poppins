@@ -247,7 +247,7 @@ export default function PagosPage() {
         .eq('estado', 'pagado');
 
       if (data) {
-        const sum = data.reduce((acc, row) => acc + (row.puntos_acumulados || 0), 0);
+        const sum = data.reduce((acc: number, row: any) => acc + (row.puntos_acumulados || 0), 0);
         setTotalPuntos(sum);
       }
     } catch {

@@ -78,8 +78,8 @@ export default function NuevoColaboradorPage() {
   useEffect(() => {
     getInstituciones().then((inst) => {
       setInstituciones(inst);
-      const defaultAfp = inst.find((i) => i.tipo === "AFP");
-      const defaultSalud = inst.find((i) => i.tipo === "FONASA");
+      const defaultAfp = inst.find((i: any) => i.tipo === "AFP");
+      const defaultSalud = inst.find((i: any) => i.tipo === "FONASA");
       if (defaultAfp) setForm((f) => ({ ...f, afp_id: String(defaultAfp.id) }));
       if (defaultSalud) setForm((f) => ({ ...f, salud_id: String(defaultSalud.id) }));
     });

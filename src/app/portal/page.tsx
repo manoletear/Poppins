@@ -149,14 +149,17 @@ export default function PortalDashboard() {
     const today = new Date().toISOString().split('T')[0];
 
     try {
-      // Load marcaje for today
-      const { data: marcajeData } = await supabase
-        .from('marcajes_horario')
-        .select('*')
-        .eq('trabajador_id', TRABAJADOR_ID)
-        .eq('fecha', today)
-        .maybeSingle();
+      // All queries in parallel for speed
+      const [marcajeRes, tareasRes, solicitudesRes, recordatoriosRes, liqRes] = await Promise.all([
+        supabase.from('marcajes_horario').select('*').eq('trabajador_id', TRABAJADOR_ID).eq('fecha', today).maybeSingle(),
+        supabase.from('tareas').select('id, titulo, hora, prioridad, estado').eq('trabajador_id', TRABAJADOR_ID).eq('fecha', today).order('hora', { ascending: true }),
+        supabase.from('solicitudes_empleado').select('id, tipo, descripcion, estado, fecha_inicio, fecha_fin').eq('trabajador_id', TRABAJADOR_ID).in('estado', ['pendiente', 'aprobada']).order('created_at', { ascending: false }).limit(5),
+        supabase.from('recordatorios').select('id, titulo, hora, tipo').eq('empleador_id', EMPLEADOR_ID).eq('activo', true),
+        supabase.from('liquidaciones').select('liquido_pagar, periodo').eq('trabajador_id', TRABAJADOR_ID).order('periodo', { ascending: false }).limit(1).maybeSingle(),
+      ]);
 
+      // Process marcaje
+      const marcajeData = marcajeRes.data;
       if (marcajeData) {
         setMarcajeId(marcajeData.id);
         setMarcajeTimes({
@@ -165,8 +168,6 @@ export default function PortalDashboard() {
           hora_regreso_colacion: marcajeData.hora_regreso_colacion || null,
           hora_salida: marcajeData.hora_salida || null,
         });
-
-        // Determine current step
         if (marcajeData.hora_salida) {
           setMarcajeState('completed');
         } else if (marcajeData.hora_regreso_colacion) {
@@ -181,69 +182,10 @@ export default function PortalDashboard() {
         }
       }
 
-      // Load tareas for today
-      const { data: tareasData } = await supabase
-        .from('tareas')
-        .select('id, titulo, hora, prioridad, estado')
-        .eq('trabajador_id', TRABAJADOR_ID)
-        .eq('fecha', today)
-        .order('hora', { ascending: true });
-
-      if (tareasData) setTareas(tareasData);
-
-      // Load solicitudes
-      const { data: solicitudesData } = await supabase
-        .from('solicitudes_empleado')
-        .select('id, tipo, descripcion, estado, fecha_inicio, fecha_fin')
-        .eq('trabajador_id', TRABAJADOR_ID)
-        .in('estado', ['pendiente', 'aprobada'])
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (solicitudesData) setSolicitudes(solicitudesData);
-
-      // Load recordatorios
-      const { data: recordatoriosData } = await supabase
-        .from('recordatorios')
-        .select('id, mensaje, hora')
-        .eq('trabajador_id', TRABAJADOR_ID)
-        .eq('fecha', today)
-        .order('hora', { ascending: true });
-
-      if (recordatoriosData) setRecordatorios(recordatoriosData);
-
-      // Load vacaciones disponibles
-      const { data: vacData } = await supabase
-        .from('vacaciones')
-        .select('dias_disponibles')
-        .eq('trabajador_id', TRABAJADOR_ID)
-        .maybeSingle();
-
-      if (vacData) setVacacionesDias(vacData.dias_disponibles);
-
-      // Load sueldo liquido from latest liquidacion
-      const { data: liqData } = await supabase
-        .from('liquidaciones')
-        .select('liquido_pagar')
-        .eq('trabajador_id', TRABAJADOR_ID)
-        .order('periodo', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (liqData) setSueldoLiquido(liqData.liquido_pagar);
-
-      // Load contract and employer info
-      const { data: contratoData } = await supabase
-        .from('v_mi_empleador')
-        .select('*')
-        .eq('trabajador_id', TRABAJADOR_ID)
-        .single();
-
-      if (contratoData) {
-        setNumeroContrato(contratoData.numero_contrato);
-        setEmpleadorNombre(contratoData.empleador_nombre);
-        setLugarTrabajo(contratoData.lugar_trabajo);
-      }
+      if (tareasRes.data) setTareas(tareasRes.data);
+      if (solicitudesRes.data) setSolicitudes(solicitudesRes.data);
+      if (recordatoriosRes.data) setRecordatorios(recordatoriosRes.data);
+      if (liqRes.data) setSueldoLiquido(liqRes.data.liquido_pagar);
     } catch (error) {
       console.error('Error loading portal data:', error);
     } finally {
