@@ -127,14 +127,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, loadProfile]);
 
   const signOut = useCallback(async () => {
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.error('Sign out error:', e);
-    }
+    // Redirect immediately, don't wait for Supabase
     setUser(null);
     setProfile(null);
     window.location.href = '/auth/login';
+    // Fire and forget
+    supabase.auth.signOut().catch(() => {});
   }, [supabase]);
 
   return (
