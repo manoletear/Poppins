@@ -175,6 +175,10 @@ export default function PagosPage() {
   const [paySuccess, setPaySuccess] = useState<{ puntos: number } | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
 
+  // Payment method selection
+  const [paymentMethod, setPaymentMethod] = useState<'flow' | 'stripe'>('flow');
+  const [flowCuotas, setFlowCuotas] = useState(1);
+
   // Pay All
   const [payingAll, setPayingAll] = useState(false);
   const [payAllProgress, setPayAllProgress] = useState({ current: 0, total: 0 });
@@ -301,13 +305,61 @@ export default function PagosPage() {
     return { puntos: result.puntos_ganados || Math.floor(pago.monto / 1000) };
   }
 
+  // ── Process a Flow payment ──
+  async function processFlowPayment(pago: Pago): Promise<{ puntos: number }> {
+    const res = await fetch('/api/pagos/flow/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pagoId: pago.id,
+        monto: pago.monto,
+        descripcion: pago.descripcion || tipoLabel(pago.tipo),
+        email: 'manuel.aravenal@gmail.com',
+      }),
+    });
+
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || 'Error al crear pago Flow');
+    }
+
+    const data = await res.json();
+
+    if (data.url && !data.simulated) {
+      // Real Flow: redirect to payment page
+      window.open(data.url, '_blank');
+      return { puntos: Math.floor(pago.monto / 1000) };
+    }
+
+    // Simulated mode: confirm via existing confirm-payment endpoint
+    const confirmRes = await fetch('/api/pagos/confirm-payment', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        pagoId: pago.id,
+        paymentIntentId: data.token || `flow_sim_${Date.now()}`,
+        status: 'succeeded',
+      }),
+    });
+
+    if (!confirmRes.ok) {
+      const errData = await confirmRes.json().catch(() => ({}));
+      throw new Error(errData.error || 'Error al confirmar pago Flow');
+    }
+
+    const result = await confirmRes.json();
+    return { puntos: result.puntos_ganados || Math.floor(pago.monto / 1000) };
+  }
+
   // ── Handle single payment ──
   async function handleConfirmPayment() {
     if (!paymentModal) return;
     setPaying(true);
     setPayError(null);
     try {
-      const result = await processPayment(paymentModal);
+      const result = paymentMethod === 'flow'
+        ? await processFlowPayment(paymentModal)
+        : await processPayment(paymentModal);
       setPaySuccess(result);
       // Refresh data
       await Promise.all([fetchPagos(), fetchAllPagos(), fetchTotalPuntos()]);
@@ -500,6 +552,8 @@ export default function PagosPage() {
                       onClick={() => {
                         setPaySuccess(null);
                         setPayError(null);
+                        setPaymentMethod('flow');
+                        setFlowCuotas(1);
                         setPaymentModal(pago);
                       }}
                       className="mt-3 w-full rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700 transition-colors flex items-center justify-center gap-2"
@@ -713,14 +767,103 @@ export default function PagosPage() {
                     </div>
                   </div>
 
+                  {/* Payment method selector */}
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium text-zinc-700">Metodo de pago</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {/* Flow option */}
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('flow')}
+                        className={`flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors ${
+                          paymentMethod === 'flow'
+                            ? 'border-violet-500 bg-violet-50'
+                            : 'border-zinc-200 hover:border-zinc-300'
+                        }`}
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-orange-600">
+                          <CreditCard className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-semibold text-zinc-900">Flow.cl</p>
+                          <p className="text-xs text-zinc-500">Credito/Debito + Cuotas</p>
+                        </div>
+                      </button>
+                      {/* Stripe option */}
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('stripe')}
+                        className={`flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors ${
+                          paymentMethod === 'stripe'
+                            ? 'border-violet-500 bg-violet-50'
+                            : 'border-zinc-200 hover:border-zinc-300'
+                        }`}
+                      >
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-indigo-700">
+                          <CreditCard className="h-5 w-5 text-white" />
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-semibold text-zinc-900">Stripe</p>
+                          <p className="text-xs text-zinc-500">Internacional</p>
+                        </div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Cuotas selector (Flow only) */}
+                  {paymentMethod === 'flow' && (
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium text-zinc-700">Cuotas</p>
+                      <div className="grid grid-cols-4 gap-2">
+                        {[
+                          { value: 1, label: '1 cuota', detail: 'Sin interes' },
+                          { value: 3, label: '3 cuotas', detail: '' },
+                          { value: 6, label: '6 cuotas', detail: '' },
+                          { value: 12, label: '12 cuotas', detail: '' },
+                        ].map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setFlowCuotas(opt.value)}
+                            className={`rounded-lg border-2 px-2 py-2 text-center transition-colors ${
+                              flowCuotas === opt.value
+                                ? 'border-violet-500 bg-violet-50'
+                                : 'border-zinc-200 hover:border-zinc-300'
+                            }`}
+                          >
+                            <p className="text-sm font-semibold text-zinc-900">{opt.value}</p>
+                            {opt.detail && (
+                              <p className="text-xs text-violet-600">{opt.detail}</p>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                      {flowCuotas > 1 && paymentModal && (
+                        <p className="text-xs text-zinc-500 text-center">
+                          {flowCuotas} cuotas de {formatCLP(Math.ceil(paymentModal.monto / flowCuotas))}
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   {/* Card info */}
                   <div className="flex items-center gap-3 rounded-lg border border-zinc-200 p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-violet-500 to-indigo-600">
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+                      paymentMethod === 'flow'
+                        ? 'bg-gradient-to-br from-orange-400 to-orange-600'
+                        : 'bg-gradient-to-br from-violet-500 to-indigo-600'
+                    }`}>
                       <CreditCard className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-zinc-900">Tarjeta ****4521</p>
-                      <p className="text-xs text-zinc-500">Visa - Pago seguro con Stripe</p>
+                      <p className="text-sm font-medium text-zinc-900">
+                        {paymentMethod === 'flow' ? 'Pago seguro con Flow.cl' : 'Tarjeta ****4521'}
+                      </p>
+                      <p className="text-xs text-zinc-500">
+                        {paymentMethod === 'flow'
+                          ? 'Webpay, tarjetas de credito/debito'
+                          : 'Visa - Pago seguro con Stripe'}
+                      </p>
                     </div>
                   </div>
 
