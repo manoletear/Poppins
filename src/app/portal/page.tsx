@@ -16,6 +16,7 @@ import {
   Building2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 
 const TRABAJADOR_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
@@ -80,6 +81,7 @@ function CircularProgress({ percentage, color }: { percentage: number; color: st
 }
 
 export default function PortalDashboard() {
+  const { profile } = useAuth();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
@@ -316,7 +318,7 @@ export default function PortalDashboard() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">{greeting}, María</h1>
+          <h1 className="text-2xl font-bold text-zinc-900">{greeting}, {profile?.nombre || 'Usuario'}</h1>
           <p className="text-sm text-zinc-500">{formatDate(currentTime)}</p>
           {numeroContrato && (
             <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">

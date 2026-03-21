@@ -16,6 +16,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { useEmployees, useAbsences } from '@/hooks/useBuk';
+import { useAuth } from '@/lib/auth/context';
 
 /* ------------------------------------------------------------------ */
 /*  Mock data (employer-specific features not in BUK)                  */
@@ -80,6 +81,7 @@ const periodos = ['Marzo 2026', 'Febrero 2026', 'Enero 2026'];
 /* ------------------------------------------------------------------ */
 
 export default function EmpresaDashboard() {
+  const { profile } = useAuth();
   /* ── Real data from hooks ── */
   const { data: employees, loading: loadingEmployees } = useEmployees();
   const { data: absences, loading: loadingAbsences } = useAbsences();
@@ -219,7 +221,7 @@ export default function EmpresaDashboard() {
       {/* ── Header ─────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-zinc-900">Bienvenido, Rene</h1>
+          <h1 className="text-2xl font-bold text-zinc-900">Bienvenido, {profile?.nombre || 'Usuario'}</h1>
           <p className="text-sm text-zinc-500">Tu hogar en orden</p>
         </div>
 

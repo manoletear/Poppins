@@ -6,13 +6,11 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes - no auth needed
-  const publicRoutes = ['/', '/auth/login', '/auth/register', '/auth/forgot-password', '/auth/callback'];
-  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route + '/'))) {
-    return NextResponse.next();
-  }
-
-  // API routes and auth callback - let them handle their own auth
-  if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) {
+  if (
+    pathname === '/' ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/api/')
+  ) {
     return NextResponse.next();
   }
 
@@ -41,11 +39,42 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Not authenticated - redirect to login
+  // Not authenticated → redirect to login
   if (!user) {
     const loginUrl = new URL('/auth/login', request.url);
     loginUrl.searchParams.set('redirect', pathname);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // Check role-based access
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('rol')
+    .eq('auth_user_id', user.id)
+    .single();
+
+  if (profile?.rol) {
+    const rol = profile.rol;
+
+    // Role → allowed paths
+    const roleAccess: Record<string, string[]> = {
+      admin: ['/admin', '/dashboard', '/empresa', '/portal'], // admin can access everything
+      empleador: ['/empresa', '/dashboard'],
+      empleado: ['/portal'],
+    };
+
+    const allowed = roleAccess[rol] || [];
+    const hasAccess = allowed.some(prefix => pathname.startsWith(prefix));
+
+    if (!hasAccess) {
+      // Redirect to their correct portal
+      const redirectMap: Record<string, string> = {
+        admin: '/admin',
+        empleador: '/empresa',
+        empleado: '/portal',
+      };
+      return NextResponse.redirect(new URL(redirectMap[rol] || '/', request.url));
+    }
   }
 
   return response;
