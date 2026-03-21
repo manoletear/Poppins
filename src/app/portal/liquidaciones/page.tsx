@@ -3,11 +3,42 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { FileText, Download, PenTool, CheckCircle, X } from 'lucide-react';
-import type { Payroll } from '@/types/database';
 
 const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
-const fmt = (n: number) => '$' + n.toLocaleString('es-CL');
+// Matches actual `liquidaciones` table columns
+interface Liquidacion {
+  id: string;
+  trabajador_id: string;
+  periodo: string;
+  sueldo_base: number;
+  gratificacion_legal: number;
+  horas_extras_50: number;
+  horas_extras_100: number;
+  bonos_imponibles: number;
+  colacion: number;
+  movilizacion: number;
+  viatico: number;
+  comisiones: number;
+  total_haberes: number;
+  total_haberes_imponibles: number;
+  total_haberes_no_imponibles: number;
+  afp_trabajador: number;
+  salud_trabajador: number;
+  salud_adicional: number;
+  afc_trabajador: number;
+  impuesto_unico: number;
+  total_descuentos: number;
+  liquido_pagar: number;
+  asignacion_familiar: number;
+  estado: string;
+  dias_trabajados: number;
+  created_at: string;
+  pdf_url: string | null;
+  [key: string]: unknown;
+}
+
+const fmt = (n: number) => '$' + (n ?? 0).toLocaleString('es-CL');
 
 function formatPeriodo(periodo: string): string {
   const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -15,7 +46,7 @@ function formatPeriodo(periodo: string): string {
   return `${meses[parseInt(month, 10) - 1]} ${year}`;
 }
 
-function LiquidacionDetail({ liq, onClose }: { liq: Payroll; onClose: () => void }) {
+function LiquidacionDetail({ liq, onClose }: { liq: Liquidacion; onClose: () => void }) {
   return (
     <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -34,13 +65,16 @@ function LiquidacionDetail({ liq, onClose }: { liq: Payroll; onClose: () => void
           <div className="font-semibold text-gray-700 text-xs uppercase tracking-wide">Haberes</div>
           <div className="space-y-1">
             <div className="flex justify-between"><span className="text-gray-500">Sueldo Base</span><span className="font-medium">{fmt(liq.sueldo_base)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Horas Extra</span><span className="font-medium">{fmt(liq.monto_horas_extra)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Bonos</span><span className="font-medium">{fmt(liq.bonos)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Gratificacion</span><span className="font-medium">{fmt(liq.gratificacion)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Gratificacion Legal</span><span className="font-medium">{fmt(liq.gratificacion_legal)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Horas Extra 50%</span><span className="font-medium">{fmt(liq.horas_extras_50)}</span></div>
+            {(liq.horas_extras_100 ?? 0) > 0 && (
+              <div className="flex justify-between"><span className="text-gray-500">Horas Extra 100%</span><span className="font-medium">{fmt(liq.horas_extras_100)}</span></div>
+            )}
+            <div className="flex justify-between"><span className="text-gray-500">Bonos Imponibles</span><span className="font-medium">{fmt(liq.bonos_imponibles)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Colacion</span><span className="font-medium">{fmt(liq.colacion)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Movilizacion</span><span className="font-medium">{fmt(liq.movilizacion)}</span></div>
-            {liq.otros_haberes > 0 && (
-              <div className="flex justify-between"><span className="text-gray-500">Otros Haberes</span><span className="font-medium">{fmt(liq.otros_haberes)}</span></div>
+            {(liq.comisiones ?? 0) > 0 && (
+              <div className="flex justify-between"><span className="text-gray-500">Comisiones</span><span className="font-medium">{fmt(liq.comisiones)}</span></div>
             )}
             <div className="flex justify-between border-t border-gray-100 pt-1 font-semibold">
               <span>Total Haberes</span><span>{fmt(liq.total_haberes)}</span>
@@ -49,13 +83,10 @@ function LiquidacionDetail({ liq, onClose }: { liq: Payroll; onClose: () => void
 
           <div className="font-semibold text-gray-700 text-xs uppercase tracking-wide mt-3">Descuentos</div>
           <div className="space-y-1">
-            <div className="flex justify-between"><span className="text-gray-500">AFP</span><span className="font-medium text-red-500">-{fmt(liq.desc_afp)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Salud</span><span className="font-medium text-red-500">-{fmt(liq.desc_salud)}</span></div>
-            <div className="flex justify-between"><span className="text-gray-500">Cesantia</span><span className="font-medium text-red-500">-{fmt(liq.desc_cesantia)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">AFP</span><span className="font-medium text-red-500">-{fmt(liq.afp_trabajador)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">Salud</span><span className="font-medium text-red-500">-{fmt(liq.salud_trabajador)}</span></div>
+            <div className="flex justify-between"><span className="text-gray-500">AFC (Cesantia)</span><span className="font-medium text-red-500">-{fmt(liq.afc_trabajador)}</span></div>
             <div className="flex justify-between"><span className="text-gray-500">Impuesto Unico</span><span className="font-medium text-red-500">-{fmt(liq.impuesto_unico)}</span></div>
-            {liq.otros_descuentos > 0 && (
-              <div className="flex justify-between"><span className="text-gray-500">Otros Descuentos</span><span className="font-medium text-red-500">-{fmt(liq.otros_descuentos)}</span></div>
-            )}
             <div className="flex justify-between border-t border-gray-100 pt-1 font-semibold">
               <span>Total Descuentos</span><span className="text-red-500">-{fmt(liq.total_descuentos)}</span>
             </div>
@@ -63,7 +94,7 @@ function LiquidacionDetail({ liq, onClose }: { liq: Payroll; onClose: () => void
 
           <div className="flex justify-between border-t-2 border-gray-200 pt-2 text-base font-bold">
             <span>Liquido a Pagar</span>
-            <span className="text-emerald-600">{fmt(liq.sueldo_liquido)}</span>
+            <span className="text-emerald-600">{fmt(liq.liquido_pagar)}</span>
           </div>
         </div>
       </div>
@@ -71,7 +102,7 @@ function LiquidacionDetail({ liq, onClose }: { liq: Payroll; onClose: () => void
   );
 }
 
-function FirmaModal({ liq, onClose, onFirma }: { liq: Payroll; onClose: () => void; onFirma: () => void }) {
+function FirmaModal({ liq, onClose, onFirma }: { liq: Liquidacion; onClose: () => void; onFirma: () => void }) {
   const [checked, setChecked] = useState(false);
   const [firmado, setFirmado] = useState(false);
 
@@ -79,7 +110,7 @@ function FirmaModal({ liq, onClose, onFirma }: { liq: Payroll; onClose: () => vo
     const supabase = createClient();
     await supabase
       .from('liquidaciones')
-      .update({ estado: 'aprobado' as const })
+      .update({ estado: 'aprobado' })
       .eq('id', liq.id);
     setFirmado(true);
     setTimeout(() => {
@@ -145,7 +176,8 @@ function FirmaModal({ liq, onClose, onFirma }: { liq: Payroll; onClose: () => vo
   );
 }
 
-function downloadLiquidacionPDF(liq: Payroll) {
+function downloadLiquidacionPDF(liq: Liquidacion) {
+  const f = (n: number) => (n ?? 0).toLocaleString('es-CL');
   const printWindow = window.open('', '_blank');
   if (!printWindow) return;
   printWindow.document.write(`
@@ -167,18 +199,18 @@ function downloadLiquidacionPDF(liq: Payroll) {
         <h1>Liquidacion de Sueldo</h1>
         <h2>${formatPeriodo(liq.periodo)}</h2>
         <div class="section">Haberes</div>
-        <div class="row"><span class="label">Sueldo Base</span><span class="value">$${liq.sueldo_base.toLocaleString('es-CL')}</span></div>
-        <div class="row"><span class="label">Horas Extra</span><span class="value">$${liq.monto_horas_extra.toLocaleString('es-CL')}</span></div>
-        <div class="row"><span class="label">Bonos</span><span class="value">$${liq.bonos.toLocaleString('es-CL')}</span></div>
-        <div class="row"><span class="label">Gratificacion</span><span class="value">$${liq.gratificacion.toLocaleString('es-CL')}</span></div>
-        <div class="row"><span class="label">Total Haberes</span><span class="value">$${liq.total_haberes.toLocaleString('es-CL')}</span></div>
+        <div class="row"><span class="label">Sueldo Base</span><span class="value">$${f(liq.sueldo_base)}</span></div>
+        <div class="row"><span class="label">Gratificacion Legal</span><span class="value">$${f(liq.gratificacion_legal)}</span></div>
+        <div class="row"><span class="label">Horas Extra 50%</span><span class="value">$${f(liq.horas_extras_50)}</span></div>
+        <div class="row"><span class="label">Bonos Imponibles</span><span class="value">$${f(liq.bonos_imponibles)}</span></div>
+        <div class="row"><span class="label">Total Haberes</span><span class="value">$${f(liq.total_haberes)}</span></div>
         <div class="section">Descuentos</div>
-        <div class="row"><span class="label">AFP</span><span class="value neg">-$${liq.desc_afp.toLocaleString('es-CL')}</span></div>
-        <div class="row"><span class="label">Salud</span><span class="value neg">-$${liq.desc_salud.toLocaleString('es-CL')}</span></div>
-        <div class="row"><span class="label">Cesantia</span><span class="value neg">-$${liq.desc_cesantia.toLocaleString('es-CL')}</span></div>
-        <div class="row"><span class="label">Impuesto Unico</span><span class="value neg">-$${liq.impuesto_unico.toLocaleString('es-CL')}</span></div>
-        <div class="row"><span class="label">Total Descuentos</span><span class="value neg">-$${liq.total_descuentos.toLocaleString('es-CL')}</span></div>
-        <div class="row total"><span>Liquido a Pagar</span><span class="green">$${liq.sueldo_liquido.toLocaleString('es-CL')}</span></div>
+        <div class="row"><span class="label">AFP</span><span class="value neg">-$${f(liq.afp_trabajador)}</span></div>
+        <div class="row"><span class="label">Salud</span><span class="value neg">-$${f(liq.salud_trabajador)}</span></div>
+        <div class="row"><span class="label">AFC (Cesantia)</span><span class="value neg">-$${f(liq.afc_trabajador)}</span></div>
+        <div class="row"><span class="label">Impuesto Unico</span><span class="value neg">-$${f(liq.impuesto_unico)}</span></div>
+        <div class="row"><span class="label">Total Descuentos</span><span class="value neg">-$${f(liq.total_descuentos)}</span></div>
+        <div class="row total"><span>Liquido a Pagar</span><span class="green">$${f(liq.liquido_pagar)}</span></div>
       </body>
     </html>
   `);
@@ -187,20 +219,28 @@ function downloadLiquidacionPDF(liq: Payroll) {
 }
 
 export default function MisLiquidacionesPage() {
-  const [payroll, setPayroll] = useState<Payroll[]>([]);
+  const [payroll, setPayroll] = useState<Liquidacion[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selected, setSelected] = useState<Payroll | null>(null);
-  const [firmaTarget, setFirmaTarget] = useState<Payroll | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Liquidacion | null>(null);
+  const [firmaTarget, setFirmaTarget] = useState<Liquidacion | null>(null);
 
   const loadPayroll = async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('liquidaciones')
-      .select('*')
-      .eq('trabajador_id', WORKER_ID)
-      .order('periodo', { ascending: false });
-    setPayroll(data || []);
-    setLoading(false);
+    try {
+      const supabase = createClient();
+      const { data, error: err } = await supabase
+        .from('liquidaciones')
+        .select('*')
+        .eq('trabajador_id', WORKER_ID)
+        .order('periodo', { ascending: false });
+      if (err) throw err;
+      setPayroll((data as Liquidacion[]) || []);
+    } catch (e: unknown) {
+      console.error('Error loading liquidaciones:', e);
+      setError(e instanceof Error ? e.message : 'Error al cargar liquidaciones');
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -219,6 +259,10 @@ export default function MisLiquidacionesPage() {
 
       {loading ? (
         <div className="text-sm text-gray-400">Cargando liquidaciones...</div>
+      ) : error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+          <strong>Error:</strong> {error}
+        </div>
       ) : payroll.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
           <FileText size={48} className="text-gray-300 mx-auto mb-3" />
@@ -233,7 +277,7 @@ export default function MisLiquidacionesPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                   <div>
                     <div className="text-xl font-bold text-gray-900">{formatPeriodo(latest.periodo)}</div>
-                    <div className="text-3xl font-bold text-emerald-600 mt-1">{fmt(latest.sueldo_liquido)}</div>
+                    <div className="text-3xl font-bold text-emerald-600 mt-1">{fmt(latest.liquido_pagar)}</div>
                     <div className="flex gap-4 mt-3 text-sm text-gray-500">
                       <span>Haberes <strong className="text-gray-700">{fmt(latest.total_haberes)}</strong></span>
                       <span>Descuentos <strong className="text-red-500">-{fmt(latest.total_descuentos)}</strong></span>
@@ -300,7 +344,7 @@ export default function MisLiquidacionesPage() {
                         <td className="px-3 py-3 text-right">{fmt(liq.sueldo_base)}</td>
                         <td className="px-3 py-3 text-right">{fmt(liq.total_haberes)}</td>
                         <td className="px-3 py-3 text-right text-red-500">-{fmt(liq.total_descuentos)}</td>
-                        <td className="px-3 py-3 text-right font-bold text-emerald-600">{fmt(liq.sueldo_liquido)}</td>
+                        <td className="px-3 py-3 text-right font-bold text-emerald-600">{fmt(liq.liquido_pagar)}</td>
                         <td className="px-3 py-3">
                           <div className="flex items-center justify-center gap-2">
                             <button

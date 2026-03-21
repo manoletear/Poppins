@@ -43,7 +43,7 @@ interface Liquidacion {
   sueldo_base: number;
   total_haberes: number;
   total_descuentos: number;
-  sueldo_liquido: number;
+  liquido_pagar: number;
   created_at: string;
 }
 
@@ -487,7 +487,7 @@ export default function MiFichaPage() {
                           <td className="px-6 py-3 text-right text-zinc-700">{formatCurrency(liq.sueldo_base)}</td>
                           <td className="px-6 py-3 text-right text-zinc-700">{formatCurrency(liq.total_haberes)}</td>
                           <td className="px-6 py-3 text-right text-red-600">{formatCurrency(liq.total_descuentos)}</td>
-                          <td className="px-6 py-3 text-right font-semibold text-zinc-900">{formatCurrency(liq.sueldo_liquido)}</td>
+                          <td className="px-6 py-3 text-right font-semibold text-zinc-900">{formatCurrency(liq.liquido_pagar)}</td>
                         </tr>
                       ))}
                     </tbody>

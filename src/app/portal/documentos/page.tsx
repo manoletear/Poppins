@@ -3,7 +3,19 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { FileText, Receipt, Award, Download, Search, ChevronDown, CheckCircle, Clock, FolderOpen } from 'lucide-react';
-import type { Document as DocType } from '@/types/database';
+
+// Matches actual `documentos_empleado` table columns
+interface DocType {
+  id: string;
+  trabajador_id: string;
+  tipo: string;
+  nombre: string;
+  archivo_url: string | null;
+  firmado: boolean;
+  fecha_firma: string | null;
+  created_at: string;
+  [key: string]: unknown;
+}
 
 const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
@@ -66,8 +78,8 @@ export default function MisDocumentosPage() {
   };
 
   const handleDescargar = (doc: DocType) => {
-    if (doc.file_url) {
-      window.open(doc.file_url, '_blank');
+    if (doc.archivo_url) {
+      window.open(doc.archivo_url, '_blank');
     }
   };
 

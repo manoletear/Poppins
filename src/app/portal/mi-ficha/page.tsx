@@ -3,17 +3,26 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { User, Briefcase, Shield, Mail, Phone, MapPin, Calendar, Clock, Send, FileText, Building2 } from 'lucide-react';
-// Using any for trabajadores since DB schema has apellido_paterno but types have apellido
+
+// Matches actual `trabajadores` table columns
 type Trabajador = Record<string, any>;
+
+// Matches actual `contratos` table columns
+type ContratoRow = Record<string, any>;
 
 const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
 interface ContratoEmpleador {
   numero_contrato: string;
   empleador_nombre: string;
-  empleador_rut: string;
   lugar_trabajo: string;
   tipo_vivienda: string;
+  sueldo_base: number;
+  tipo_contrato: string;
+  tipo_jornada: string;
+  horas_semanales: number;
+  fecha_inicio: string;
+  cargo: string;
   [key: string]: unknown;
 }
 
@@ -31,25 +40,51 @@ function calcAntiguedad(fechaIngreso: string): string {
 
 export default function MiFichaPage() {
   const [employee, setEmployee] = useState<Trabajador | null>(null);
+  const [contrato, setContrato] = useState<ContratoRow | null>(null);
   const [contratoInfo, setContratoInfo] = useState<ContratoEmpleador | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabId>('resumen');
   const [showSolicitud, setShowSolicitud] = useState(false);
   const [solicitudMsg, setSolicitudMsg] = useState('');
   const [solicitudSent, setSolicitudSent] = useState(false);
 
-  const fmt = (n: number) => '$' + n.toLocaleString('es-CL');
+  const fmt = (n: number) => '$' + (n ?? 0).toLocaleString('es-CL');
 
   useEffect(() => {
     const supabase = createClient();
     async function load() {
-      const [empResult, contratoResult] = await Promise.all([
-        supabase.from('trabajadores').select('*').eq('id', WORKER_ID).single(),
-        supabase.from('v_mi_empleador').select('*').eq('trabajador_id', WORKER_ID).single(),
-      ]);
-      setEmployee(empResult.data);
-      setContratoInfo(contratoResult.data);
-      setLoading(false);
+      try {
+        const [empResult, contratoResult, viewResult] = await Promise.all([
+          supabase.from('trabajadores').select('*').eq('id', WORKER_ID).single(),
+          supabase.from('contratos').select('*').eq('trabajador_id', WORKER_ID).eq('estado', 'activo').single(),
+          supabase.from('v_mi_empleador').select('*').eq('trabajador_id', WORKER_ID).single(),
+        ]);
+        if (empResult.error) throw empResult.error;
+        const emp = empResult.data as Record<string, any>;
+        // Fetch AFP and salud names if IDs are present
+        if (emp.afp_id || emp.salud_id) {
+          const ids = [emp.afp_id, emp.salud_id].filter(Boolean);
+          const { data: instData } = await supabase
+            .from('instituciones_previsionales')
+            .select('id, nombre, tipo')
+            .in('id', ids);
+          if (instData) {
+            for (const inst of instData) {
+              if (inst.id === emp.afp_id) emp.afp_nombre = inst.nombre;
+              if (inst.id === emp.salud_id) emp.salud_nombre = inst.nombre;
+            }
+          }
+        }
+        setEmployee(emp);
+        setContrato(contratoResult.data);
+        setContratoInfo(viewResult.data);
+      } catch (e: unknown) {
+        console.error('Error loading mi ficha:', e);
+        setError(e instanceof Error ? e.message : 'Error al cargar la ficha');
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
@@ -58,12 +93,24 @@ export default function MiFichaPage() {
     return <div className="p-6 text-gray-400">Cargando ficha...</div>;
   }
 
+  if (error) {
+    return (
+      <div className="p-6">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+          <strong>Error:</strong> {error}
+        </div>
+      </div>
+    );
+  }
+
   if (!employee) {
     return <div className="p-6 text-red-500">No se encontró la ficha del empleado.</div>;
   }
 
-  const initials = `${employee.nombre.charAt(0)}${employee.apellido_paterno.charAt(0)}`.toUpperCase();
-  const nombreCompleto = `${employee.nombre} ${employee.apellido_paterno}`;
+  const initials = `${(employee.nombre || '').charAt(0)}${(employee.apellido_paterno || '').charAt(0)}`.toUpperCase();
+  const nombreCompleto = `${employee.nombre || ''} ${employee.apellido_paterno || ''}`.trim();
+  // Contract-level fields come from contratos or v_mi_empleador
+  const c = contrato || contratoInfo || {} as Record<string, any>;
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'resumen', label: 'Resumen' },
@@ -92,15 +139,13 @@ export default function MiFichaPage() {
           <h1>Contrato de Trabajo</h1>
           ${contratoInfo?.numero_contrato ? `<h2 style="color:#059669;font-size:14px;margin-bottom:4px">Ref: ${contratoInfo.numero_contrato}</h2>` : ''}
           <h2>${nombreCompleto}</h2>
-          <div class="row"><span class="label">Tipo de Contrato</span><span class="value">${employee.tipo_contrato}</span></div>
-          <div class="row"><span class="label">Cargo</span><span class="value">${employee.cargo}</span></div>
-          <div class="row"><span class="label">Fecha de Ingreso</span><span class="value">${employee.fecha_ingreso}</span></div>
-          <div class="row"><span class="label">Fecha de Termino</span><span class="value">${employee.fecha_termino || 'Indefinido'}</span></div>
-          <div class="row"><span class="label">Sueldo Base</span><span class="value">${fmt(employee.sueldo_base)}</span></div>
-          <div class="row"><span class="label">Jornada Semanal</span><span class="value">${employee.horario_semanal} hrs</span></div>
-          <div class="row"><span class="label">Puertas Adentro</span><span class="value">${employee.puertas_adentro ? 'Si' : 'No'}</span></div>
-          <div class="row"><span class="label">AFP</span><span class="value">${employee.afp || '-'}</span></div>
-          <div class="row"><span class="label">Salud</span><span class="value">${employee.salud || '-'}</span></div>
+          <div class="row"><span class="label">Tipo de Contrato</span><span class="value">${c.tipo_contrato || '-'}</span></div>
+          <div class="row"><span class="label">Cargo</span><span class="value">${c.cargo || employee.cargo || '-'}</span></div>
+          <div class="row"><span class="label">Fecha de Ingreso</span><span class="value">${c.fecha_inicio || '-'}</span></div>
+          <div class="row"><span class="label">Fecha de Termino</span><span class="value">${c.fecha_termino || 'Indefinido'}</span></div>
+          <div class="row"><span class="label">Sueldo Base</span><span class="value">${fmt(c.sueldo_base || 0)}</span></div>
+          <div class="row"><span class="label">Jornada Semanal</span><span class="value">${c.horas_semanales || '-'} hrs</span></div>
+          <div class="row"><span class="label">Tipo Jornada</span><span class="value">${c.tipo_jornada || '-'}</span></div>
         </body>
       </html>
     `);
@@ -166,7 +211,7 @@ export default function MiFichaPage() {
                 <Calendar size={16} className="text-gray-400 shrink-0" />
                 <div>
                   <div className="text-xs text-gray-400 font-semibold uppercase">Fecha Ingreso</div>
-                  <div className="font-medium text-gray-800">{employee.fecha_ingreso}</div>
+                  <div className="font-medium text-gray-800">{c.fecha_inicio || '-'}</div>
                 </div>
               </div>
 
@@ -213,35 +258,35 @@ export default function MiFichaPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Cargo</div>
-                      <div className="text-sm font-medium text-gray-900">{employee.cargo}</div>
+                      <div className="text-sm font-medium text-gray-900">{c.cargo || employee.cargo || '-'}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Tipo Contrato</div>
-                      <div className="text-sm font-medium text-gray-900">{employee.tipo_contrato}</div>
+                      <div className="text-sm font-medium text-gray-900">{c.tipo_contrato || '-'}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Jornada Semanal</div>
-                      <div className="text-sm font-medium text-gray-900">{employee.horario_semanal} horas</div>
+                      <div className="text-sm font-medium text-gray-900">{c.horas_semanales || '-'} horas</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Sueldo Base</div>
-                      <div className="text-sm font-bold text-emerald-600">{fmt(employee.sueldo_base)}</div>
+                      <div className="text-sm font-bold text-emerald-600">{fmt(c.sueldo_base || 0)}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Fecha Ingreso</div>
-                      <div className="text-sm font-medium text-gray-900">{employee.fecha_ingreso}</div>
+                      <div className="text-sm font-medium text-gray-900">{c.fecha_inicio || '-'}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Antiguedad</div>
-                      <div className="text-sm font-medium text-gray-900">{calcAntiguedad(employee.fecha_ingreso)}</div>
+                      <div className="text-sm font-medium text-gray-900">{c.fecha_inicio ? calcAntiguedad(c.fecha_inicio) : '-'}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Vacaciones Disponibles</div>
-                      <div className="text-sm font-medium text-gray-900">{employee.dias_vacaciones_base} dias</div>
+                      <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Vacaciones Anuales</div>
+                      <div className="text-sm font-medium text-gray-900">{c.dias_vacaciones_anuales ?? 15} dias</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Puertas Adentro</div>
-                      <div className="text-sm font-medium text-gray-900">{employee.puertas_adentro ? 'Si' : 'No'}</div>
+                      <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Tipo Jornada</div>
+                      <div className="text-sm font-medium text-gray-900">{c.tipo_jornada || '-'}</div>
                     </div>
                   </div>
                 </div>
@@ -306,13 +351,13 @@ export default function MiFichaPage() {
 
                   <div className="space-y-3">
                     {[
-                      { label: 'Tipo de Contrato', value: employee.tipo_contrato },
-                      { label: 'Cargo', value: employee.cargo },
-                      { label: 'Fecha de Ingreso', value: employee.fecha_ingreso },
-                      { label: 'Fecha de Termino', value: employee.fecha_termino || 'Indefinido' },
-                      { label: 'Sueldo Base', value: fmt(employee.sueldo_base) },
-                      { label: 'Jornada Semanal', value: `${employee.horario_semanal} horas` },
-                      { label: 'Puertas Adentro', value: employee.puertas_adentro ? 'Si' : 'No' },
+                      { label: 'Tipo de Contrato', value: c.tipo_contrato || '-' },
+                      { label: 'Cargo', value: c.cargo || employee.cargo || '-' },
+                      { label: 'Fecha de Ingreso', value: c.fecha_inicio || '-' },
+                      { label: 'Fecha de Termino', value: c.fecha_termino || 'Indefinido' },
+                      { label: 'Sueldo Base', value: fmt(c.sueldo_base || 0) },
+                      { label: 'Jornada Semanal', value: `${c.horas_semanales || '-'} horas` },
+                      { label: 'Tipo Jornada', value: c.tipo_jornada || '-' },
                       { label: 'Estado', value: employee.estado },
                     ].map(row => (
                       <div key={row.label} className="flex justify-between items-center py-3 border-b border-gray-100 last:border-0">
@@ -322,10 +367,10 @@ export default function MiFichaPage() {
                     ))}
                   </div>
 
-                  {employee.notas && (
+                  {c.causal_termino && (
                     <div className="mt-4 bg-amber-50 rounded-lg p-4">
-                      <div className="text-xs text-amber-600 font-semibold uppercase mb-1">Notas</div>
-                      <div className="text-sm text-amber-800">{employee.notas}</div>
+                      <div className="text-xs text-amber-600 font-semibold uppercase mb-1">Causal de Termino</div>
+                      <div className="text-sm text-amber-800">{c.causal_termino}</div>
                     </div>
                   )}
                 </div>
@@ -342,11 +387,11 @@ export default function MiFichaPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-xs text-gray-500 font-semibold uppercase mb-1">AFP</div>
-                      <div className="text-sm font-medium text-gray-900">{employee.afp || 'No registrada'}</div>
+                      <div className="text-sm font-medium text-gray-900">{employee.afp_nombre || 'No registrada'}</div>
                     </div>
                     <div className="bg-gray-50 rounded-lg p-4">
                       <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Sistema de Salud</div>
-                      <div className="text-sm font-medium text-gray-900">{employee.salud || 'No registrada'}</div>
+                      <div className="text-sm font-medium text-gray-900">{employee.salud_nombre || employee.salud_tipo || 'No registrada'}</div>
                     </div>
                     {employee.plan_salud_uf && (
                       <div className="bg-gray-50 rounded-lg p-4">
@@ -354,10 +399,10 @@ export default function MiFichaPage() {
                         <div className="text-sm font-medium text-gray-900">{employee.plan_salud_uf} UF</div>
                       </div>
                     )}
-                    {employee.mutual && (
+                    {employee.es_pensionado && (
                       <div className="bg-gray-50 rounded-lg p-4">
-                        <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Mutual</div>
-                        <div className="text-sm font-medium text-gray-900">{employee.mutual}</div>
+                        <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Pensionado</div>
+                        <div className="text-sm font-medium text-gray-900">Si</div>
                       </div>
                     )}
                   </div>

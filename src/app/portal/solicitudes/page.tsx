@@ -94,6 +94,7 @@ export default function SolicitudesPage() {
   const [showModal, setShowModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmation, setConfirmation] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Form state
   const [tipo, setTipo] = useState('medico');
@@ -148,6 +149,7 @@ export default function SolicitudesPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
+    setErrorMsg(null);
 
     const { error } = await supabase.from('solicitudes_empleado').insert({
       trabajador_id: WORKER_ID,
@@ -167,6 +169,9 @@ export default function SolicitudesPage() {
       resetForm();
       loadSolicitudes();
       setTimeout(() => setConfirmation(false), 4000);
+    } else {
+      setErrorMsg(error.message || 'Error al enviar la solicitud. Intenta nuevamente.');
+      setTimeout(() => setErrorMsg(null), 5000);
     }
   }
 
@@ -200,9 +205,17 @@ export default function SolicitudesPage() {
 
       {/* Confirmation */}
       {confirmation && (
-        <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700 font-medium">
+        <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-700 font-medium animate-in fade-in duration-300">
           <CheckCircle2 className="h-5 w-5 shrink-0" />
           Solicitud enviada exitosamente. Tu empleador será notificado.
+        </div>
+      )}
+
+      {/* Error */}
+      {errorMsg && (
+        <div className="flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-5 py-4 text-sm text-red-700 font-medium animate-in fade-in duration-300">
+          <XCircle className="h-5 w-5 shrink-0" />
+          {errorMsg}
         </div>
       )}
 

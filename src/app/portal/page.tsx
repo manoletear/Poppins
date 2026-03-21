@@ -21,7 +21,17 @@ import { useAuth } from '@/lib/auth/context';
 const TRABAJADOR_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
 
-type MarcajeState = 'not_checked_in' | 'checked_in' | 'completed';
+type MarcajeStep = 'entrada' | 'salida_colacion' | 'regreso_colacion' | 'salida';
+type MarcajeState = 'not_checked_in' | 'in_progress' | 'completed';
+
+const STEP_CONFIG: Record<MarcajeStep, { label: string; column: string; buttonColor: string; buttonLabel: string }> = {
+  entrada: { label: 'Entrada', column: 'hora_entrada', buttonColor: 'bg-emerald-600 hover:bg-emerald-700', buttonLabel: 'Marcar Entrada' },
+  salida_colacion: { label: 'Salida Colación', column: 'hora_salida_colacion', buttonColor: 'bg-amber-600 hover:bg-amber-700', buttonLabel: 'Salida Colación' },
+  regreso_colacion: { label: 'Regreso Colación', column: 'hora_regreso_colacion', buttonColor: 'bg-cyan-600 hover:bg-cyan-700', buttonLabel: 'Regreso Colación' },
+  salida: { label: 'Salida', column: 'hora_salida', buttonColor: 'bg-blue-600 hover:bg-blue-700', buttonLabel: 'Marcar Salida' },
+};
+
+const STEPS_ORDER: MarcajeStep[] = ['entrada', 'salida_colacion', 'regreso_colacion', 'salida'];
 
 interface Tarea {
   id: string;
@@ -87,8 +97,13 @@ export default function PortalDashboard() {
 
   // Marcaje state
   const [marcajeState, setMarcajeState] = useState<MarcajeState>('not_checked_in');
-  const [entradaTime, setEntradaTime] = useState<string | null>(null);
-  const [salidaTime, setSalidaTime] = useState<string | null>(null);
+  const [marcajeTimes, setMarcajeTimes] = useState<Record<string, string | null>>({
+    hora_entrada: null,
+    hora_salida_colacion: null,
+    hora_regreso_colacion: null,
+    hora_salida: null,
+  });
+  const [currentStep, setCurrentStep] = useState<MarcajeStep>('entrada');
   const [marcajeLoading, setMarcajeLoading] = useState(false);
   const [marcajeId, setMarcajeId] = useState<string | null>(null);
 
@@ -111,6 +126,7 @@ export default function PortalDashboard() {
 
   // Calculate hours worked
   useEffect(() => {
+    const entradaTime = marcajeTimes.hora_entrada;
     if (entradaTime) {
       const calcHours = () => {
         const [h, m] = entradaTime.split(':').map(Number);
@@ -124,7 +140,7 @@ export default function PortalDashboard() {
       const interval = setInterval(calcHours, 60000);
       return () => clearInterval(interval);
     }
-  }, [entradaTime]);
+  }, [marcajeTimes.hora_entrada]);
 
   // Load data
   const loadData = useCallback(async () => {
@@ -143,16 +159,25 @@ export default function PortalDashboard() {
 
       if (marcajeData) {
         setMarcajeId(marcajeData.id);
-        if (marcajeData.hora_entrada) {
-          setEntradaTime(marcajeData.hora_entrada);
-        }
-        if (marcajeData.hora_entrada && marcajeData.hora_salida) {
+        setMarcajeTimes({
+          hora_entrada: marcajeData.hora_entrada || null,
+          hora_salida_colacion: marcajeData.hora_salida_colacion || null,
+          hora_regreso_colacion: marcajeData.hora_regreso_colacion || null,
+          hora_salida: marcajeData.hora_salida || null,
+        });
+
+        // Determine current step
+        if (marcajeData.hora_salida) {
           setMarcajeState('completed');
-          setEntradaTime(marcajeData.hora_entrada);
-          setSalidaTime(marcajeData.hora_salida);
+        } else if (marcajeData.hora_regreso_colacion) {
+          setMarcajeState('in_progress');
+          setCurrentStep('salida');
+        } else if (marcajeData.hora_salida_colacion) {
+          setMarcajeState('in_progress');
+          setCurrentStep('regreso_colacion');
         } else if (marcajeData.hora_entrada) {
-          setMarcajeState('checked_in');
-          setEntradaTime(marcajeData.hora_entrada);
+          setMarcajeState('in_progress');
+          setCurrentStep('salida_colacion');
         }
       }
 
@@ -199,13 +224,13 @@ export default function PortalDashboard() {
       // Load sueldo liquido from latest liquidacion
       const { data: liqData } = await supabase
         .from('liquidaciones')
-        .select('sueldo_liquido')
+        .select('liquido_pagar')
         .eq('trabajador_id', TRABAJADOR_ID)
         .order('periodo', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (liqData) setSueldoLiquido(liqData.sueldo_liquido);
+      if (liqData) setSueldoLiquido(liqData.liquido_pagar);
 
       // Load contract and employer info
       const { data: contratoData } = await supabase
@@ -230,16 +255,18 @@ export default function PortalDashboard() {
     loadData();
   }, [loadData]);
 
-  // Handle marcaje
-  const handleMarcaje = async (tipo: 'entrada' | 'salida') => {
+  // Handle marcaje step
+  const handleMarcajeStep = async (step: MarcajeStep) => {
     setMarcajeLoading(true);
     const supabase = createClient();
     const now = new Date();
     const timeStr = formatTime(now);
     const today = now.toISOString().split('T')[0];
+    const config = STEP_CONFIG[step];
 
     try {
-      if (tipo === 'entrada') {
+      if (step === 'entrada') {
+        // Insert new record
         const { data } = await supabase
           .from('marcajes_horario')
           .insert({
@@ -253,18 +280,26 @@ export default function PortalDashboard() {
 
         if (data) {
           setMarcajeId(data.id);
-          setEntradaTime(timeStr);
-          setMarcajeState('checked_in');
+          setMarcajeTimes((prev) => ({ ...prev, hora_entrada: timeStr }));
+          setMarcajeState('in_progress');
+          setCurrentStep('salida_colacion');
         }
-      } else {
-        if (marcajeId) {
-          await supabase
-            .from('marcajes_horario')
-            .update({ hora_salida: timeStr })
-            .eq('id', marcajeId);
+      } else if (marcajeId) {
+        // Update existing record with the correct column
+        await supabase
+          .from('marcajes_horario')
+          .update({ [config.column]: timeStr })
+          .eq('id', marcajeId);
+
+        setMarcajeTimes((prev) => ({ ...prev, [config.column]: timeStr }));
+
+        // Advance to next step or complete
+        const stepIndex = STEPS_ORDER.indexOf(step);
+        if (stepIndex < STEPS_ORDER.length - 1) {
+          setCurrentStep(STEPS_ORDER[stepIndex + 1]);
+        } else {
+          setMarcajeState('completed');
         }
-        setSalidaTime(timeStr);
-        setMarcajeState('completed');
       }
     } catch (error) {
       console.error('Error en marcaje:', error);
@@ -362,7 +397,7 @@ export default function PortalDashboard() {
           <p className="text-xs font-medium text-zinc-500">Horas Trabajadas</p>
           <p className="mt-1 text-xl font-bold text-zinc-900">{horasTrabajadas}</p>
           <p className="text-xs text-blue-600">
-            {entradaTime ? `Entrada: ${entradaTime}` : 'Sin marcar'}
+            {marcajeTimes.hora_entrada ? `Entrada: ${marcajeTimes.hora_entrada}` : 'Sin marcar'}
           </p>
         </div>
 
@@ -387,11 +422,54 @@ export default function PortalDashboard() {
       <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-6">
         <h2 className="text-sm font-semibold text-emerald-800 mb-4">Marcaje Rápido</h2>
 
+        {/* Step indicators */}
+        <div className="flex items-center justify-center gap-1 mb-5">
+          {STEPS_ORDER.map((step, idx) => {
+            const time = marcajeTimes[STEP_CONFIG[step].column];
+            const isCompleted = !!time;
+            const isCurrent = marcajeState === 'in_progress' && currentStep === step;
+            return (
+              <div key={step} className="flex items-center gap-1">
+                {idx > 0 && (
+                  <div className={`h-0.5 w-4 sm:w-6 ${isCompleted || (marcajeState === 'completed') ? 'bg-emerald-400' : 'bg-zinc-300'}`} />
+                )}
+                <div className="flex flex-col items-center gap-1">
+                  <div
+                    className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                      isCompleted || marcajeState === 'completed'
+                        ? 'bg-emerald-500 text-white'
+                        : isCurrent
+                        ? 'bg-white border-2 border-emerald-500 text-emerald-600 ring-2 ring-emerald-200'
+                        : 'bg-zinc-200 text-zinc-400'
+                    }`}
+                  >
+                    {isCompleted || marcajeState === 'completed' ? (
+                      <CheckCircle2 className="h-4 w-4" />
+                    ) : (
+                      idx + 1
+                    )}
+                  </div>
+                  <span className={`text-[10px] font-medium leading-tight text-center max-w-[60px] ${
+                    isCurrent ? 'text-emerald-700' : isCompleted || marcajeState === 'completed' ? 'text-emerald-600' : 'text-zinc-400'
+                  }`}>
+                    {STEP_CONFIG[step].label}
+                  </span>
+                  {(isCompleted || marcajeState === 'completed') && time && (
+                    <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-100 px-1.5 py-0.5 rounded-full">
+                      {time}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
         {marcajeState === 'not_checked_in' && (
           <div className="flex flex-col items-center gap-3">
             <p className="text-sm text-emerald-700">Hora actual: {formatTime(currentTime)}</p>
             <button
-              onClick={() => handleMarcaje('entrada')}
+              onClick={() => handleMarcajeStep('entrada')}
               disabled={marcajeLoading}
               className="flex items-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-base font-semibold text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
             >
@@ -405,22 +483,20 @@ export default function PortalDashboard() {
           </div>
         )}
 
-        {marcajeState === 'checked_in' && (
+        {marcajeState === 'in_progress' && (
           <div className="flex flex-col items-center gap-3">
-            <p className="text-sm text-emerald-700">
-              Entrada: <span className="font-semibold">{entradaTime}</span>
-            </p>
+            <p className="text-sm text-emerald-700">Hora actual: {formatTime(currentTime)}</p>
             <button
-              onClick={() => handleMarcaje('salida')}
+              onClick={() => handleMarcajeStep(currentStep)}
               disabled={marcajeLoading}
-              className="flex items-center gap-2 rounded-xl bg-blue-600 px-8 py-3 text-base font-semibold text-white hover:bg-blue-700 transition-colors disabled:opacity-50"
+              className={`flex items-center gap-2 rounded-xl px-8 py-3 text-base font-semibold text-white transition-colors disabled:opacity-50 ${STEP_CONFIG[currentStep].buttonColor}`}
             >
               {marcajeLoading ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <Clock className="h-5 w-5" />
               )}
-              Marcar Salida
+              {STEP_CONFIG[currentStep].buttonLabel}
             </button>
           </div>
         )}
@@ -429,15 +505,11 @@ export default function PortalDashboard() {
           <div className="flex flex-col items-center gap-2 text-emerald-700">
             <CheckCircle2 className="h-8 w-8 text-emerald-600" />
             <p className="text-base font-semibold">Jornada completada</p>
-            <div className="flex gap-6 text-sm">
-              <span>Entrada: <span className="font-semibold">{entradaTime}</span></span>
-              <span>Salida: <span className="font-semibold">{salidaTime}</span></span>
-            </div>
-            {entradaTime && salidaTime && (
+            {marcajeTimes.hora_entrada && marcajeTimes.hora_salida && (
               <p className="text-xs text-emerald-600">
                 Total: {(() => {
-                  const [eh, em] = entradaTime.split(':').map(Number);
-                  const [sh, sm] = salidaTime.split(':').map(Number);
+                  const [eh, em] = marcajeTimes.hora_entrada.split(':').map(Number);
+                  const [sh, sm] = marcajeTimes.hora_salida.split(':').map(Number);
                   const diff = (sh * 60 + sm) - (eh * 60 + em);
                   return `${Math.floor(diff / 60)}h ${String(diff % 60).padStart(2, '0')}m`;
                 })()}
