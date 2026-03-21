@@ -135,7 +135,7 @@ export default function PortalDashboard() {
     try {
       // Load marcaje for today
       const { data: marcajeData } = await supabase
-        .from('marcaje_horario')
+        .from('marcajes_horario')
         .select('*')
         .eq('trabajador_id', TRABAJADOR_ID)
         .eq('fecha', today)
@@ -241,7 +241,7 @@ export default function PortalDashboard() {
     try {
       if (tipo === 'entrada') {
         const { data } = await supabase
-          .from('marcaje_horario')
+          .from('marcajes_horario')
           .insert({
             trabajador_id: TRABAJADOR_ID,
             empleador_id: EMPLEADOR_ID,
@@ -259,7 +259,7 @@ export default function PortalDashboard() {
       } else {
         if (marcajeId) {
           await supabase
-            .from('marcaje_horario')
+            .from('marcajes_horario')
             .update({ hora_salida: timeStr })
             .eq('id', marcajeId);
         }
