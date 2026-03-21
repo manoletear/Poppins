@@ -5,16 +5,12 @@ import { createServerClient } from '@supabase/ssr';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Public routes - no auth needed
-  if (
-    pathname === '/' ||
-    pathname.startsWith('/auth/') ||
-    pathname.startsWith('/api/')
-  ) {
+  // API routes and auth routes - no middleware needed
+  if (pathname.startsWith('/api/') || pathname.startsWith('/auth/')) {
     return NextResponse.next();
   }
 
-  // Check for auth session
+  // Create Supabase client
   let response = NextResponse.next({
     request: { headers: request.headers },
   });
@@ -39,14 +35,35 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Not authenticated → redirect to login
-  if (!user) {
-    const loginUrl = new URL('/auth/login', request.url);
-    loginUrl.searchParams.set('redirect', pathname);
-    return NextResponse.redirect(loginUrl);
+  // ── Landing page (/) ──
+  if (pathname === '/') {
+    if (!user) {
+      // Not logged in → go to login
+      return NextResponse.redirect(new URL('/auth/login', request.url));
+    }
+
+    // Logged in → redirect to their portal
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('rol')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    const redirectMap: Record<string, string> = {
+      admin: '/admin',
+      empleador: '/empresa',
+      empleado: '/portal',
+    };
+    const dest = redirectMap[profile?.rol || ''] || '/empresa';
+    return NextResponse.redirect(new URL(dest, request.url));
   }
 
-  // Check role-based access
+  // ── Protected routes ──
+  if (!user) {
+    return NextResponse.redirect(new URL('/auth/login', request.url));
+  }
+
+  // ── Role-based access control ──
   const { data: profile } = await supabase
     .from('user_profiles')
     .select('rol')
@@ -56,9 +73,8 @@ export async function middleware(request: NextRequest) {
   if (profile?.rol) {
     const rol = profile.rol;
 
-    // Role → allowed paths
     const roleAccess: Record<string, string[]> = {
-      admin: ['/admin', '/dashboard', '/empresa', '/portal'], // admin can access everything
+      admin: ['/admin', '/dashboard', '/empresa', '/portal'],
       empleador: ['/empresa', '/dashboard'],
       empleado: ['/portal'],
     };
@@ -67,13 +83,12 @@ export async function middleware(request: NextRequest) {
     const hasAccess = allowed.some(prefix => pathname.startsWith(prefix));
 
     if (!hasAccess) {
-      // Redirect to their correct portal
       const redirectMap: Record<string, string> = {
         admin: '/admin',
         empleador: '/empresa',
         empleado: '/portal',
       };
-      return NextResponse.redirect(new URL(redirectMap[rol] || '/', request.url));
+      return NextResponse.redirect(new URL(redirectMap[rol] || '/auth/login', request.url));
     }
   }
 
@@ -82,6 +97,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
+    '/',
     '/dashboard/:path*',
     '/empresa/:path*',
     '/portal/:path*',
