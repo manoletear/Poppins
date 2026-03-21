@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, Fragment } from 'react';
 import {
   HeartPulse,
   Send,
@@ -12,9 +12,17 @@ import {
   Bone,
   FileText,
   MapPin,
-  Pill,
   Phone,
+  MessageSquarePlus,
+  PanelLeftOpen,
+  PanelLeftClose,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 
 interface ChatMessage {
   id: string;
@@ -23,13 +31,12 @@ interface ChatMessage {
   timestamp: Date;
 }
 
-const INITIAL_MESSAGE: ChatMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  content:
-    'Hola María, soy tu asistente de salud Poppins. ¿En qué puedo ayudarte? Puedo orientarte sobre síntomas, licencias médicas, o derivarte a atención profesional.',
-  timestamp: new Date(),
-};
+interface ConversationSummary {
+  id: string;
+  titulo: string;
+  ultimo_mensaje: string;
+  timestamp: string;
+}
 
 interface QuickAction {
   label: string;
@@ -38,154 +45,340 @@ interface QuickAction {
   bgColor: string;
 }
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const WELCOME_MESSAGE: ChatMessage = {
+  id: 'welcome',
+  role: 'assistant',
+  content:
+    'Hola María, soy Poppins Salud, tu asistente médico. ¿En qué puedo ayudarte hoy?',
+  timestamp: new Date(),
+};
+
 const quickActions: QuickAction[] = [
-  { label: 'Me siento mal', icon: Thermometer, color: 'text-red-600', bgColor: 'bg-red-50 hover:bg-red-100 border-red-200' },
-  { label: 'Dolor de cabeza', icon: Brain, color: 'text-purple-600', bgColor: 'bg-purple-50 hover:bg-purple-100 border-purple-200' },
-  { label: 'Dolor de espalda', icon: Bone, color: 'text-amber-600', bgColor: 'bg-amber-50 hover:bg-amber-100 border-amber-200' },
-  { label: 'Consultar licencia médica', icon: FileText, color: 'text-blue-600', bgColor: 'bg-blue-50 hover:bg-blue-100 border-blue-200' },
-  { label: 'Centros de salud cercanos', icon: MapPin, color: 'text-emerald-600', bgColor: 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200' },
-  { label: 'Mis medicamentos', icon: Pill, color: 'text-pink-600', bgColor: 'bg-pink-50 hover:bg-pink-100 border-pink-200' },
-];
-
-// Base de conocimiento médico (Manual Merck + orientación TCP)
-const medicalKnowledge: { keywords: string[]; response: string }[] = [
   {
-    keywords: ['me siento mal', 'no me siento bien', 'enfermo', 'enferma', 'malestar'],
-    response: 'Lamento que no te sientas bien. Para orientarte mejor, necesito que me describas tus síntomas. ¿Tienes alguno de estos?\n\n• Dolor (¿dónde?)\n• Fiebre\n• Mareos o náuseas\n• Dificultad para respirar\n• Diarrea o vómitos\n\n⚠️ Si tienes dificultad para respirar, dolor en el pecho o fiebre muy alta (+39°C), llama al 131 inmediatamente.',
+    label: 'Me siento mal',
+    icon: Thermometer,
+    color: 'text-red-600',
+    bgColor: 'bg-red-50 hover:bg-red-100 border-red-200',
   },
   {
-    keywords: ['cabeza', 'cefalea', 'jaqueca', 'migraña'],
-    response: '**Dolor de cabeza (Cefalea)**\n\nLas causas más comunes son cefalea tensional y migraña.\n\n**Recomendaciones:**\n1. Hidratarte bien (2+ litros de agua al día)\n2. Descansar en un lugar tranquilo y oscuro\n3. Tomar paracetamol (500-1000mg) o ibuprofeno (400mg)\n4. Aplicar compresas frías en la frente\n\n⚠️ **Consulta de urgencia si:**\n• Dolor de inicio súbito e intenso ("en trueno")\n• Fiebre + rigidez de nuca\n• Cambios en la visión o debilidad\n• Dolor que empeora progresivamente\n• Primer episodio después de los 50 años\n\n¿Necesitas que te ayude a solicitar una licencia médica?',
+    label: 'Dolor de cabeza',
+    icon: Brain,
+    color: 'text-purple-600',
+    bgColor: 'bg-purple-50 hover:bg-purple-100 border-purple-200',
   },
   {
-    keywords: ['espalda', 'lumbar', 'columna', 'dorsal', 'cervical', 'nuca', 'cuello'],
-    response: '**Dolor de espalda**\n\nMuy común en trabajos domésticos por esfuerzo físico y posturas prolongadas.\n\n**Recomendaciones:**\n1. Evita cargar objetos pesados (pide ayuda)\n2. Al limpiar el piso, usa trapeador con mango largo\n3. Realiza estiramientos cada 2 horas\n4. Aplica calor local 15-20 minutos\n5. Toma ibuprofeno (400mg cada 8h con comida) si el dolor es moderado\n6. Mantén actividad suave, evita reposo prolongado\n\n⚠️ **Consulta de urgencia si:**\n• Pérdida de fuerza en piernas\n• Dificultad para orinar\n• Dolor que baja por la pierna (ciática intensa)\n• Fiebre asociada\n\nComo trabajadora de casa particular, tienes derecho a licencia médica si el dolor te impide trabajar.',
+    label: 'Dolor de espalda',
+    icon: Bone,
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-50 hover:bg-orange-100 border-orange-200',
   },
   {
-    keywords: ['fiebre', 'temperatura', 'calentura'],
-    response: '**Fiebre**\n\nTemperatura >37.8°C oral o >38.2°C rectal.\n\n**Causas comunes:** Infecciones respiratorias, urinarias, gastrointestinales.\n\n**Qué hacer:**\n1. Tomar paracetamol (500-1000mg cada 6-8h)\n2. Hidratarse abundantemente\n3. Ropa liviana, ambiente fresco\n4. Reposo\n\n⚠️ **Consulta de urgencia si:**\n• Fiebre >39.5°C que no baja con paracetamol\n• Rigidez de nuca\n• Manchas en la piel (petequias)\n• Confusión mental\n• Dificultad para respirar\n• Fiebre por más de 3 días\n\nAvisa a tu empleador vía Poppins y solicita permiso médico.',
+    label: 'Licencia médica',
+    icon: FileText,
+    color: 'text-blue-600',
+    bgColor: 'bg-blue-50 hover:bg-blue-100 border-blue-200',
   },
   {
-    keywords: ['estómago', 'abdominal', 'abdomen', 'barriga', 'panza', 'tripa', 'gastritis', 'indigestión'],
-    response: '**Dolor abdominal**\n\n**Causas comunes:** Gastritis, indigestión, gases, infección intestinal.\n\n**Recomendaciones:**\n1. Dieta blanda (arroz, pollo, pan tostado)\n2. Evitar alimentos irritantes (café, condimentos, grasas)\n3. Tomar antiácido si hay ardor\n4. Hidratarse con suero oral si hay diarrea\n\n⚠️ **Consulta de URGENCIA si:**\n• Dolor intenso y súbito\n• Abdomen duro y distendido\n• Vómitos con sangre o heces negras\n• Fiebre alta + dolor severo\n• Dolor que se irradia al hombro\n\n⚠️ En mujeres: descartar embarazo ectópico si hay atraso menstrual + dolor pélvico.',
+    label: 'Centros de salud',
+    icon: MapPin,
+    color: 'text-green-600',
+    bgColor: 'bg-green-50 hover:bg-green-100 border-green-200',
   },
   {
-    keywords: ['diarrea', 'deposiciones', 'líquidas', 'sueltas'],
-    response: '**Diarrea**\n\n**Causas comunes:** Gastroenteritis viral, intoxicación alimentaria, medicamentos.\n\n**Tratamiento:**\n1. Sales de rehidratación oral (SRO) o agua con limón, sal y azúcar\n2. Dieta BRAT (banano, arroz, manzana, tostadas)\n3. Evitar lácteos y grasas por 24-48h\n4. Loperamida (Imodium) solo si NO hay fiebre ni sangre\n\n⚠️ **Consulta si:**\n• Sangre o pus en las deposiciones\n• Fiebre >38.5°C\n• Deshidratación (boca seca, mareos, poca orina)\n• Dura más de 3 días\n• En niños pequeños: consultar siempre',
-  },
-  {
-    keywords: ['vómito', 'vomitar', 'náusea', 'asco', 'mareo'],
-    response: '**Náuseas y vómitos**\n\n**Causas comunes:** Gastroenteritis, intoxicación alimentaria, migraña, embarazo, mareo por movimiento.\n\n**Qué hacer:**\n1. Reposo, posición semisentada\n2. Sorbos pequeños de líquido frío (agua, infusión de jengibre)\n3. No forzar comida, esperar a que cedan las náuseas\n4. Dieta blanda cuando tolere\n\n⚠️ **Consulta si:**\n• Vómitos con sangre ("posos de café")\n• No tolera líquidos por >12 horas\n• Dolor abdominal intenso\n• Signos de deshidratación',
-  },
-  {
-    keywords: ['garganta', 'angina', 'faringitis', 'amígdala', 'tragar'],
-    response: '**Dolor de garganta (Faringitis)**\n\n**Causas:** Viral (80%) o bacteriana (estreptococo).\n\n**Tratamiento:**\n1. Gárgaras con agua tibia y sal\n2. Paracetamol o ibuprofeno para el dolor\n3. Líquidos tibios (sopa, té con miel)\n4. Pastillas para la garganta\n\n⚠️ **Consulta si:**\n• Fiebre >38.5°C por más de 2 días\n• Exudado blanco en amígdalas\n• Dificultad para tragar saliva\n• Ganglios cervicales muy inflamados\n\nSi es estreptocócica, necesitarás antibióticos (amoxicilina) recetados por médico.',
-  },
-  {
-    keywords: ['tos', 'toser', 'flema', 'expectoración'],
-    response: '**Tos**\n\n**Tipos:** Seca (irritativa) o productiva (con flema).\n\n**Recomendaciones:**\n1. Hidratación abundante\n2. Miel con limón (adultos)\n3. Humidificar el ambiente\n4. Evitar irritantes (humo, polvo, productos de limpieza)\n\n⚠️ **Consulta si:**\n• Tos con sangre (hemoptisis)\n• Dificultad para respirar\n• Fiebre persistente\n• Tos >3 semanas\n• Pérdida de peso\n\n💡 Como trabajadora doméstica, usar mascarilla al limpiar con productos químicos puede prevenir tos irritativa.',
-  },
-  {
-    keywords: ['respirar', 'ahogo', 'disnea', 'falta de aire', 'asfixia'],
-    response: '**Dificultad para respirar (Disnea)**\n\n⚠️ **PUEDE SER URGENCIA MÉDICA**\n\n**Causas comunes:** Asma, infección respiratoria, ansiedad. Graves: embolia pulmonar, infarto.\n\n**Acción inmediata:**\n1. Sentarse erguida\n2. Aflojar ropa\n3. Respirar lento por la nariz\n4. Si tiene inhalador (asma), usarlo\n\n🚨 **Llama al 131 si:**\n• Labios o dedos azulados\n• No puede hablar frases completas\n• Dolor en el pecho\n• Se desmaya\n• Empeora rápidamente\n\nNO esperes, la disnea súbita requiere atención inmediata.',
-  },
-  {
-    keywords: ['pecho', 'torácico', 'corazón', 'cardíaco', 'infarto', 'palpitaciones'],
-    response: '**Dolor torácico / Palpitaciones**\n\n🚨 **POTENCIAL EMERGENCIA**\n\n**Causas:** Pueden ser musculoesqueléticas (benignas) o cardíacas (graves).\n\n**Acción inmediata:**\n1. Sentarse o acostarse\n2. Aflojar ropa\n3. Si tiene aspirina, masticar 1 tableta (500mg)\n\n🚨 **Llama al 131 INMEDIATAMENTE si:**\n• Dolor opresivo que irradia a brazo izquierdo o mandíbula\n• Sudoración fría\n• Dificultad para respirar\n• Náuseas con dolor de pecho\n• Pulso muy rápido o irregular\n\nLas palpitaciones aisladas suelen ser benignas (estrés, café), pero si son frecuentes consulta cardiólogo.',
-  },
-  {
-    keywords: ['alergia', 'alérgica', 'urticaria', 'ronchas', 'picazón', 'hinchazón'],
-    response: '**Alergias / Urticaria**\n\n**Causas comunes:** Alimentos, medicamentos, productos de limpieza, picaduras, polvo.\n\n**Tratamiento:**\n1. Antihistamínico oral (loratadina 10mg o cetirizina 10mg)\n2. Compresas frías en zonas afectadas\n3. Evitar rascarse\n4. Identificar y evitar el alérgeno\n\n🚨 **EMERGENCIA - Llama al 131 si:**\n• Hinchazón de labios, lengua o garganta\n• Dificultad para respirar\n• Mareo o desmayo\n• Estos son signos de ANAFILAXIA\n\n💡 Usa guantes al manipular productos de limpieza. Si tienes alergia conocida, informa a tu empleador.',
-  },
-  {
-    keywords: ['quemadura', 'quemé', 'aceite', 'agua caliente', 'plancha'],
-    response: '**Quemaduras (comunes en trabajo doméstico)**\n\n**Primeros auxilios:**\n1. Enfriar con agua corriente fría 10-20 minutos (NO hielo)\n2. NO aplicar pasta de dientes, mantequilla ni remedios caseros\n3. Cubrir con gasa estéril sin apretar\n4. Tomar paracetamol para el dolor\n\n⚠️ **Consulta de urgencia si:**\n• Quemadura en cara, manos, genitales o articulaciones\n• Ampolla grande (>5cm)\n• Piel blanca o carbonizada (3° grado)\n• Quemadura eléctrica o química\n• Afecta más del 10% del cuerpo\n\n💡 Prevención: usar guantes al planchar, mantener mangos de sartenes hacia adentro.',
-  },
-  {
-    keywords: ['corte', 'herida', 'sangre', 'sangrando', 'cortadura'],
-    response: '**Cortes y heridas**\n\n**Primeros auxilios:**\n1. Lavar con agua y jabón\n2. Presionar con gasa limpia 10-15 minutos\n3. Aplicar antiséptico (povidona yodada)\n4. Cubrir con apósito\n\n⚠️ **Consulta si:**\n• Sangrado que no para en 15 minutos\n• Herida profunda o bordes separados (necesita sutura)\n• Herida sucia o con objeto incrustado\n• Último refuerzo de tétanos hace >10 años\n• Signos de infección (enrojecimiento, pus, fiebre)',
-  },
-  {
-    keywords: ['embarazo', 'embarazada', 'prenatal', 'postnatal', 'maternidad'],
-    response: '**Embarazo y Maternidad (Derechos TCP)**\n\nComo trabajadora de casa particular tienes:\n\n**Licencias:**\n• Pre-natal: 6 semanas (42 días) antes del parto\n• Post-natal: 12 semanas (84 días) después\n• Post-natal parental: 12 semanas adicionales (o 18 a media jornada)\n• Permiso paternidad (padre): 5 días\n\n**Fuero maternal:** No pueden despedirte desde el embarazo hasta 1 año después del postnatal.\n\n**Subsidio:** Tu sueldo es cubierto por FONASA/ISAPRE durante la licencia.\n\n⚠️ **Consulta de urgencia si:**\n• Sangrado vaginal\n• Dolor abdominal intenso\n• Pérdida de líquido\n• Fiebre\n• Disminución de movimientos fetales',
-  },
-  {
-    keywords: ['licencia', 'licencia médica', 'baja', 'reposo'],
-    response: '**Licencia Médica**\n\nComo trabajadora de casa particular (TCP) tienes derecho a licencia médica:\n\n**Proceso:**\n1. Acude a tu centro de salud (CESFAM o particular)\n2. El médico emite licencia electrónica (LME)\n3. Se notifica automáticamente a tu empleador\n4. Tu sueldo es cubierto por FONASA (subsidio de incapacidad laboral)\n\n**Importante:**\n• No necesitas permiso del empleador para ir al médico\n• El empleador NO puede descontarte los días de licencia\n• Si estás en FONASA, el subsidio es el 100% del sueldo los primeros 3 días\n\n¿Quieres que solicite un permiso médico a tu empleador por Poppins?',
-  },
-  {
-    keywords: ['centro', 'hospital', 'clínica', 'consultorio', 'cesfam', 'urgencia'],
-    response: '**Centros de salud cercanos (Las Condes)**\n\n🏥 **CESFAM Carol Urzúa**\nAv. Las Condes 9500\nTel: 2 2345 6789\n\n🏥 **Clínica Las Condes**\nEstoril 450\nTel: 2 2210 4000\n\n🏥 **Hospital del Trabajador (ACHS)**\nRamón Carnicer 185, Providencia\nTel: 600 620 2000\n→ Accidentes laborales\n\n🏥 **SAPU (Urgencia nocturna)**\nConsulta en tu CESFAM horarios\n\n📞 **Emergencias: 131**\n\nRecuerda: como TCP tienes derecho a FONASA. Si sufriste un accidente de trabajo, acude al Hospital del Trabajador (ISL/ACHS).',
-  },
-  {
-    keywords: ['medicamento', 'remedio', 'pastilla', 'dosis', 'farmacia'],
-    response: '**Medicamentos**\n\n**Analgésicos comunes (sin receta):**\n• Paracetamol: 500-1000mg cada 6-8h (máx 4g/día)\n• Ibuprofeno: 400mg cada 8h con comida (máx 1200mg/día)\n• Aspirina: 500mg cada 8h (no en <18 años)\n\n**Importante:**\n• No mezcles paracetamol con ibuprofeno sin indicación\n• Ibuprofeno NO en ayunas (daña el estómago)\n• NO tomes antibióticos sin receta médica\n• Retira medicamentos con receta en farmacias con convenio FONASA\n\n⚠️ Avisa siempre al médico si tomas otros medicamentos para evitar interacciones.\n\n¿Necesitas configurar recordatorios de medicamentos en Poppins?',
-  },
-  {
-    keywords: ['estrés', 'ansiedad', 'angustia', 'nerviosa', 'nervios', 'llorar', 'depresión', 'triste'],
-    response: '**Salud Mental**\n\nEl estrés y la ansiedad son comunes. No estás sola.\n\n**Qué puedes hacer:**\n1. Habla con alguien de confianza\n2. Respira profundo: 4 segundos inhalar, 4 sostener, 4 exhalar\n3. Camina al aire libre 15-20 minutos\n4. Duerme suficiente (7-8 horas)\n5. Limita café y pantallas antes de dormir\n\n**Recursos de ayuda:**\n📞 Salud Responde: 600 360 7777 (24/7, gratuito)\n📞 Línea de la Vida: 600 360 7700\n📞 Fono Mujer: 1455 (violencia de género)\n\n⚠️ **Busca ayuda profesional si:**\n• Pensamientos de hacerte daño\n• No puedes dormir ni comer hace días\n• Llanto constante sin motivo\n• No puedes levantarte ni trabajar\n\nTienes derecho a licencia médica por salud mental.',
-  },
-  {
-    keywords: ['caída', 'caí', 'golpe', 'tropecé', 'resbalé', 'accidente trabajo'],
-    response: '**Caídas y accidentes de trabajo**\n\n**Primeros auxilios:**\n1. No mover si hay sospecha de fractura\n2. Aplicar hielo envuelto en paño 15-20 min\n3. Elevar la zona afectada\n4. Tomar analgésico si hay dolor\n\n⚠️ **Consulta si:**\n• No puedes mover la extremidad\n• Deformidad visible\n• Dolor intenso que no cede\n• Golpe en la cabeza con mareo o vómitos\n\n🏥 **Si fue ACCIDENTE DE TRABAJO:**\nAcude al Hospital del Trabajador o mutual (ISL)\nTel: 600 620 2000\n→ Cobertura completa por Ley 16.744\n→ Tu empleador debe reportar el DIAT en 24 horas\n→ No uses tu FONASA, usa el seguro laboral',
+    label: 'Emergencia',
+    icon: Phone,
+    color: 'text-red-600',
+    bgColor: 'bg-red-50 hover:bg-red-100 border-red-200',
   },
 ];
 
-function getAIResponse(userInput: string): string {
-  const input = userInput.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+// ---------------------------------------------------------------------------
+// Markdown-like renderer
+// ---------------------------------------------------------------------------
 
-  for (const entry of medicalKnowledge) {
-    for (const keyword of entry.keywords) {
-      const normalizedKeyword = keyword.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-      if (input.includes(normalizedKeyword)) {
-        return entry.response;
+function renderFormattedContent(raw: string) {
+  const lines = raw.split('\n');
+  const elements: React.ReactNode[] = [];
+  let listBuffer: { type: 'ul' | 'ol'; items: React.ReactNode[] } | null = null;
+
+  const flushList = () => {
+    if (!listBuffer) return;
+    if (listBuffer.type === 'ul') {
+      elements.push(
+        <ul key={`ul-${elements.length}`} className="my-1 list-disc pl-5 space-y-0.5">
+          {listBuffer.items.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>,
+      );
+    } else {
+      elements.push(
+        <ol key={`ol-${elements.length}`} className="my-1 list-decimal pl-5 space-y-0.5">
+          {listBuffer.items.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ol>,
+      );
+    }
+    listBuffer = null;
+  };
+
+  const inlineFormat = (text: string): React.ReactNode => {
+    // Bold: **text**
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={i}>{part.slice(2, -2)}</strong>;
       }
+      return <Fragment key={i}>{part}</Fragment>;
+    });
+  };
+
+  const wrapSpecialLine = (
+    line: string,
+    key: number,
+    content: React.ReactNode,
+  ): React.ReactNode => {
+    if (line.includes('\u{1F6A8}')) {
+      return (
+        <p key={key} className="my-1 rounded-lg bg-red-50 px-2 py-1 text-red-800">
+          {content}
+        </p>
+      );
+    }
+    if (line.includes('\u26A0\uFE0F')) {
+      return (
+        <p key={key} className="my-1 rounded-lg bg-amber-50 px-2 py-1 text-amber-800">
+          {content}
+        </p>
+      );
+    }
+    if (line.includes('\u2695\uFE0F')) {
+      return (
+        <p key={key} className="my-1 italic text-blue-700">
+          {content}
+        </p>
+      );
+    }
+    return null;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Blank line
+    if (trimmed === '') {
+      flushList();
+      elements.push(<div key={`br-${i}`} className="h-1" />);
+      continue;
+    }
+
+    // Bullet point (• or -)
+    const bulletMatch = trimmed.match(/^[•\-]\s+(.*)/);
+    if (bulletMatch) {
+      if (!listBuffer || listBuffer.type !== 'ul') {
+        flushList();
+        listBuffer = { type: 'ul', items: [] };
+      }
+      listBuffer.items.push(inlineFormat(bulletMatch[1]));
+      continue;
+    }
+
+    // Numbered list
+    const numMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
+    if (numMatch) {
+      if (!listBuffer || listBuffer.type !== 'ol') {
+        flushList();
+        listBuffer = { type: 'ol', items: [] };
+      }
+      listBuffer.items.push(inlineFormat(numMatch[2]));
+      continue;
+    }
+
+    // Not a list item — flush any pending list
+    flushList();
+
+    const formatted = inlineFormat(trimmed);
+    const special = wrapSpecialLine(trimmed, i, formatted);
+    if (special) {
+      elements.push(special);
+    } else {
+      elements.push(
+        <p key={i} className="my-0.5">
+          {formatted}
+        </p>,
+      );
     }
   }
 
-  return 'Entiendo tu consulta. Para una orientación más precisa, necesito más detalles sobre tus síntomas.\n\nPuedes preguntarme sobre:\n• Dolores específicos (cabeza, espalda, estómago, pecho)\n• Fiebre, tos, diarrea, vómitos\n• Alergias, quemaduras, cortes\n• Licencia médica y centros de salud\n• Embarazo y maternidad\n• Estrés y salud mental\n• Accidentes de trabajo\n\n⚠️ En caso de emergencia, llama al 131.\n\n¿En qué puedo ayudarte?';
+  flushList();
+
+  return <div className="text-sm leading-relaxed">{elements}</div>;
 }
 
+// ---------------------------------------------------------------------------
+// Typing indicator
+// ---------------------------------------------------------------------------
+
+function TypingIndicator() {
+  return (
+    <div className="flex gap-3">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+        <Bot className="h-4 w-4 text-emerald-600" />
+      </div>
+      <div className="rounded-2xl rounded-bl-sm border border-zinc-200 bg-zinc-100 px-4 py-3">
+        <div className="flex gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-zinc-400 animate-bounce [animation-delay:0ms]" />
+          <span className="h-2 w-2 rounded-full bg-zinc-400 animate-bounce [animation-delay:150ms]" />
+          <span className="h-2 w-2 rounded-full bg-zinc-400 animate-bounce [animation-delay:300ms]" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main page component
+// ---------------------------------------------------------------------------
+
 export default function AyudaMedicaPage() {
-  const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
+  // State
+  const [messages, setMessages] = useState<ChatMessage[]>([WELCOME_MESSAGE]);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, 'up' | 'down'>>({});
+
+  // Refs
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const scrollToBottom = () => {
+  // ------- Helpers -------
+
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, isTyping]);
+  }, [messages, isTyping, scrollToBottom]);
 
-  const sendMessage = (text: string) => {
+  // ------- Load conversation list on mount -------
+
+  const loadConversations = useCallback(async () => {
+    try {
+      const res = await fetch('/api/chat/medical');
+      if (res.ok) {
+        const data = await res.json();
+        setConversations(data.conversations ?? data ?? []);
+      }
+    } catch {
+      // silently ignore – sidebar will just be empty
+    }
+  }, []);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  // ------- Load a specific conversation -------
+
+  const loadConversation = async (convId: string) => {
+    try {
+      const res = await fetch(`/api/chat/medical?conversationId=${convId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const loaded: ChatMessage[] = (data.messages ?? []).map(
+          (m: { id?: string; role: string; content: string; timestamp?: string }) => ({
+            id: m.id ?? crypto.randomUUID(),
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+          }),
+        );
+        setMessages(loaded.length > 0 ? loaded : [WELCOME_MESSAGE]);
+        setConversationId(convId);
+        setShowHistory(false);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  // ------- Start new conversation -------
+
+  const startNewConversation = () => {
+    setMessages([{ ...WELCOME_MESSAGE, timestamp: new Date() }]);
+    setConversationId(null);
+    setFeedbackGiven({});
+    setShowHistory(false);
+    inputRef.current?.focus();
+  };
+
+  // ------- Send message -------
+
+  const sendMessage = async (text: string) => {
     if (!text.trim() || isTyping) return;
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       role: 'user',
       content: text.trim(),
       timestamp: new Date(),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput('');
     setIsTyping(true);
 
-    setTimeout(() => {
-      const response = getAIResponse(text.trim());
-      const botMessage: ChatMessage = {
-        id: (Date.now() + 1).toString(),
+    try {
+      const response = await fetch('/api/chat/medical', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: userMessage.content,
+          conversationId,
+          history: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.conversationId) {
+        setConversationId(data.conversationId);
+      }
+
+      const assistantMessage: ChatMessage = {
+        id: crypto.randomUUID(),
         role: 'assistant',
-        content: response,
+        content: data.response ?? 'Lo siento, hubo un error al procesar tu consulta.',
         timestamp: new Date(),
       };
-      setMessages((prev) => [...prev, botMessage]);
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // Refresh sidebar
+      loadConversations();
+    } catch {
+      const errorMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content:
+          'Lo siento, no pude conectarme al servidor. Por favor intenta de nuevo en unos momentos.',
+        timestamp: new Date(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
       setIsTyping(false);
-    }, 1500);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -193,142 +386,268 @@ export default function AyudaMedicaPage() {
     sendMessage(input);
   };
 
+  const handleFeedback = (messageId: string, type: 'up' | 'down') => {
+    setFeedbackGiven((prev) => ({ ...prev, [messageId]: type }));
+    // Future: POST feedback to /api/chat/medical
+  };
+
+  // Only the welcome message present?
+  const isConversationEmpty =
+    messages.length <= 1 && messages[0]?.id === 'welcome';
+
+  // ------- Render -------
+
   return (
-    <div className="mx-auto flex h-[calc(100vh-8rem)] max-w-3xl flex-col">
-      {/* Header */}
-      <div className="shrink-0 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-100">
-            <HeartPulse className="h-5 w-5 text-emerald-600" />
+    <div className="flex h-[calc(100vh-8rem)]">
+      {/* ----------------------------------------------------------------- */}
+      {/* Conversation history sidebar                                      */}
+      {/* ----------------------------------------------------------------- */}
+
+      {/* Backdrop for mobile */}
+      {showHistory && (
+        <div
+          className="fixed inset-0 z-20 bg-black/30 lg:hidden"
+          onClick={() => setShowHistory(false)}
+        />
+      )}
+
+      <aside
+        className={`
+          fixed inset-y-0 left-0 z-30 w-72 border-r border-zinc-200 bg-white
+          flex flex-col transition-transform duration-200
+          lg:static lg:translate-x-0 lg:z-auto
+          ${showHistory ? 'translate-x-0' : '-translate-x-full'}
+        `}
+      >
+        {/* Sidebar header */}
+        <div className="flex items-center justify-between border-b border-zinc-200 px-4 py-3">
+          <h2 className="text-sm font-semibold text-zinc-700">Historial</h2>
+          <button
+            onClick={startNewConversation}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700 transition-colors"
+          >
+            <MessageSquarePlus className="h-3.5 w-3.5" />
+            Nueva Consulta
+          </button>
+        </div>
+
+        {/* Conversation list */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {conversations.length === 0 && (
+            <p className="px-3 py-6 text-center text-xs text-zinc-400">
+              Sin conversaciones previas
+            </p>
+          )}
+          {conversations.map((conv) => (
+            <button
+              key={conv.id}
+              onClick={() => loadConversation(conv.id)}
+              className={`w-full rounded-lg px-3 py-2.5 text-left transition-colors ${
+                conversationId === conv.id
+                  ? 'bg-emerald-50 border border-emerald-200'
+                  : 'hover:bg-zinc-50 border border-transparent'
+              }`}
+            >
+              <p className="truncate text-sm font-medium text-zinc-800">
+                {conv.titulo}
+              </p>
+              <p className="mt-0.5 truncate text-xs text-zinc-400">
+                {conv.ultimo_mensaje}
+              </p>
+              <p className="mt-0.5 text-[10px] text-zinc-300">
+                {conv.timestamp
+                  ? new Date(conv.timestamp).toLocaleDateString('es-CL', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  : ''}
+              </p>
+            </button>
+          ))}
+        </div>
+      </aside>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Main chat area                                                    */}
+      {/* ----------------------------------------------------------------- */}
+      <div className="flex flex-1 flex-col min-w-0">
+        {/* Header with warning */}
+        <div className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3">
+          <div className="flex items-center gap-3">
+            {/* Mobile sidebar toggle */}
+            <button
+              onClick={() => setShowHistory((v) => !v)}
+              className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 lg:hidden"
+            >
+              {showHistory ? (
+                <PanelLeftClose className="h-5 w-5" />
+              ) : (
+                <PanelLeftOpen className="h-5 w-5" />
+              )}
+            </button>
+
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-100">
+              <HeartPulse className="h-5 w-5 text-emerald-600" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-zinc-900">Ayuda Médica</h1>
+              <p className="text-xs text-zinc-500">
+                Asistente de salud con inteligencia artificial
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900">Ayuda Médica</h1>
-            <p className="text-sm text-zinc-500">
-              Asistente de salud con inteligencia artificial
+
+          {/* Warning banner */}
+          <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-600 mt-0.5" />
+            <p className="text-xs text-amber-800">
+              Este asistente no reemplaza la consulta médica profesional. En caso
+              de emergencia, llame al{' '}
+              <span className="font-bold">131</span>.
             </p>
           </div>
         </div>
 
-        {/* Warning banner */}
-        <div className="mt-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-          <p className="text-sm text-amber-800">
-            Este asistente no reemplaza la consulta médica profesional. En caso de emergencia,
-            llame al <span className="font-bold">131</span>.
-          </p>
-        </div>
-      </div>
-
-      {/* Quick Actions */}
-      <div className="shrink-0 pb-3">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <button
-                key={action.label}
-                onClick={() => sendMessage(action.label)}
-                disabled={isTyping}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium transition-colors disabled:opacity-50 ${action.bgColor}`}
-              >
-                <Icon className={`h-4 w-4 shrink-0 ${action.color}`} />
-                <span className="text-zinc-700">{action.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto rounded-xl border border-zinc-200 bg-zinc-50 p-4 space-y-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}
-          >
+        {/* Messages area */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-white">
+          {messages.map((msg) => (
             <div
-              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${
-                msg.role === 'assistant'
-                  ? 'bg-emerald-100'
-                  : 'bg-zinc-200'
-              }`}
+              key={msg.id}
+              className={`flex gap-3 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              {msg.role === 'assistant' ? (
-                <Bot className="h-4 w-4 text-emerald-600" />
-              ) : (
-                <User className="h-4 w-4 text-zinc-600" />
+              {/* Assistant avatar */}
+              {msg.role === 'assistant' && (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+                  <Bot className="h-4 w-4 text-emerald-600" />
+                </div>
+              )}
+
+              <div className="max-w-[75%] flex flex-col">
+                <div
+                  className={`rounded-2xl px-4 py-2.5 ${
+                    msg.role === 'user'
+                      ? 'bg-emerald-600 text-white rounded-br-sm'
+                      : 'bg-zinc-100 text-zinc-900 rounded-bl-sm'
+                  }`}
+                >
+                  {msg.role === 'assistant'
+                    ? renderFormattedContent(msg.content)
+                    : <p className="text-sm whitespace-pre-line">{msg.content}</p>}
+                </div>
+
+                {/* Timestamp */}
+                <span
+                  className={`mt-1 text-[10px] text-zinc-400 ${
+                    msg.role === 'user' ? 'text-right' : 'text-left'
+                  }`}
+                >
+                  {msg.timestamp.toLocaleTimeString('es-CL', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+
+                {/* Feedback buttons for assistant messages */}
+                {msg.role === 'assistant' && msg.id !== 'welcome' && (
+                  <div className="mt-1 flex gap-1">
+                    <button
+                      onClick={() => handleFeedback(msg.id, 'up')}
+                      className={`rounded p-1 transition-colors ${
+                        feedbackGiven[msg.id] === 'up'
+                          ? 'text-emerald-600 bg-emerald-50'
+                          : 'text-zinc-300 hover:text-zinc-500 hover:bg-zinc-50'
+                      }`}
+                      aria-label="Me fue útil"
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleFeedback(msg.id, 'down')}
+                      className={`rounded p-1 transition-colors ${
+                        feedbackGiven[msg.id] === 'down'
+                          ? 'text-red-500 bg-red-50'
+                          : 'text-zinc-300 hover:text-zinc-500 hover:bg-zinc-50'
+                      }`}
+                      aria-label="No me fue útil"
+                    >
+                      <ThumbsDown className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* User avatar */}
+              {msg.role === 'user' && (
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-600">
+                  <User className="h-4 w-4 text-white" />
+                </div>
               )}
             </div>
-            <div
-              className={`max-w-[80%] rounded-2xl px-4 py-2.5 ${
-                msg.role === 'assistant'
-                  ? 'bg-white border border-zinc-200 text-zinc-800'
-                  : 'bg-emerald-600 text-white'
-              }`}
-            >
-              <p className="text-sm whitespace-pre-line leading-relaxed">{msg.content}</p>
-              <p
-                className={`mt-1 text-[10px] ${
-                  msg.role === 'assistant' ? 'text-zinc-400' : 'text-emerald-200'
-                }`}
-              >
-                {msg.timestamp.toLocaleTimeString('es-CL', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
-            </div>
-          </div>
-        ))}
+          ))}
 
-        {/* Typing indicator */}
-        {isTyping && (
-          <div className="flex gap-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-100">
-              <Bot className="h-4 w-4 text-emerald-600" />
-            </div>
-            <div className="rounded-2xl bg-white border border-zinc-200 px-4 py-3">
-              <div className="flex gap-1">
-                <span className="h-2 w-2 rounded-full bg-zinc-400 animate-bounce [animation-delay:0ms]" />
-                <span className="h-2 w-2 rounded-full bg-zinc-400 animate-bounce [animation-delay:150ms]" />
-                <span className="h-2 w-2 rounded-full bg-zinc-400 animate-bounce [animation-delay:300ms]" />
-              </div>
+          {/* Typing indicator */}
+          {isTyping && <TypingIndicator />}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Quick action buttons (shown when conversation is empty) */}
+        {isConversationEmpty && !isTyping && (
+          <div className="shrink-0 border-t border-zinc-100 bg-white px-4 py-3">
+            <p className="mb-2 text-xs font-medium text-zinc-500">
+              Consultas rápidas
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {quickActions.map((action) => {
+                const Icon = action.icon;
+                return (
+                  <button
+                    key={action.label}
+                    onClick={() => sendMessage(action.label)}
+                    disabled={isTyping}
+                    className={`flex items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition-colors disabled:opacity-50 ${action.bgColor}`}
+                  >
+                    <Icon className={`h-4 w-4 shrink-0 ${action.color}`} />
+                    <span className="text-zinc-700">{action.label}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
 
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input bar */}
-      <form onSubmit={handleSubmit} className="shrink-0 pt-3">
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Escribe tu consulta de salud..."
-            disabled={isTyping}
-            className="flex-1 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
-          />
-          <button
-            type="submit"
-            disabled={!input.trim() || isTyping}
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600"
-          >
-            <Send className="h-4 w-4" />
-          </button>
+        {/* Input bar */}
+        <div className="shrink-0 border-t border-zinc-200 bg-white px-4 py-3">
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Escribe tu consulta médica..."
+              disabled={isTyping}
+              className="flex-1 rounded-xl border border-zinc-300 bg-white px-4 py-2.5 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={!input.trim() || isTyping}
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white transition-colors hover:bg-emerald-700 disabled:opacity-50 disabled:hover:bg-emerald-600"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
         </div>
-      </form>
 
-      {/* Emergency banner */}
-      <div className="shrink-0 mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3">
-        <div className="flex items-center gap-2">
-          <Phone className="h-4 w-4 text-red-600 shrink-0" />
-          <p className="text-xs font-semibold text-red-800">
-            Emergencias: 131 (Ambulancia) · 132 (Bomberos) · 133 (Carabineros)
-          </p>
+        {/* Emergency banner */}
+        <div className="shrink-0 bg-red-50 border-t border-red-200 px-4 py-2.5">
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <Phone className="h-3.5 w-3.5 text-red-600 shrink-0" />
+            <p className="text-[11px] font-semibold text-red-800 text-center">
+              Emergencias: 131 (Ambulancia) · 132 (Bomberos) · 133 (Carabineros) · Salud Responde: 600 360 7777
+            </p>
+          </div>
         </div>
       </div>
     </div>
