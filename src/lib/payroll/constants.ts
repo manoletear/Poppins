@@ -88,3 +88,140 @@ export const FACTOR_GRATIFICACION_ART50 = 0.25;
 
 /** Tope gratificación Art. 50: 4.75 IMM / 12 */
 export const FACTOR_TOPE_GRATIFICACION_ART50 = 4.75 / 12;
+
+// ============================================================
+// TCP - Trabajadoras de Casa Particular (Ley 20.786 / 21.545)
+// Source: github.com/manoletear/Laboral_Chileno
+// ============================================================
+
+// --- Jornada TCP ---
+
+/** Jornada máxima TCP con retiro (puertas afuera), incluye 1h colación */
+export const TCP_JORNADA_MAX_CON_RETIRO = 12;
+
+/** Jornada máxima TCP sin retiro (puertas adentro), + 9h descanso continuo */
+export const TCP_JORNADA_MAX_SIN_RETIRO = 12;
+
+/** Descanso continuo nocturno TCP sin retiro */
+export const TCP_DESCANSO_NOCTURNO = 9;
+
+/** Descanso semanal TCP con retiro: 1.5 días (domingo + ½ sábado) */
+export const TCP_DESCANSO_SEMANAL_CON_RETIRO = 1.5;
+
+/** Descanso semanal TCP sin retiro: 1 día */
+export const TCP_DESCANSO_SEMANAL_SIN_RETIRO = 1;
+
+// --- Reducción jornada 40h (Ley 21.561) ---
+
+export const JORNADA_40H = {
+  hasta_abr_2024: 45,
+  abr_2024_a_2026: 44,
+  abr_2026_a_2028: 42,
+  desde_abr_2028: 40,
+} as const;
+
+/** Jornada actual vigente (actualizar según fecha) */
+export const JORNADA_VIGENTE = 44; // Desde abril 2024
+
+// --- Remuneración TCP ---
+
+/** Sueldo mínimo TCP (igual al IMM general desde Ley 20.786) */
+export const TCP_SUELDO_MINIMO_JUL_2024 = 500000;
+export const TCP_SUELDO_MINIMO_JUL_2025 = 510966;
+
+/** Máximo pago en especies (habitación, alimentación) */
+export const TCP_ESPECIES_MAX_PORCENTAJE = 0.5;
+
+/** Período de prueba TCP (días) */
+export const TCP_PERIODO_PRUEBA_DIAS = 30;
+
+// --- Finiquito TCP ---
+
+/** Tope indemnización por mes para TCP: 90 UF */
+export const TCP_TOPE_INDEMNIZACION_MES_UF = 90;
+
+/** Tope años indemnización (general + TCP) */
+export const TOPE_ANOS_INDEMNIZACION = 11;
+
+// --- Vacaciones ---
+
+/** Días hábiles de vacaciones por año (sábado cuenta como hábil) */
+export const VACACIONES_DIAS_HABILES_ANUAL = 15;
+
+/** Fórmula: (días_trabajados / 365) × 15 */
+export const VACACIONES_FACTOR_PROPORCIONAL = 15 / 365;
+
+/** Máximo períodos acumulables sin tomar */
+export const VACACIONES_MAX_PERIODOS_ACUMULADOS = 2;
+
+// --- Progresivas ---
+
+/** Años mínimos con mismo empleador para vacaciones progresivas */
+export const VACACIONES_PROGRESIVAS_ANOS_MIN = 10;
+
+/** Días adicionales por cada 3 años sobre el mínimo */
+export const VACACIONES_PROGRESIVAS_DIAS_POR_3_ANOS = 1;
+
+// --- ISL TCP (Ley 21.545) ---
+
+/** Tasa ISL base para TCP (accidentes del trabajo) */
+export const TCP_TASA_ISL_BASE = 0.009;
+
+// --- Cotización empleador Ley 21.735 (nuevo pilar) ---
+
+export const TASA_COTIZACION_EMPLEADOR_21735 = 0.06; // 6% gradual
+
+// --- PREVIRED ---
+
+/** Día máximo de pago cotizaciones */
+export const PREVIRED_DIA_LIMITE = 10;
+
+/** Mora mensual por atraso */
+export const PREVIRED_MORA_MENSUAL = 0.03;
+
+// --- Descuentos voluntarios ---
+
+/** Límite descuentos voluntarios (Art. 58 CT) */
+export const LIMITE_DESCUENTOS_VOLUNTARIOS = 0.15;
+
+// --- Feriados irrenunciables ---
+
+export const FERIADOS_IRRENUNCIABLES = [
+  { mes: 1, dia: 1, nombre: "Año Nuevo" },
+  { mes: 5, dia: 1, nombre: "Día del Trabajo" },
+  { mes: 9, dia: 18, nombre: "Fiestas Patrias" },
+  { mes: 9, dia: 19, nombre: "Día de las Glorias del Ejército" },
+  { mes: 12, dia: 25, nombre: "Navidad" },
+] as const;
+
+// --- Maternidad TCP ---
+
+export const MATERNIDAD = {
+  prenatal_semanas: 6,
+  prenatal_dias: 42,
+  postnatal_semanas: 12,
+  postnatal_dias: 84,
+  postnatal_parental_semanas: 12,
+  postnatal_parental_dias: 84,
+  postnatal_parental_media_jornada_semanas: 18,
+  permiso_paternidad_dias: 5,
+  fuero_maternal_hasta: "1 año después del postnatal",
+} as const;
+
+// --- Ley Karin (21.643) ---
+
+export const LEY_KARIN = {
+  plazo_investigacion_dias_habiles: 30,
+  multa_minima_utm: 1,
+  multa_maxima_utm: 200,
+} as const;
+
+// --- Retención boletas honorarios ---
+
+export const RETENCION_HONORARIOS = {
+  2024: 0.1375,
+  2025: 0.145,
+  2026: 0.1525,
+  2027: 0.16,
+  2028: 0.17,
+} as const;
