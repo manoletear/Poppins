@@ -47,23 +47,104 @@ const quickActions: QuickAction[] = [
   { label: 'Mis medicamentos', icon: Pill, color: 'text-pink-600', bgColor: 'bg-pink-50 hover:bg-pink-100 border-pink-200' },
 ];
 
-const mockResponses: Record<string, string> = {
-  'Me siento mal':
-    'Lamento que no te sientas bien. ¿Puedes describir tus síntomas? Por ejemplo: dolor, fiebre, mareos, náuseas. Esto me ayudará a orientarte mejor.',
-  'Dolor de cabeza':
-    'El dolor de cabeza puede tener varias causas. Te recomiendo:\n1. Hidratarte bien (al menos 2 litros de agua al día)\n2. Descansar en un lugar tranquilo\n3. Si persiste más de 48 horas, consulta con tu médico\n\n¿Necesitas que te ayude a solicitar una licencia médica?',
-  'Dolor de espalda':
-    'El dolor de espalda es común en trabajos domésticos. Recomendaciones:\n1. Evita cargar objetos pesados\n2. Mantén una postura correcta al limpiar\n3. Realiza estiramientos cada 2 horas\n4. Aplica calor local 15 min\n\nSi el dolor es intenso o persistente, solicita una hora médica.',
-  'Consultar licencia médica':
-    'Para obtener una licencia médica:\n1. Acude a tu centro de salud o médico particular\n2. El médico emitirá la licencia electrónica\n3. Se notificará automáticamente a tu empleador vía Poppins\n4. Tu sueldo será cubierto por FONASA/ISAPRE durante la licencia\n\n¿Quieres que solicite un permiso médico a tu empleador?',
-  'Centros de salud cercanos':
-    'Centros de salud en Las Condes:\n• CESFAM Carol Urzúa - Av. Las Condes 9500 - Tel: 2 2345 6789\n• Clínica Las Condes - Estoril 450 - Tel: 2 2210 4000\n• Hospital del Trabajador - Ramón Carnicer 185 - Tel: 600 620 2000\n\nRecuerda que como trabajadora de casa particular tienes derecho a FONASA.',
-  'Mis medicamentos':
-    'Para consultar tus medicamentos activos, necesito acceder a tu historial médico. Por ahora puedo orientarte:\n\n• Si tomas medicamentos recetados, recuerda tomarlos en los horarios indicados\n• No suspendas tratamientos sin consultar a tu médico\n• Puedes retirar medicamentos con receta en farmacias con convenio FONASA\n\n¿Necesitas recordatorios de medicamentos?',
-};
+// Base de conocimiento médico (Manual Merck + orientación TCP)
+const medicalKnowledge: { keywords: string[]; response: string }[] = [
+  {
+    keywords: ['me siento mal', 'no me siento bien', 'enfermo', 'enferma', 'malestar'],
+    response: 'Lamento que no te sientas bien. Para orientarte mejor, necesito que me describas tus síntomas. ¿Tienes alguno de estos?\n\n• Dolor (¿dónde?)\n• Fiebre\n• Mareos o náuseas\n• Dificultad para respirar\n• Diarrea o vómitos\n\n⚠️ Si tienes dificultad para respirar, dolor en el pecho o fiebre muy alta (+39°C), llama al 131 inmediatamente.',
+  },
+  {
+    keywords: ['cabeza', 'cefalea', 'jaqueca', 'migraña'],
+    response: '**Dolor de cabeza (Cefalea)**\n\nLas causas más comunes son cefalea tensional y migraña.\n\n**Recomendaciones:**\n1. Hidratarte bien (2+ litros de agua al día)\n2. Descansar en un lugar tranquilo y oscuro\n3. Tomar paracetamol (500-1000mg) o ibuprofeno (400mg)\n4. Aplicar compresas frías en la frente\n\n⚠️ **Consulta de urgencia si:**\n• Dolor de inicio súbito e intenso ("en trueno")\n• Fiebre + rigidez de nuca\n• Cambios en la visión o debilidad\n• Dolor que empeora progresivamente\n• Primer episodio después de los 50 años\n\n¿Necesitas que te ayude a solicitar una licencia médica?',
+  },
+  {
+    keywords: ['espalda', 'lumbar', 'columna', 'dorsal', 'cervical', 'nuca', 'cuello'],
+    response: '**Dolor de espalda**\n\nMuy común en trabajos domésticos por esfuerzo físico y posturas prolongadas.\n\n**Recomendaciones:**\n1. Evita cargar objetos pesados (pide ayuda)\n2. Al limpiar el piso, usa trapeador con mango largo\n3. Realiza estiramientos cada 2 horas\n4. Aplica calor local 15-20 minutos\n5. Toma ibuprofeno (400mg cada 8h con comida) si el dolor es moderado\n6. Mantén actividad suave, evita reposo prolongado\n\n⚠️ **Consulta de urgencia si:**\n• Pérdida de fuerza en piernas\n• Dificultad para orinar\n• Dolor que baja por la pierna (ciática intensa)\n• Fiebre asociada\n\nComo trabajadora de casa particular, tienes derecho a licencia médica si el dolor te impide trabajar.',
+  },
+  {
+    keywords: ['fiebre', 'temperatura', 'calentura'],
+    response: '**Fiebre**\n\nTemperatura >37.8°C oral o >38.2°C rectal.\n\n**Causas comunes:** Infecciones respiratorias, urinarias, gastrointestinales.\n\n**Qué hacer:**\n1. Tomar paracetamol (500-1000mg cada 6-8h)\n2. Hidratarse abundantemente\n3. Ropa liviana, ambiente fresco\n4. Reposo\n\n⚠️ **Consulta de urgencia si:**\n• Fiebre >39.5°C que no baja con paracetamol\n• Rigidez de nuca\n• Manchas en la piel (petequias)\n• Confusión mental\n• Dificultad para respirar\n• Fiebre por más de 3 días\n\nAvisa a tu empleador vía Poppins y solicita permiso médico.',
+  },
+  {
+    keywords: ['estómago', 'abdominal', 'abdomen', 'barriga', 'panza', 'tripa', 'gastritis', 'indigestión'],
+    response: '**Dolor abdominal**\n\n**Causas comunes:** Gastritis, indigestión, gases, infección intestinal.\n\n**Recomendaciones:**\n1. Dieta blanda (arroz, pollo, pan tostado)\n2. Evitar alimentos irritantes (café, condimentos, grasas)\n3. Tomar antiácido si hay ardor\n4. Hidratarse con suero oral si hay diarrea\n\n⚠️ **Consulta de URGENCIA si:**\n• Dolor intenso y súbito\n• Abdomen duro y distendido\n• Vómitos con sangre o heces negras\n• Fiebre alta + dolor severo\n• Dolor que se irradia al hombro\n\n⚠️ En mujeres: descartar embarazo ectópico si hay atraso menstrual + dolor pélvico.',
+  },
+  {
+    keywords: ['diarrea', 'deposiciones', 'líquidas', 'sueltas'],
+    response: '**Diarrea**\n\n**Causas comunes:** Gastroenteritis viral, intoxicación alimentaria, medicamentos.\n\n**Tratamiento:**\n1. Sales de rehidratación oral (SRO) o agua con limón, sal y azúcar\n2. Dieta BRAT (banano, arroz, manzana, tostadas)\n3. Evitar lácteos y grasas por 24-48h\n4. Loperamida (Imodium) solo si NO hay fiebre ni sangre\n\n⚠️ **Consulta si:**\n• Sangre o pus en las deposiciones\n• Fiebre >38.5°C\n• Deshidratación (boca seca, mareos, poca orina)\n• Dura más de 3 días\n• En niños pequeños: consultar siempre',
+  },
+  {
+    keywords: ['vómito', 'vomitar', 'náusea', 'asco', 'mareo'],
+    response: '**Náuseas y vómitos**\n\n**Causas comunes:** Gastroenteritis, intoxicación alimentaria, migraña, embarazo, mareo por movimiento.\n\n**Qué hacer:**\n1. Reposo, posición semisentada\n2. Sorbos pequeños de líquido frío (agua, infusión de jengibre)\n3. No forzar comida, esperar a que cedan las náuseas\n4. Dieta blanda cuando tolere\n\n⚠️ **Consulta si:**\n• Vómitos con sangre ("posos de café")\n• No tolera líquidos por >12 horas\n• Dolor abdominal intenso\n• Signos de deshidratación',
+  },
+  {
+    keywords: ['garganta', 'angina', 'faringitis', 'amígdala', 'tragar'],
+    response: '**Dolor de garganta (Faringitis)**\n\n**Causas:** Viral (80%) o bacteriana (estreptococo).\n\n**Tratamiento:**\n1. Gárgaras con agua tibia y sal\n2. Paracetamol o ibuprofeno para el dolor\n3. Líquidos tibios (sopa, té con miel)\n4. Pastillas para la garganta\n\n⚠️ **Consulta si:**\n• Fiebre >38.5°C por más de 2 días\n• Exudado blanco en amígdalas\n• Dificultad para tragar saliva\n• Ganglios cervicales muy inflamados\n\nSi es estreptocócica, necesitarás antibióticos (amoxicilina) recetados por médico.',
+  },
+  {
+    keywords: ['tos', 'toser', 'flema', 'expectoración'],
+    response: '**Tos**\n\n**Tipos:** Seca (irritativa) o productiva (con flema).\n\n**Recomendaciones:**\n1. Hidratación abundante\n2. Miel con limón (adultos)\n3. Humidificar el ambiente\n4. Evitar irritantes (humo, polvo, productos de limpieza)\n\n⚠️ **Consulta si:**\n• Tos con sangre (hemoptisis)\n• Dificultad para respirar\n• Fiebre persistente\n• Tos >3 semanas\n• Pérdida de peso\n\n💡 Como trabajadora doméstica, usar mascarilla al limpiar con productos químicos puede prevenir tos irritativa.',
+  },
+  {
+    keywords: ['respirar', 'ahogo', 'disnea', 'falta de aire', 'asfixia'],
+    response: '**Dificultad para respirar (Disnea)**\n\n⚠️ **PUEDE SER URGENCIA MÉDICA**\n\n**Causas comunes:** Asma, infección respiratoria, ansiedad. Graves: embolia pulmonar, infarto.\n\n**Acción inmediata:**\n1. Sentarse erguida\n2. Aflojar ropa\n3. Respirar lento por la nariz\n4. Si tiene inhalador (asma), usarlo\n\n🚨 **Llama al 131 si:**\n• Labios o dedos azulados\n• No puede hablar frases completas\n• Dolor en el pecho\n• Se desmaya\n• Empeora rápidamente\n\nNO esperes, la disnea súbita requiere atención inmediata.',
+  },
+  {
+    keywords: ['pecho', 'torácico', 'corazón', 'cardíaco', 'infarto', 'palpitaciones'],
+    response: '**Dolor torácico / Palpitaciones**\n\n🚨 **POTENCIAL EMERGENCIA**\n\n**Causas:** Pueden ser musculoesqueléticas (benignas) o cardíacas (graves).\n\n**Acción inmediata:**\n1. Sentarse o acostarse\n2. Aflojar ropa\n3. Si tiene aspirina, masticar 1 tableta (500mg)\n\n🚨 **Llama al 131 INMEDIATAMENTE si:**\n• Dolor opresivo que irradia a brazo izquierdo o mandíbula\n• Sudoración fría\n• Dificultad para respirar\n• Náuseas con dolor de pecho\n• Pulso muy rápido o irregular\n\nLas palpitaciones aisladas suelen ser benignas (estrés, café), pero si son frecuentes consulta cardiólogo.',
+  },
+  {
+    keywords: ['alergia', 'alérgica', 'urticaria', 'ronchas', 'picazón', 'hinchazón'],
+    response: '**Alergias / Urticaria**\n\n**Causas comunes:** Alimentos, medicamentos, productos de limpieza, picaduras, polvo.\n\n**Tratamiento:**\n1. Antihistamínico oral (loratadina 10mg o cetirizina 10mg)\n2. Compresas frías en zonas afectadas\n3. Evitar rascarse\n4. Identificar y evitar el alérgeno\n\n🚨 **EMERGENCIA - Llama al 131 si:**\n• Hinchazón de labios, lengua o garganta\n• Dificultad para respirar\n• Mareo o desmayo\n• Estos son signos de ANAFILAXIA\n\n💡 Usa guantes al manipular productos de limpieza. Si tienes alergia conocida, informa a tu empleador.',
+  },
+  {
+    keywords: ['quemadura', 'quemé', 'aceite', 'agua caliente', 'plancha'],
+    response: '**Quemaduras (comunes en trabajo doméstico)**\n\n**Primeros auxilios:**\n1. Enfriar con agua corriente fría 10-20 minutos (NO hielo)\n2. NO aplicar pasta de dientes, mantequilla ni remedios caseros\n3. Cubrir con gasa estéril sin apretar\n4. Tomar paracetamol para el dolor\n\n⚠️ **Consulta de urgencia si:**\n• Quemadura en cara, manos, genitales o articulaciones\n• Ampolla grande (>5cm)\n• Piel blanca o carbonizada (3° grado)\n• Quemadura eléctrica o química\n• Afecta más del 10% del cuerpo\n\n💡 Prevención: usar guantes al planchar, mantener mangos de sartenes hacia adentro.',
+  },
+  {
+    keywords: ['corte', 'herida', 'sangre', 'sangrando', 'cortadura'],
+    response: '**Cortes y heridas**\n\n**Primeros auxilios:**\n1. Lavar con agua y jabón\n2. Presionar con gasa limpia 10-15 minutos\n3. Aplicar antiséptico (povidona yodada)\n4. Cubrir con apósito\n\n⚠️ **Consulta si:**\n• Sangrado que no para en 15 minutos\n• Herida profunda o bordes separados (necesita sutura)\n• Herida sucia o con objeto incrustado\n• Último refuerzo de tétanos hace >10 años\n• Signos de infección (enrojecimiento, pus, fiebre)',
+  },
+  {
+    keywords: ['embarazo', 'embarazada', 'prenatal', 'postnatal', 'maternidad'],
+    response: '**Embarazo y Maternidad (Derechos TCP)**\n\nComo trabajadora de casa particular tienes:\n\n**Licencias:**\n• Pre-natal: 6 semanas (42 días) antes del parto\n• Post-natal: 12 semanas (84 días) después\n• Post-natal parental: 12 semanas adicionales (o 18 a media jornada)\n• Permiso paternidad (padre): 5 días\n\n**Fuero maternal:** No pueden despedirte desde el embarazo hasta 1 año después del postnatal.\n\n**Subsidio:** Tu sueldo es cubierto por FONASA/ISAPRE durante la licencia.\n\n⚠️ **Consulta de urgencia si:**\n• Sangrado vaginal\n• Dolor abdominal intenso\n• Pérdida de líquido\n• Fiebre\n• Disminución de movimientos fetales',
+  },
+  {
+    keywords: ['licencia', 'licencia médica', 'baja', 'reposo'],
+    response: '**Licencia Médica**\n\nComo trabajadora de casa particular (TCP) tienes derecho a licencia médica:\n\n**Proceso:**\n1. Acude a tu centro de salud (CESFAM o particular)\n2. El médico emite licencia electrónica (LME)\n3. Se notifica automáticamente a tu empleador\n4. Tu sueldo es cubierto por FONASA (subsidio de incapacidad laboral)\n\n**Importante:**\n• No necesitas permiso del empleador para ir al médico\n• El empleador NO puede descontarte los días de licencia\n• Si estás en FONASA, el subsidio es el 100% del sueldo los primeros 3 días\n\n¿Quieres que solicite un permiso médico a tu empleador por Poppins?',
+  },
+  {
+    keywords: ['centro', 'hospital', 'clínica', 'consultorio', 'cesfam', 'urgencia'],
+    response: '**Centros de salud cercanos (Las Condes)**\n\n🏥 **CESFAM Carol Urzúa**\nAv. Las Condes 9500\nTel: 2 2345 6789\n\n🏥 **Clínica Las Condes**\nEstoril 450\nTel: 2 2210 4000\n\n🏥 **Hospital del Trabajador (ACHS)**\nRamón Carnicer 185, Providencia\nTel: 600 620 2000\n→ Accidentes laborales\n\n🏥 **SAPU (Urgencia nocturna)**\nConsulta en tu CESFAM horarios\n\n📞 **Emergencias: 131**\n\nRecuerda: como TCP tienes derecho a FONASA. Si sufriste un accidente de trabajo, acude al Hospital del Trabajador (ISL/ACHS).',
+  },
+  {
+    keywords: ['medicamento', 'remedio', 'pastilla', 'dosis', 'farmacia'],
+    response: '**Medicamentos**\n\n**Analgésicos comunes (sin receta):**\n• Paracetamol: 500-1000mg cada 6-8h (máx 4g/día)\n• Ibuprofeno: 400mg cada 8h con comida (máx 1200mg/día)\n• Aspirina: 500mg cada 8h (no en <18 años)\n\n**Importante:**\n• No mezcles paracetamol con ibuprofeno sin indicación\n• Ibuprofeno NO en ayunas (daña el estómago)\n• NO tomes antibióticos sin receta médica\n• Retira medicamentos con receta en farmacias con convenio FONASA\n\n⚠️ Avisa siempre al médico si tomas otros medicamentos para evitar interacciones.\n\n¿Necesitas configurar recordatorios de medicamentos en Poppins?',
+  },
+  {
+    keywords: ['estrés', 'ansiedad', 'angustia', 'nerviosa', 'nervios', 'llorar', 'depresión', 'triste'],
+    response: '**Salud Mental**\n\nEl estrés y la ansiedad son comunes. No estás sola.\n\n**Qué puedes hacer:**\n1. Habla con alguien de confianza\n2. Respira profundo: 4 segundos inhalar, 4 sostener, 4 exhalar\n3. Camina al aire libre 15-20 minutos\n4. Duerme suficiente (7-8 horas)\n5. Limita café y pantallas antes de dormir\n\n**Recursos de ayuda:**\n📞 Salud Responde: 600 360 7777 (24/7, gratuito)\n📞 Línea de la Vida: 600 360 7700\n📞 Fono Mujer: 1455 (violencia de género)\n\n⚠️ **Busca ayuda profesional si:**\n• Pensamientos de hacerte daño\n• No puedes dormir ni comer hace días\n• Llanto constante sin motivo\n• No puedes levantarte ni trabajar\n\nTienes derecho a licencia médica por salud mental.',
+  },
+  {
+    keywords: ['caída', 'caí', 'golpe', 'tropecé', 'resbalé', 'accidente trabajo'],
+    response: '**Caídas y accidentes de trabajo**\n\n**Primeros auxilios:**\n1. No mover si hay sospecha de fractura\n2. Aplicar hielo envuelto en paño 15-20 min\n3. Elevar la zona afectada\n4. Tomar analgésico si hay dolor\n\n⚠️ **Consulta si:**\n• No puedes mover la extremidad\n• Deformidad visible\n• Dolor intenso que no cede\n• Golpe en la cabeza con mareo o vómitos\n\n🏥 **Si fue ACCIDENTE DE TRABAJO:**\nAcude al Hospital del Trabajador o mutual (ISL)\nTel: 600 620 2000\n→ Cobertura completa por Ley 16.744\n→ Tu empleador debe reportar el DIAT en 24 horas\n→ No uses tu FONASA, usa el seguro laboral',
+  },
+];
 
-const DEFAULT_RESPONSE =
-  'Entiendo tu consulta. Te recomiendo que para una evaluación más precisa, consultes con un profesional de salud. ¿Quieres que te muestre los centros de salud cercanos o te ayude a solicitar una licencia médica?';
+function getAIResponse(userInput: string): string {
+  const input = userInput.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  for (const entry of medicalKnowledge) {
+    for (const keyword of entry.keywords) {
+      const normalizedKeyword = keyword.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (input.includes(normalizedKeyword)) {
+        return entry.response;
+      }
+    }
+  }
+
+  return 'Entiendo tu consulta. Para una orientación más precisa, necesito más detalles sobre tus síntomas.\n\nPuedes preguntarme sobre:\n• Dolores específicos (cabeza, espalda, estómago, pecho)\n• Fiebre, tos, diarrea, vómitos\n• Alergias, quemaduras, cortes\n• Licencia médica y centros de salud\n• Embarazo y maternidad\n• Estrés y salud mental\n• Accidentes de trabajo\n\n⚠️ En caso de emergencia, llama al 131.\n\n¿En qué puedo ayudarte?';
+}
 
 export default function AyudaMedicaPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([INITIAL_MESSAGE]);
@@ -95,7 +176,7 @@ export default function AyudaMedicaPage() {
     setIsTyping(true);
 
     setTimeout(() => {
-      const response = mockResponses[text.trim()] ?? DEFAULT_RESPONSE;
+      const response = getAIResponse(text.trim());
       const botMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
