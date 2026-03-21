@@ -70,7 +70,7 @@ interface Pago {
   descripcion: string | null;
   comprobante_url: string | null;
   created_at: string;
-  trabajador?: { nombre: string; apellido: string } | null;
+  trabajador?: { nombre: string; apellido_paterno: string } | null;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -204,7 +204,7 @@ export default function PagosPage() {
     try {
       const { data, error: fetchError } = await supabase
         .from('pagos_empleador')
-        .select('*, trabajador:referencia_trabajador_id(nombre, apellido)')
+        .select('*, trabajador:referencia_trabajador_id(nombre, apellido_paterno)')
         .eq('empleador_id', EMPLEADOR_ID)
         .eq('periodo', periodo)
         .order('created_at', { ascending: true });
@@ -224,7 +224,7 @@ export default function PagosPage() {
     try {
       const { data, error: fetchError } = await supabase
         .from('pagos_empleador')
-        .select('*, trabajador:referencia_trabajador_id(nombre, apellido)')
+        .select('*, trabajador:referencia_trabajador_id(nombre, apellido_paterno)')
         .eq('empleador_id', EMPLEADOR_ID)
         .order('created_at', { ascending: false });
 
@@ -522,7 +522,7 @@ export default function PagosPage() {
               const Icon = config.icon;
               const badgeClass = ESTADO_BADGE[pago.estado] || ESTADO_BADGE.pendiente;
               const puntosGanados = pago.puntos_acumulados || (pago.estado === 'pagado' ? Math.floor(pago.monto / 1000) : null);
-              const trabajadorName = pago.trabajador ? `${pago.trabajador.nombre} ${pago.trabajador.apellido}` : null;
+              const trabajadorName = pago.trabajador ? `${pago.trabajador.nombre} ${pago.trabajador.apellido_paterno}` : null;
 
               return (
                 <div
