@@ -13,9 +13,8 @@ export async function POST(request: NextRequest) {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins-erp-2026.vercel.app';
 
-  // TODO: Set FLOW_ENABLED=true in env when Flow keys are verified
-  const flowEnabled = process.env.FLOW_ENABLED === 'true';
-  if (!flowEnabled || !FLOW_API_KEY || FLOW_API_KEY === 'flow_sandbox_key') {
+  // Flow disabled only if no keys configured
+  if (!FLOW_API_KEY || FLOW_API_KEY === 'flow_sandbox_key') {
     return NextResponse.json({
       url: null,
       token: `flow_sim_${Date.now()}`,

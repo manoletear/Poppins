@@ -2,9 +2,9 @@ import crypto from 'crypto';
 
 const FLOW_API_KEY = process.env.FLOW_API_KEY || 'flow_sandbox_key';
 const FLOW_SECRET_KEY = process.env.FLOW_SECRET_KEY || 'flow_sandbox_secret';
-const FLOW_BASE_URL = process.env.FLOW_ENV === 'production'
-  ? 'https://www.flow.cl/api'
-  : 'https://sandbox.flow.cl/api';
+const FLOW_BASE_URL = process.env.FLOW_ENV === 'sandbox'
+  ? 'https://sandbox.flow.cl/api'
+  : 'https://www.flow.cl/api';
 
 /**
  * Signs Flow API parameters with HMAC-SHA256
