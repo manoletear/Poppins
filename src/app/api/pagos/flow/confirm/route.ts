@@ -17,16 +17,15 @@ export async function POST(request: NextRequest) {
     const status = await getFlowPaymentStatus(token);
     const supabase = await createClient();
 
-    // Buscar pago por flow_token o flow_order_id
-    const { data: pago } = await supabase
+    // Find all pagos matching this token or flowOrder (supports bulk payments)
+    const { data: pagos } = await supabase
       .from('pagos_empleador')
       .select('*')
-      .or(`flow_token.eq.${token},flow_order_id.eq.${status.flowOrder}`)
-      .single();
+      .or(`flow_token.eq.${token},flow_order_id.eq.${status.flowOrder}`);
 
-    if (!pago) {
+    if (!pagos || pagos.length === 0) {
       console.error(
-        'No se encontro pago para Flow order:',
+        'No se encontraron pagos para Flow order:',
         status.flowOrder,
         'token:',
         token
@@ -37,44 +36,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const now = new Date().toISOString();
+
     if (status.status === FLOW_STATUS.PAID) {
-      const puntos = Math.floor(pago.monto / 1000);
+      for (const pago of pagos) {
+        const puntos = Math.floor(pago.monto / 1000);
 
-      const { error: updateError } = await supabase
-        .from('pagos_empleador')
-        .update({
-          estado: 'pagado',
-          fecha_pago: new Date().toISOString(),
-          puntos_acumulados: puntos,
-          flow_order_id: String(status.flowOrder),
-          descripcion: pago.descripcion || status.subject,
-        })
-        .eq('id', pago.id);
+        const { error: updateError } = await supabase
+          .from('pagos_empleador')
+          .update({
+            estado: 'pagado',
+            fecha_pago: now,
+            puntos_acumulados: puntos,
+            flow_order_id: String(status.flowOrder),
+            descripcion: pago.descripcion || status.subject,
+          })
+          .eq('id', pago.id);
 
-      if (updateError) {
-        console.error('Error actualizando pago:', updateError);
+        if (updateError) {
+          console.error('Error actualizando pago:', pago.id, updateError);
+        }
+
+        // Crear comprobante de pago
+        await supabase.from('comprobantes_pago').insert({
+          pago_id: pago.id,
+          tipo: 'recibo',
+          numero: `FLOW-${status.flowOrder}-${pago.id.slice(0, 4)}`,
+          monto: pago.monto,
+        });
       }
-
-      // Crear comprobante de pago
-      await supabase.from('comprobantes_pago').insert({
-        pago_id: pago.id,
-        tipo: 'recibo',
-        numero: `FLOW-${status.flowOrder}`,
-        monto: pago.monto,
-      });
     } else if (status.status === FLOW_STATUS.REJECTED) {
       await supabase
         .from('pagos_empleador')
         .update({ estado: 'rechazado' })
-        .eq('id', pago.id);
+        .in('id', pagos.map(p => p.id));
     } else if (status.status === FLOW_STATUS.CANCELLED) {
       await supabase
         .from('pagos_empleador')
         .update({ estado: 'pendiente' })
-        .eq('id', pago.id);
+        .in('id', pagos.map(p => p.id));
     }
 
-    return NextResponse.json({ received: true, status: status.status });
+    return NextResponse.json({ received: true, status: status.status, count: pagos.length });
   } catch (error: unknown) {
     console.error('Error en confirmacion de Flow:', error);
     const message =

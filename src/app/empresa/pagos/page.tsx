@@ -279,6 +279,7 @@ function PagosContent() {
   // Generate pagos
   const [generatingPagos, setGeneratingPagos] = useState(false);
   const [generateResult, setGenerateResult] = useState<string | null>(null);
+  const [generatePreview, setGeneratePreview] = useState<{ cuenta: CuentaPago; monto: number }[] | null>(null);
 
   // ── Check flow_status on mount ──
   useEffect(() => {
@@ -470,19 +471,59 @@ function PagosContent() {
     }
   }
 
-  // ── Handle pay all ──
+  // ── Handle pay all (consolidated single Flow payment) ──
   async function handlePayAll() {
     if (pendingPagos.length === 0) return;
     setPayingAll(true);
     setPayAllProgress({ current: 0, total: pendingPagos.length });
     try {
-      for (let i = 0; i < pendingPagos.length; i++) {
-        setPayAllProgress({ current: i + 1, total: pendingPagos.length });
-        const result = await processFlowPayment(pendingPagos[i]);
-        if (result.redirected) break; // Flow redireccion activa, detener
+      const pagoIds = pendingPagos.map(p => p.id);
+      const descriptions = pendingPagos.map(p =>
+        p.cuenta_pago?.alias || p.descripcion || tipoLabel(p.tipo)
+      );
+
+      const res = await fetch('/api/pagos/flow/create-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pagoIds,
+          monto: totalPendiente,
+          descripcion: `Pago consolidado: ${descriptions.join(', ')}`,
+          email: 'manuel.aravenal@gmail.com',
+        }),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Error al crear pago consolidado');
       }
+
+      const data = await res.json();
+
+      if (data.url && !data.simulated) {
+        // Flow real: redirect to single consolidated payment page
+        window.location.href = data.url + '?token=' + data.token;
+        return;
+      }
+
+      // Simulation mode: confirm all locally
+      const confirmRes = await fetch('/api/pagos/flow/confirm-local', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pagoIds }),
+      });
+
+      if (confirmRes.ok) {
+        const result = await confirmRes.json();
+        setPaySuccess({ puntos: result.puntos_ganados || Math.floor(totalPendiente / 1000) });
+        // Open a temporary modal to show success
+        setPaymentModal(pendingPagos[0]);
+      }
+
       await Promise.all([fetchPagos(), fetchAllPagos(), fetchTotalPuntos()]);
-    } catch {
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al procesar pago consolidado';
+      setPayError(message);
       await Promise.all([fetchPagos(), fetchAllPagos(), fetchTotalPuntos()]);
     } finally {
       setPayingAll(false);
@@ -585,8 +626,8 @@ function PagosContent() {
     await fetchCuentas();
   }
 
-  async function handleGenerarPagos() {
-    setGeneratingPagos(true);
+  // Step 1: Preview which accounts will generate pagos (allows editing variable amounts)
+  async function handlePreviewGenerarPagos() {
     setGenerateResult(null);
     try {
       const currentPeriodo = getCurrentPeriodo();
@@ -597,7 +638,6 @@ function PagosContent() {
         return;
       }
 
-      // Verificar pagos existentes para este periodo
       const { data: existingPagos } = await supabase
         .from('pagos_empleador')
         .select('cuenta_pago_id')
@@ -615,16 +655,39 @@ function PagosContent() {
         return;
       }
 
-      const records = nuevos.map(cuenta => ({
-        empleador_id: EMPLEADOR_ID,
-        tipo: cuenta.tipo,
-        monto: cuenta.monto_fijo || 0,
-        estado: 'pendiente',
-        periodo: currentPeriodo,
-        cuenta_pago_id: cuenta.id,
-        descripcion: [cuenta.alias, cuenta.proveedor].filter(Boolean).join(' - '),
-        referencia_trabajador_id: cuenta.referencia_trabajador_id || null,
-      }));
+      // Show preview modal with editable amounts
+      setGeneratePreview(nuevos.map(c => ({ cuenta: c, monto: c.monto_fijo || 0 })));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Error al verificar cuentas';
+      setGenerateResult(`Error: ${message}`);
+    }
+  }
+
+  // Step 2: Confirm and create the pagos with final amounts
+  async function handleConfirmGenerarPagos() {
+    if (!generatePreview) return;
+    setGeneratingPagos(true);
+    try {
+      const currentPeriodo = getCurrentPeriodo();
+
+      const records = generatePreview
+        .filter(item => item.monto > 0)
+        .map(item => ({
+          empleador_id: EMPLEADOR_ID,
+          tipo: item.cuenta.tipo,
+          monto: item.monto,
+          estado: 'pendiente',
+          periodo: currentPeriodo,
+          cuenta_pago_id: item.cuenta.id,
+          descripcion: [item.cuenta.alias, item.cuenta.proveedor].filter(Boolean).join(' - '),
+          referencia_trabajador_id: item.cuenta.referencia_trabajador_id || null,
+        }));
+
+      if (records.length === 0) {
+        setGenerateResult('No hay pagos con monto mayor a $0 para generar.');
+        setGeneratePreview(null);
+        return;
+      }
 
       const { error } = await supabase
         .from('pagos_empleador')
@@ -632,8 +695,8 @@ function PagosContent() {
 
       if (error) throw error;
 
-      setGenerateResult(`${nuevos.length} pagos generados para ${currentPeriodo}.`);
-      // Refrescar pagos si estamos viendo el periodo actual
+      setGenerateResult(`${records.length} pagos generados para ${currentPeriodo}.`);
+      setGeneratePreview(null);
       if (periodo === currentPeriodo) {
         await fetchPagos();
       }
@@ -990,7 +1053,7 @@ function PagosContent() {
             <h2 className="text-lg font-semibold text-zinc-900">Cuentas de Pago Configuradas</h2>
             <div className="flex items-center gap-3">
               <button
-                onClick={handleGenerarPagos}
+                onClick={handlePreviewGenerarPagos}
                 disabled={generatingPagos}
                 className="rounded-lg border border-violet-200 bg-violet-50 px-4 py-1.5 text-sm font-medium text-violet-700 hover:bg-violet-100 disabled:opacity-50 transition-colors flex items-center gap-2"
               >
@@ -1467,6 +1530,130 @@ function PagosContent() {
                 className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
               >
                 Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {/*  GENERATE PREVIEW MODAL                                        */}
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {generatePreview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !generatingPagos && setGeneratePreview(null)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-lg w-full mx-4 overflow-hidden max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+              <h3 className="text-lg font-semibold text-zinc-900">
+                Generar Pagos - {getCurrentPeriodo()}
+              </h3>
+              <button
+                onClick={() => !generatingPagos && setGeneratePreview(null)}
+                disabled={generatingPagos}
+                className="rounded-lg p-1 hover:bg-zinc-100 transition-colors disabled:opacity-50"
+              >
+                <X className="h-5 w-5 text-zinc-400" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-zinc-500">
+                Revisa y ajusta los montos antes de generar los pagos del mes. Las cuentas con monto $0 no se generaran.
+              </p>
+
+              <div className="space-y-3">
+                {generatePreview.map((item, index) => {
+                  const config = TIPO_CONFIG[item.cuenta.tipo] || TIPO_CONFIG.otro;
+                  const Icon = config.icon;
+                  const isVariable = !item.cuenta.monto_fijo;
+
+                  return (
+                    <div
+                      key={item.cuenta.id}
+                      className={`rounded-lg border p-3 ${isVariable ? 'border-amber-200 bg-amber-50/50' : 'border-zinc-200 bg-zinc-50'}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${config.iconColor}`}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-zinc-900 truncate">{item.cuenta.alias}</p>
+                          <div className="flex items-center gap-2">
+                            {item.cuenta.proveedor && (
+                              <p className="text-xs text-zinc-500 truncate">{item.cuenta.proveedor}</p>
+                            )}
+                            {isVariable && (
+                              <span className="inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                                Variable
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="shrink-0 w-32">
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-zinc-400">$</span>
+                            <input
+                              type="number"
+                              value={item.monto || ''}
+                              onChange={(e) => {
+                                const newPreview = [...generatePreview];
+                                newPreview[index] = { ...item, monto: Number(e.target.value) || 0 };
+                                setGeneratePreview(newPreview);
+                              }}
+                              placeholder="0"
+                              className={`w-full rounded-lg border px-3 pl-7 py-1.5 text-sm text-right font-medium focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent ${
+                                isVariable ? 'border-amber-300 bg-white' : 'border-zinc-200 bg-white'
+                              }`}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Total */}
+              <div className="rounded-lg bg-violet-50 border border-violet-200 p-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm font-medium text-violet-700">Total a generar</span>
+                  <span className="text-lg font-bold text-violet-900">
+                    {formatCLP(generatePreview.reduce((s, item) => s + item.monto, 0))}
+                  </span>
+                </div>
+                <p className="text-xs text-violet-500 mt-1">
+                  {generatePreview.filter(i => i.monto > 0).length} de {generatePreview.length} cuentas con monto asignado
+                </p>
+              </div>
+            </div>
+
+            <div className="px-6 py-4 border-t border-zinc-100 flex gap-3">
+              <button
+                onClick={() => setGeneratePreview(null)}
+                disabled={generatingPagos}
+                className="flex-1 rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmGenerarPagos}
+                disabled={generatingPagos || generatePreview.every(i => i.monto <= 0)}
+                className="flex-1 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {generatingPagos ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generando...
+                  </>
+                ) : (
+                  <>
+                    <CalendarDays className="h-4 w-4" />
+                    Confirmar y Generar
+                  </>
+                )}
               </button>
             </div>
           </div>
