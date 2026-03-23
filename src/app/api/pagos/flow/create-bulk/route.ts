@@ -43,13 +43,29 @@ export async function POST(request: NextRequest) {
 
   // Real Flow payment
   try {
+    const flowAmount = Math.round(monto);
+    const flowSubject = descripcion || `Pago consolidado Poppins (${pagoIds.length} cuentas)`;
+    console.log('[create-bulk] Creating Flow payment:', {
+      bulkId,
+      pagoIds,
+      amount: flowAmount,
+      subject: flowSubject,
+      pagoCount: pagoIds.length,
+    });
+
     const result = await createFlowPayment({
       commerceOrder: bulkId,
-      subject: descripcion || `Pago consolidado Poppins (${pagoIds.length} cuentas)`,
-      amount: Math.round(monto),
+      subject: flowSubject,
+      amount: flowAmount,
       email: email || 'pagos@poppins.cl',
       urlConfirmation: `${siteUrl}/api/pagos/flow/confirm`,
       urlReturn: `${siteUrl}/empresa/pagos?flow_status=completed`,
+    });
+
+    console.log('[create-bulk] Flow response:', {
+      url: result.url,
+      token: result.token,
+      flowOrder: result.flowOrder,
     });
 
     // Store flow token and order on all pagos
