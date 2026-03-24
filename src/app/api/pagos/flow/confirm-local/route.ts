@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
           puntos_acumulados: puntos,
           flow_order_id: pago.flow_order_id || `LOCAL-${Date.now()}`,
           flow_token: pago.flow_token || `local_${Date.now()}`,
+          pre_fondeo_estado: 'fondeado',
+          pre_fondeo_at: now,
         })
         .eq('id', id);
 

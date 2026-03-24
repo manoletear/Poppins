@@ -26,6 +26,10 @@ import {
   Trash2,
   Settings,
   CalendarDays,
+  AlertTriangle,
+  FileCheck,
+  ShieldCheck,
+  Clock,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -71,6 +75,8 @@ const TIPOS_CUENTA = [
   { value: 'otro', label: 'Otro' },
 ];
 
+const TIPOS_REQUIEREN_AUTORIZACION = ['arriendo', 'gastos_comunes'];
+
 // ── Types ──────────────────────────────────────────────────────────────
 interface Pago {
   id: string;
@@ -85,6 +91,8 @@ interface Pago {
   puntos_acumulados: number | null;
   fecha_pago: string | null;
   descripcion: string | null;
+  pre_fondeo_estado: string | null;
+  pre_fondeo_at: string | null;
   created_at: string;
   cuenta_pago?: CuentaPago | null;
 }
@@ -100,9 +108,19 @@ interface CuentaPago {
   dia_vencimiento: number | null;
   referencia_trabajador_id: string | null;
   activa: boolean;
+  autorizado: boolean;
+  autorizado_at: string | null;
+  autorizado_por: string | null;
   notas: string | null;
   created_at: string;
   trabajador?: { nombre: string; apellido_paterno: string } | null;
+}
+
+interface OverdueAlert {
+  pago: Pago;
+  alias: string;
+  diasVencido: number;
+  promedioMensual: number;
 }
 
 interface Trabajador {
@@ -281,6 +299,14 @@ function PagosContent() {
   const [generateResult, setGenerateResult] = useState<string | null>(null);
   const [generatePreview, setGeneratePreview] = useState<{ cuenta: CuentaPago; monto: number }[] | null>(null);
 
+  // Authorization modal
+  const [authModal, setAuthModal] = useState<CuentaPago | null>(null);
+  const [authAccepted, setAuthAccepted] = useState(false);
+  const [savingAuth, setSavingAuth] = useState(false);
+
+  // Overdue alerts
+  const [alertas, setAlertas] = useState<OverdueAlert[]>([]);
+
   // ── Check flow_status on mount ──
   useEffect(() => {
     const flowStatus = searchParams.get('flow_status');
@@ -395,6 +421,54 @@ function PagosContent() {
     fetchTotalPuntos();
   }, [fetchAllPagos, fetchTotalPuntos]);
 
+  // Auto-sync: create pagos for active cuentas that don't have one this period
+  const autoSyncPagos = useCallback(async () => {
+    try {
+      const currentPeriodo = getCurrentPeriodo();
+      const { data: activeCuentas } = await supabase
+        .from('cuentas_pago')
+        .select('*')
+        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('activa', true);
+
+      if (!activeCuentas || activeCuentas.length === 0) return;
+
+      const { data: existingPagos } = await supabase
+        .from('pagos_empleador')
+        .select('cuenta_pago_id')
+        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('periodo', currentPeriodo);
+
+      const existingIds = new Set(
+        (existingPagos || []).map((p: { cuenta_pago_id: string | null }) => p.cuenta_pago_id)
+      );
+
+      const nuevos = (activeCuentas as CuentaPago[]).filter(c => !existingIds.has(c.id));
+      if (nuevos.length === 0) return;
+
+      const records = nuevos.map(cuenta => ({
+        empleador_id: EMPLEADOR_ID,
+        tipo: cuenta.tipo,
+        monto: cuenta.monto_fijo || 0,
+        estado: 'pendiente',
+        periodo: currentPeriodo,
+        cuenta_pago_id: cuenta.id,
+        descripcion: [cuenta.alias, cuenta.proveedor].filter(Boolean).join(' - '),
+        referencia_trabajador_id: cuenta.referencia_trabajador_id || null,
+      }));
+
+      await supabase.from('pagos_empleador').insert(records);
+      await fetchPagos();
+    } catch {
+      // Non-blocking
+    }
+  }, [supabase, fetchPagos]);
+
+  // Run auto-sync once on mount
+  useEffect(() => {
+    autoSyncPagos();
+  }, [autoSyncPagos]);
+
   useEffect(() => {
     if (activeTab === 'cuentas') {
       fetchCuentas();
@@ -407,6 +481,36 @@ function PagosContent() {
   const totalPagado = pagos.filter(p => p.estado === 'pagado').reduce((s, p) => s + p.monto, 0);
   const puntosMes = pagos.filter(p => p.estado === 'pagado').reduce((s, p) => s + (p.puntos_acumulados || 0), 0);
   const pendingPagos = pagos.filter(p => p.estado === 'pendiente');
+
+  // ── Compute overdue alerts ──
+  useEffect(() => {
+    const today = new Date().getDate();
+    const newAlertas: OverdueAlert[] = [];
+
+    for (const pago of pendingPagos) {
+      const cuenta = pago.cuenta_pago;
+      if (!cuenta) continue;
+      const diaVenc = cuenta.dia_vencimiento as number | undefined;
+      if (!diaVenc || today <= diaVenc) continue;
+
+      // Calculate historical average for this cuenta
+      const historial = allPagos.filter(
+        p => p.cuenta_pago_id === pago.cuenta_pago_id && p.estado === 'pagado' && p.monto > 0
+      );
+      const promedioMensual = historial.length > 0
+        ? Math.round(historial.reduce((s, p) => s + p.monto, 0) / historial.length)
+        : pago.monto;
+
+      newAlertas.push({
+        pago,
+        alias: cuenta.alias || pago.descripcion || tipoLabel(pago.tipo),
+        diasVencido: today - diaVenc,
+        promedioMensual,
+      });
+    }
+
+    setAlertas(newAlertas);
+  }, [pagos, allPagos, pendingPagos]);
 
   // ── Process a Flow payment ──
   async function processFlowPayment(pago: Pago): Promise<{ puntos: number; redirected?: boolean }> {
@@ -612,11 +716,102 @@ function PagosContent() {
   }
 
   async function handleToggleCuenta(cuenta: CuentaPago) {
+    const willActivate = !cuenta.activa;
+
+    // If activating arriendo/GGCC without authorization → show auth modal first
+    if (willActivate && TIPOS_REQUIEREN_AUTORIZACION.includes(cuenta.tipo) && !cuenta.autorizado) {
+      setAuthModal(cuenta);
+      setAuthAccepted(false);
+      return;
+    }
+
     await supabase
       .from('cuentas_pago')
-      .update({ activa: !cuenta.activa })
+      .update({ activa: willActivate })
       .eq('id', cuenta.id);
-    await fetchCuentas();
+
+    const currentPeriodo = getCurrentPeriodo();
+
+    if (willActivate) {
+      // Check if pago already exists for this cuenta in current period
+      const { data: existing } = await supabase
+        .from('pagos_empleador')
+        .select('id')
+        .eq('cuenta_pago_id', cuenta.id)
+        .eq('periodo', currentPeriodo)
+        .limit(1);
+
+      if (!existing || existing.length === 0) {
+        await supabase.from('pagos_empleador').insert({
+          empleador_id: EMPLEADOR_ID,
+          tipo: cuenta.tipo,
+          monto: cuenta.monto_fijo || 0,
+          estado: 'pendiente',
+          periodo: currentPeriodo,
+          cuenta_pago_id: cuenta.id,
+          descripcion: [cuenta.alias, cuenta.proveedor].filter(Boolean).join(' - '),
+          referencia_trabajador_id: cuenta.referencia_trabajador_id || null,
+        });
+      }
+    } else {
+      // Deactivating: remove only pendiente pagos for current period
+      await supabase
+        .from('pagos_empleador')
+        .delete()
+        .eq('cuenta_pago_id', cuenta.id)
+        .eq('periodo', currentPeriodo)
+        .eq('estado', 'pendiente');
+    }
+
+    await Promise.all([fetchCuentas(), fetchPagos(), fetchAllPagos()]);
+  }
+
+  // Handle authorization confirmation
+  async function handleConfirmAutorizacion() {
+    if (!authModal || !authAccepted) return;
+    setSavingAuth(true);
+    try {
+      const now = new Date().toISOString();
+      // Mark as authorized
+      await supabase
+        .from('cuentas_pago')
+        .update({
+          autorizado: true,
+          autorizado_at: now,
+          autorizado_por: EMPLEADOR_ID,
+          activa: true,
+        })
+        .eq('id', authModal.id);
+
+      // Create pago for current period
+      const currentPeriodo = getCurrentPeriodo();
+      const { data: existing } = await supabase
+        .from('pagos_empleador')
+        .select('id')
+        .eq('cuenta_pago_id', authModal.id)
+        .eq('periodo', currentPeriodo)
+        .limit(1);
+
+      if (!existing || existing.length === 0) {
+        await supabase.from('pagos_empleador').insert({
+          empleador_id: EMPLEADOR_ID,
+          tipo: authModal.tipo,
+          monto: authModal.monto_fijo || 0,
+          estado: 'pendiente',
+          periodo: currentPeriodo,
+          cuenta_pago_id: authModal.id,
+          descripcion: [authModal.alias, authModal.proveedor].filter(Boolean).join(' - '),
+          referencia_trabajador_id: authModal.referencia_trabajador_id || null,
+        });
+      }
+
+      setAuthModal(null);
+      await Promise.all([fetchCuentas(), fetchPagos(), fetchAllPagos()]);
+    } catch (err) {
+      console.error('Error autorizando cuenta:', err);
+    } finally {
+      setSavingAuth(false);
+    }
   }
 
   async function handleDeleteCuenta() {
@@ -846,6 +1041,40 @@ function PagosContent() {
             </div>
           )}
 
+          {/* Overdue Alerts */}
+          {!loading && alertas.length > 0 && (
+            <div className="space-y-2">
+              {alertas.map((alerta) => (
+                <div
+                  key={alerta.pago.id}
+                  className="rounded-xl border border-amber-200 bg-amber-50 p-4 flex items-center gap-3"
+                >
+                  <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-amber-800">
+                      {alerta.alias} — Vencido hace {alerta.diasVencido} {alerta.diasVencido === 1 ? 'dia' : 'dias'}
+                    </p>
+                    <p className="text-xs text-amber-600">
+                      Costo promedio mensual: {formatCLP(alerta.promedioMensual)}
+                      {alerta.diasVencido > 5 && ' — Riesgo de multa o corte de servicio'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setPaySuccess(null);
+                      setPayError(null);
+                      setPaymentModal(alerta.pago);
+                    }}
+                    className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-700 transition-colors flex items-center gap-1"
+                  >
+                    <Clock className="h-3.5 w-3.5" />
+                    Pagar ahora
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Payments Grid */}
           {!loading && !error && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -890,9 +1119,22 @@ function PagosContent() {
                             )}
                           </div>
                         </div>
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium shrink-0 ${badgeClass}`}>
-                          {pago.estado.charAt(0).toUpperCase() + pago.estado.slice(1)}
-                        </span>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badgeClass}`}>
+                            {pago.estado.charAt(0).toUpperCase() + pago.estado.slice(1)}
+                          </span>
+                          {pago.estado === 'pagado' && (
+                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                              pago.pre_fondeo_estado === 'pago_proveedor_hecho'
+                                ? 'bg-emerald-50 text-emerald-700'
+                                : 'bg-blue-50 text-blue-700'
+                            }`}>
+                              {pago.pre_fondeo_estado === 'pago_proveedor_hecho'
+                                ? 'Pagado al proveedor'
+                                : 'Fondeado'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {pago.estado === 'pendiente' && (
                         <button
@@ -1176,9 +1418,23 @@ function PagosContent() {
                       </div>
 
                       <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between">
-                        <span className={`text-xs font-medium ${cuenta.activa ? 'text-emerald-600' : 'text-zinc-400'}`}>
-                          {cuenta.activa ? 'Activa' : 'Inactiva'}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-xs font-medium ${cuenta.activa ? 'text-emerald-600' : 'text-zinc-400'}`}>
+                            {cuenta.activa ? 'Activa' : 'Inactiva'}
+                          </span>
+                          {cuenta.autorizado && TIPOS_REQUIEREN_AUTORIZACION.includes(cuenta.tipo) && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700">
+                              <ShieldCheck className="h-3 w-3" />
+                              Autorizado
+                            </span>
+                          )}
+                          {!cuenta.autorizado && TIPOS_REQUIEREN_AUTORIZACION.includes(cuenta.tipo) && (
+                            <span className="inline-flex items-center gap-0.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                              <Shield className="h-3 w-3" />
+                              Requiere autorizacion
+                            </span>
+                          )}
+                        </div>
                         <button
                           onClick={() => handleToggleCuenta(cuenta)}
                           className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
@@ -1274,7 +1530,7 @@ function PagosContent() {
                     </div>
                   </div>
 
-                  {/* Flow info */}
+                  {/* Flow info + pre-fund notice */}
                   <div className="flex items-center gap-3 rounded-lg border border-zinc-200 p-3">
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-orange-600">
                       <CreditCard className="h-5 w-5 text-white" />
@@ -1283,6 +1539,12 @@ function PagosContent() {
                       <p className="text-sm font-medium text-zinc-900">Pago seguro con Flow.cl</p>
                       <p className="text-xs text-zinc-500">Webpay, tarjetas de credito/debito</p>
                     </div>
+                  </div>
+                  <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-200 p-3">
+                    <FileCheck className="h-5 w-5 text-blue-500 shrink-0" />
+                    <p className="text-xs text-blue-700">
+                      Al confirmar, estos fondos seran recibidos por Poppins para gestionar el pago a tu proveedor. Si no realizas el pago, la cuenta quedara en mora.
+                    </p>
                   </div>
 
                   {/* Points preview */}
@@ -1530,6 +1792,102 @@ function PagosContent() {
                 className="flex-1 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-red-700 transition-colors"
               >
                 Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {/*  AUTHORIZATION MODAL                                            */}
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {authModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => !savingAuth && setAuthModal(null)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100">
+              <h3 className="text-lg font-semibold text-zinc-900">Autorizacion de Pago</h3>
+              <button
+                onClick={() => !savingAuth && setAuthModal(null)}
+                disabled={savingAuth}
+                className="rounded-lg p-1 hover:bg-zinc-100 transition-colors disabled:opacity-50"
+              >
+                <X className="h-5 w-5 text-zinc-400" />
+              </button>
+            </div>
+
+            <div className="px-6 py-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-100">
+                  <ShieldCheck className="h-6 w-6 text-violet-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-zinc-900">{authModal.alias}</p>
+                  <p className="text-xs text-zinc-500">
+                    {tipoLabel(authModal.tipo)}{authModal.proveedor ? ` — ${authModal.proveedor}` : ''}
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-4 max-h-48 overflow-y-auto text-xs text-zinc-600 leading-relaxed space-y-2">
+                <p className="font-semibold text-zinc-800">Contrato de Autorizacion de Pago</p>
+                <p>
+                  Por medio del presente, yo, en calidad de empleador/a, autorizo a Poppins SpA a gestionar el pago de mi cuenta de <strong>{tipoLabel(authModal.tipo).toLowerCase()}</strong> ({authModal.alias}) en los siguientes terminos:
+                </p>
+                <p>
+                  <strong>1. Pre-fondeo obligatorio:</strong> Me comprometo a transferir o pagar con tarjeta el monto correspondiente antes de la fecha de vencimiento. Poppins solo realizara el pago al proveedor tras recibir mis fondos.
+                </p>
+                <p>
+                  <strong>2. Mora por falta de pago:</strong> Si no realizo el pre-fondeo a tiempo, Poppins no efectuara el pago al proveedor y la cuenta quedara en mora bajo mi exclusiva responsabilidad. Poppins no sera responsable de multas, intereses o cortes de servicio derivados de la falta de fondeo.
+                </p>
+                <p>
+                  <strong>3. Revocacion:</strong> Puedo revocar esta autorizacion en cualquier momento desactivando la cuenta desde mi panel de configuracion.
+                </p>
+                <p>
+                  <strong>4. Datos del proveedor:</strong> Autorizo a Poppins a utilizar los datos de mi cuenta para realizar los pagos en mi nombre.
+                </p>
+              </div>
+
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={authAccepted}
+                  onChange={(e) => setAuthAccepted(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-500"
+                />
+                <span className="text-sm text-zinc-700">
+                  He leido y acepto los terminos de autorizacion de pago
+                </span>
+              </label>
+            </div>
+
+            <div className="px-6 py-4 border-t border-zinc-100 flex gap-3">
+              <button
+                onClick={() => setAuthModal(null)}
+                disabled={savingAuth}
+                className="flex-1 rounded-lg border border-zinc-200 px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmAutorizacion}
+                disabled={savingAuth || !authAccepted}
+                className="flex-1 rounded-lg bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {savingAuth ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Firmando...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="h-4 w-4" />
+                    Firmar y Activar
+                  </>
+                )}
               </button>
             </div>
           </div>

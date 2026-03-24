@@ -50,6 +50,8 @@ export async function POST(request: NextRequest) {
             puntos_acumulados: puntos,
             flow_order_id: String(status.flowOrder),
             descripcion: pago.descripcion || status.subject,
+            pre_fondeo_estado: 'fondeado',
+            pre_fondeo_at: now,
           })
           .eq('id', pago.id);
 
