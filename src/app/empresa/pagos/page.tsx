@@ -329,7 +329,7 @@ function PagosContent() {
   const [showDiscovery, setShowDiscovery] = useState(false);
   const [tarjetaPrincipal, setTarjetaPrincipal] = useState<{
     banco: string; programa_puntos: string; tasa_puntos: number;
-    tipo_tarjeta: string; categoria: string;
+    tipo_tarjeta: 'visa' | 'mastercard' | 'amex' | 'diners' | 'otra'; categoria: string;
   } | null>(null);
   const [planTipo, setPlanTipo] = useState<PlanTipo>('starter');
   const [loadingOnboarding, setLoadingOnboarding] = useState(true);
@@ -508,7 +508,7 @@ function PagosContent() {
             banco: tarjeta.banco,
             programa_puntos: tarjeta.programa_puntos,
             tasa_puntos: tarjeta.tasa_puntos,
-            tipo_tarjeta: tarjeta.tipo_tarjeta,
+            tipo_tarjeta: tarjeta.tipo_tarjeta as 'visa' | 'mastercard' | 'amex' | 'diners' | 'otra',
             categoria: tarjeta.categoria,
           });
         }

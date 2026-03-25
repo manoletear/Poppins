@@ -5,7 +5,7 @@ import { calcularProyeccion, getDestinosDisponibles } from '@/lib/pagos/points-c
 import type { TarjetaCliente } from '@/lib/pagos/types';
 
 interface Props {
-  tarjeta: Pick<TarjetaCliente, 'banco' | 'programa_puntos' | 'tasa_puntos' | 'tipo_tarjeta' | 'categoria'> | null;
+  tarjeta: { banco: string; programa_puntos: string; tasa_puntos: number; tipo_tarjeta: string; categoria: string } | null;
   puntosAcumulados: number;
   montoMensualPromedio: number;
 }

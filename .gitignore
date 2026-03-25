@@ -39,3 +39,19 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# secrets & credentials
+**/client_secret_*.json
+.claude/settings.local.json
+**/settings.local.json
+
+# build artifacts
+build_output*.log
+build_output*.txt
+
+# scraper output & deps
+scripts/buk-scraper/node_modules/
+scripts/buk-scraper/output/
+
+# images
+imagenes referencia/
