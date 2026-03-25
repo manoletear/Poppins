@@ -182,3 +182,58 @@ export async function getPlantillasCompras() {
   const { data } = await supabase.from('plantillas_lista_compras').select('*').or(`es_global.eq.true,empleador_id.eq.${EMPLEADOR_ID}`);
   return data || [];
 }
+
+// Tarjetas
+export async function getTarjetaPrincipal(empleadorId: string) {
+  const supabase = createClient();
+  const { data } = await supabase
+    .from('tarjetas_cliente')
+    .select('*')
+    .eq('empleador_id', empleadorId)
+    .eq('es_principal', true)
+    .single();
+  return data;
+}
+
+export async function saveTarjeta(empleadorId: string, tarjeta: {
+  bin: string;
+  ultimos_4: string;
+  banco: string;
+  tipo_tarjeta: string;
+  categoria: string;
+  programa_puntos: string;
+  tasa_puntos: number;
+}) {
+  const supabase = createClient();
+  // Deactivate existing principal
+  await supabase
+    .from('tarjetas_cliente')
+    .update({ es_principal: false })
+    .eq('empleador_id', empleadorId)
+    .eq('es_principal', true);
+
+  const { data } = await supabase
+    .from('tarjetas_cliente')
+    .insert({ ...tarjeta, empleador_id: empleadorId, activa: true, es_principal: true })
+    .select()
+    .single();
+  return data;
+}
+
+// Onboarding state
+export async function getOnboardingState(empleadorId: string) {
+  const supabase = createClient();
+
+  const [tarjeta, cuentas, pagos] = await Promise.all([
+    supabase.from('tarjetas_cliente').select('id').eq('empleador_id', empleadorId).limit(1),
+    supabase.from('cuentas_pago').select('id').eq('empleador_id', empleadorId).eq('activa', true).limit(1),
+    supabase.from('pagos_empleador').select('id').eq('empleador_id', empleadorId).eq('estado', 'pagado').limit(1),
+  ]);
+
+  return {
+    tarjeta_registrada: (tarjeta.data?.length || 0) > 0,
+    primera_cuenta_agregada: (cuentas.data?.length || 0) > 0,
+    primer_pago_realizado: (pagos.data?.length || 0) > 0,
+    plan_seleccionado: true, // starter is default
+  };
+}
