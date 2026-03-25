@@ -18,6 +18,10 @@ export interface EmpleadorProfile {
   ciudad: string;
   plan: 'free' | 'premium' | 'enterprise';
   max_cuentas: number; // 2 free accounts
+  plan_tipo: 'starter' | 'casa' | 'hogar';
+  plan_inicio: string | null;
+  plan_renovacion: string | null;
+  onboarding_pagos_completado: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -238,6 +242,10 @@ export interface PagoEmpleador {
   periodo: string; // YYYY-MM
   estado: 'pendiente' | 'procesado' | 'pagado' | 'rechazado';
   fecha_pago: string | null;
+  comision_porcentaje: number | null;
+  comision_monto: number | null;
+  tarjeta_id: string | null;
+  puntos_banco_estimados: number | null;
   created_at: string;
 }
 
@@ -291,4 +299,20 @@ export interface DashboardEmpleador {
   pagos_pendientes: PagoEmpleador[];
   noticias_recientes: NoticiaLegal[];
   puntos_acumulados: number;
+}
+
+// Credit card registered by employer
+export interface TarjetaCliente {
+  id: string;
+  empleador_id: string;
+  bin: string;
+  ultimos_4: string;
+  banco: string;
+  tipo_tarjeta: 'visa' | 'mastercard' | 'amex' | 'diners' | 'otra';
+  categoria: string;
+  programa_puntos: string;
+  tasa_puntos: number;
+  activa: boolean;
+  es_principal: boolean;
+  created_at: string;
 }
