@@ -35,8 +35,9 @@ interface DatosBancarios {
 }
 
 interface DatosPrevisionales {
-  afp: string;
-  prevision_salud: 'fonasa' | 'isapre' | '';
+  afp_id: string;
+  salud_tipo: 'fonasa' | 'isapre' | '';
+  salud_id: string;
   nombre_isapre: string;
   plan_salud_uf: string;
   cargas_simples: string;
@@ -66,14 +67,24 @@ const BANCOS = [
 ];
 
 const AFPS = [
-  'Capital',
-  'Cuprum',
-  'Habitat',
-  'Modelo',
-  'Planvital',
-  'ProVida',
-  'Uno',
-  'Sin AFP (pensionado)',
+  { id: '1', nombre: 'AFP Capital' },
+  { id: '2', nombre: 'AFP Cuprum' },
+  { id: '3', nombre: 'AFP Habitat' },
+  { id: '4', nombre: 'AFP Modelo' },
+  { id: '5', nombre: 'AFP PlanVital' },
+  { id: '6', nombre: 'AFP Provida' },
+  { id: '7', nombre: 'AFP Uno' },
+];
+
+const SALUD_OPTIONS = [
+  { id: '13', nombre: 'FONASA', tipo: 'fonasa' },
+  { id: '8', nombre: 'Banmédica', tipo: 'isapre' },
+  { id: '9', nombre: 'Colmena Golden Cross', tipo: 'isapre' },
+  { id: '10', nombre: 'Consalud', tipo: 'isapre' },
+  { id: '11', nombre: 'Cruz Blanca', tipo: 'isapre' },
+  { id: '33', nombre: 'Esencial', tipo: 'isapre' },
+  { id: '12', nombre: 'Nueva Masvida', tipo: 'isapre' },
+  { id: '32', nombre: 'Vida Tres', tipo: 'isapre' },
 ];
 
 const REGIONES = [
@@ -358,10 +369,10 @@ function StepPrevisional({
       {/* AFP */}
       <div>
         <Label>AFP (Administradora de Fondos de Pensiones)</Label>
-        <Select value={data.afp} onChange={set('afp') as (v: string) => void}>
+        <Select value={data.afp_id} onChange={set('afp_id') as (v: string) => void}>
           <option value="">Selecciona tu AFP...</option>
           {AFPS.map(a => (
-            <option key={a} value={a}>{a}</option>
+            <option key={a.id} value={a.id}>{a.nombre}</option>
           ))}
         </Select>
       </div>
@@ -388,10 +399,18 @@ function StepPrevisional({
             <button
               key={opt}
               type="button"
-              onClick={() => set('prevision_salud')(opt)}
+              onClick={() => {
+                set('salud_tipo')(opt);
+                if (opt === 'fonasa') {
+                  set('salud_id')('13');
+                  set('nombre_isapre')('');
+                } else {
+                  set('salud_id')('');
+                }
+              }}
               className={`
                 flex-1 py-2.5 rounded-xl border text-sm font-medium transition-all
-                ${data.prevision_salud === opt
+                ${data.salud_tipo === opt
                   ? 'bg-violet-600 border-violet-600 text-white'
                   : 'bg-white border-zinc-200 text-zinc-600 hover:border-violet-300'
                 }
@@ -404,15 +423,16 @@ function StepPrevisional({
       </div>
 
       {/* Isapre fields */}
-      {data.prevision_salud === 'isapre' && (
+      {data.salud_tipo === 'isapre' && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pl-2 border-l-2 border-violet-200">
           <div>
-            <Label>Nombre de la ISAPRE</Label>
-            <Input
-              value={data.nombre_isapre}
-              onChange={set('nombre_isapre') as (v: string) => void}
-              placeholder="Ej: Banmédica"
-            />
+            <Label>ISAPRE</Label>
+            <Select value={data.salud_id} onChange={(v: string) => { set('salud_id')(v); const isapre = SALUD_OPTIONS.find(s => s.id === v); if (isapre) set('nombre_isapre')(isapre.nombre); }}>
+              <option value="">Selecciona tu ISAPRE...</option>
+              {SALUD_OPTIONS.filter(s => s.tipo === 'isapre').map(s => (
+                <option key={s.id} value={s.id}>{s.nombre}</option>
+              ))}
+            </Select>
           </div>
           <div>
             <Label>Plan de salud (UF)</Label>
@@ -504,8 +524,9 @@ export default function PortalOnboardingPage() {
   });
 
   const [previsionalData, setPrevisionalData] = useState<DatosPrevisionales>({
-    afp: '',
-    prevision_salud: '',
+    afp_id: '',
+    salud_tipo: '',
+    salud_id: '',
     nombre_isapre: '',
     plan_salud_uf: '',
     cargas_simples: '0',
@@ -561,9 +582,10 @@ export default function PortalOnboardingPage() {
 
     // Pre-fill previsional data
     setPrevisionalData({
-      afp: data.afp || '',
-      prevision_salud: data.prevision_salud || '',
-      nombre_isapre: data.nombre_isapre || '',
+      afp_id: data.afp_id?.toString() || '',
+      salud_tipo: data.salud_tipo || '',
+      salud_id: data.salud_id?.toString() || '',
+      nombre_isapre: '',
       plan_salud_uf: data.plan_salud_uf?.toString() || '',
       cargas_simples: data.cargas_simples?.toString() || '0',
       cargas_maternales: data.cargas_maternales?.toString() || '0',
@@ -611,9 +633,9 @@ export default function PortalOnboardingPage() {
       };
     } else if (step === 2) {
       payload = {
-        afp: previsionalData.afp || null,
-        prevision_salud: previsionalData.prevision_salud || null,
-        nombre_isapre: previsionalData.nombre_isapre || null,
+        afp_id: previsionalData.afp_id ? parseInt(previsionalData.afp_id) : null,
+        salud_tipo: previsionalData.salud_tipo || null,
+        salud_id: previsionalData.salud_id ? parseInt(previsionalData.salud_id) : null,
         plan_salud_uf: previsionalData.plan_salud_uf ? parseFloat(previsionalData.plan_salud_uf) : null,
         cargas_simples: parseInt(previsionalData.cargas_simples || '0'),
         cargas_maternales: parseInt(previsionalData.cargas_maternales || '0'),
