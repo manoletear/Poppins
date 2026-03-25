@@ -32,9 +32,16 @@ import {
   Clock,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import PagosOnboarding from './components/PagosOnboarding';
+import CardSetup from './components/CardSetup';
+import AccountDiscovery from './components/AccountDiscovery';
+import PointsDashboard from './components/PointsDashboard';
+import PlanBanner from './components/PlanBanner';
+import { useAuth } from '@/lib/auth/context';
+import type { OnboardingState, BinLookupResult } from '@/lib/pagos/types';
+import type { PlanTipo } from '@/lib/pagos/types';
 
 // ── Constants ──────────────────────────────────────────────────────────
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
 
 const PERIODOS = [
   { value: '2026-03', label: 'Marzo 2026' },
@@ -244,10 +251,12 @@ function downloadComprobante(pago: Pago) {
 // ── Main Component ─────────────────────────────────────────────────────
 function PagosContent() {
   const supabase = createClient();
+  const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '11111111-1111-1111-1111-111111111111';
   const searchParams = useSearchParams();
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<'pagos' | 'cuentas'>('pagos');
+  const [activeTab, setActiveTab] = useState<'pagos' | 'cuentas' | 'puntos'>('pagos');
 
   // ════════════════════════════════════════════════════════════════════
   //  TAB 1: MIS PAGOS
@@ -307,6 +316,24 @@ function PagosContent() {
   // Overdue alerts
   const [alertas, setAlertas] = useState<OverdueAlert[]>([]);
 
+  // ════════════════════════════════════════════════════════════════════
+  //  NEW: ONBOARDING, CARD, POINTS, PLAN
+  // ════════════════════════════════════════════════════════════════════
+  const [onboardingState, setOnboardingState] = useState<OnboardingState>({
+    tarjeta_registrada: false,
+    primera_cuenta_agregada: false,
+    primer_pago_realizado: false,
+    plan_seleccionado: true,
+  });
+  const [showCardSetup, setShowCardSetup] = useState(false);
+  const [showDiscovery, setShowDiscovery] = useState(false);
+  const [tarjetaPrincipal, setTarjetaPrincipal] = useState<{
+    banco: string; programa_puntos: string; tasa_puntos: number;
+    tipo_tarjeta: string; categoria: string;
+  } | null>(null);
+  const [planTipo, setPlanTipo] = useState<PlanTipo>('starter');
+  const [loadingOnboarding, setLoadingOnboarding] = useState(true);
+
   // ── Check flow_status on mount ──
   useEffect(() => {
     const flowStatus = searchParams.get('flow_status');
@@ -327,7 +354,7 @@ function PagosContent() {
       const { data, error: fetchError } = await supabase
         .from('pagos_empleador')
         .select('*, cuenta_pago:cuenta_pago_id(id, alias, proveedor, tipo)')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .eq('periodo', periodo)
         .order('created_at', { ascending: true });
 
@@ -348,7 +375,7 @@ function PagosContent() {
       const { data, error: fetchError } = await supabase
         .from('pagos_empleador')
         .select('*, cuenta_pago:cuenta_pago_id(id, alias, proveedor, tipo)')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -366,7 +393,7 @@ function PagosContent() {
       const { data } = await supabase
         .from('pagos_empleador')
         .select('puntos_acumulados')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .eq('estado', 'pagado');
 
       if (data) {
@@ -385,7 +412,7 @@ function PagosContent() {
       const { data, error: fetchError } = await supabase
         .from('cuentas_pago')
         .select('*, trabajador:referencia_trabajador_id(nombre, apellido_paterno)')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .order('created_at', { ascending: true });
 
       if (fetchError) throw fetchError;
@@ -403,7 +430,7 @@ function PagosContent() {
       const { data } = await supabase
         .from('trabajadores')
         .select('id, nombre, apellido_paterno')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .order('nombre');
 
       if (data) setTrabajadores(data as Trabajador[]);
@@ -428,7 +455,7 @@ function PagosContent() {
       const { data: activeCuentas } = await supabase
         .from('cuentas_pago')
         .select('*')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .eq('activa', true);
 
       if (!activeCuentas || activeCuentas.length === 0) return;
@@ -436,7 +463,7 @@ function PagosContent() {
       const { data: existingPagos } = await supabase
         .from('pagos_empleador')
         .select('cuenta_pago_id')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .eq('periodo', currentPeriodo);
 
       const existingIds = new Set(
@@ -447,7 +474,7 @@ function PagosContent() {
       if (nuevos.length === 0) return;
 
       const records = nuevos.map(cuenta => ({
-        empleador_id: EMPLEADOR_ID,
+        empleador_id: empleadorId,
         tipo: cuenta.tipo,
         monto: cuenta.monto_fijo || 0,
         estado: 'pendiente',
@@ -463,6 +490,76 @@ function PagosContent() {
       // Non-blocking
     }
   }, [supabase, fetchPagos]);
+
+  // Fetch onboarding state on mount
+  useEffect(() => {
+    async function loadOnboarding() {
+      try {
+        const [tarjetaRes, cuentasRes, pagosRes, perfilRes] = await Promise.all([
+          supabase.from('tarjetas_cliente').select('*').eq('empleador_id', empleadorId).eq('es_principal', true).limit(1),
+          supabase.from('cuentas_pago').select('id').eq('empleador_id', empleadorId).eq('activa', true).limit(1),
+          supabase.from('pagos_empleador').select('id').eq('empleador_id', empleadorId).eq('estado', 'pagado').limit(1),
+          supabase.from('empleadores').select('plan_tipo').eq('id', empleadorId).single(),
+        ]);
+
+        const tarjeta = tarjetaRes.data?.[0] || null;
+        if (tarjeta) {
+          setTarjetaPrincipal({
+            banco: tarjeta.banco,
+            programa_puntos: tarjeta.programa_puntos,
+            tasa_puntos: tarjeta.tasa_puntos,
+            tipo_tarjeta: tarjeta.tipo_tarjeta,
+            categoria: tarjeta.categoria,
+          });
+        }
+
+        setPlanTipo((perfilRes.data?.plan_tipo as PlanTipo) || 'starter');
+
+        setOnboardingState({
+          tarjeta_registrada: !!tarjeta,
+          primera_cuenta_agregada: (cuentasRes.data?.length || 0) > 0,
+          primer_pago_realizado: (pagosRes.data?.length || 0) > 0,
+          plan_seleccionado: true,
+        });
+      } catch {
+        // Non-blocking
+      } finally {
+        setLoadingOnboarding(false);
+      }
+    }
+    loadOnboarding();
+  }, [empleadorId, supabase]);
+
+  // Card save handler
+  async function handleSaveCard(card: { bin: string; ultimos4: string; detected: BinLookupResult }) {
+    await supabase
+      .from('tarjetas_cliente')
+      .update({ es_principal: false })
+      .eq('empleador_id', empleadorId)
+      .eq('es_principal', true);
+
+    await supabase.from('tarjetas_cliente').insert({
+      empleador_id: empleadorId,
+      bin: card.bin,
+      ultimos_4: card.ultimos4,
+      banco: card.detected.banco,
+      tipo_tarjeta: card.detected.tipo_tarjeta,
+      categoria: card.detected.categoria,
+      programa_puntos: card.detected.programa_puntos,
+      tasa_puntos: card.detected.tasa_puntos,
+      activa: true,
+      es_principal: true,
+    });
+
+    setTarjetaPrincipal({
+      banco: card.detected.banco,
+      programa_puntos: card.detected.programa_puntos,
+      tasa_puntos: card.detected.tasa_puntos,
+      tipo_tarjeta: card.detected.tipo_tarjeta,
+      categoria: card.detected.categoria,
+    });
+    setOnboardingState(prev => ({ ...prev, tarjeta_registrada: true }));
+  }
 
   // Run auto-sync once on mount
   useEffect(() => {
@@ -680,7 +777,7 @@ function PagosContent() {
     setCuentaError(null);
     try {
       const record = {
-        empleador_id: EMPLEADOR_ID,
+        empleador_id: empleadorId,
         tipo: cuentaForm.tipo,
         alias: cuentaForm.alias.trim(),
         proveedor: cuentaForm.proveedor.trim() || null,
@@ -743,7 +840,7 @@ function PagosContent() {
 
       if (!existing || existing.length === 0) {
         await supabase.from('pagos_empleador').insert({
-          empleador_id: EMPLEADOR_ID,
+          empleador_id: empleadorId,
           tipo: cuenta.tipo,
           monto: cuenta.monto_fijo || 0,
           estado: 'pendiente',
@@ -778,7 +875,7 @@ function PagosContent() {
         .update({
           autorizado: true,
           autorizado_at: now,
-          autorizado_por: EMPLEADOR_ID,
+          autorizado_por: empleadorId,
           activa: true,
         })
         .eq('id', authModal.id);
@@ -794,7 +891,7 @@ function PagosContent() {
 
       if (!existing || existing.length === 0) {
         await supabase.from('pagos_empleador').insert({
-          empleador_id: EMPLEADOR_ID,
+          empleador_id: empleadorId,
           tipo: authModal.tipo,
           monto: authModal.monto_fijo || 0,
           estado: 'pendiente',
@@ -836,7 +933,7 @@ function PagosContent() {
       const { data: existingPagos } = await supabase
         .from('pagos_empleador')
         .select('cuenta_pago_id')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .eq('periodo', currentPeriodo);
 
       const existingCuentaIds = new Set(
@@ -868,7 +965,7 @@ function PagosContent() {
       const records = generatePreview
         .filter(item => item.monto > 0)
         .map(item => ({
-          empleador_id: EMPLEADOR_ID,
+          empleador_id: empleadorId,
           tipo: item.cuenta.tipo,
           monto: item.monto,
           estado: 'pendiente',
@@ -914,34 +1011,48 @@ function PagosContent() {
         <p className="text-sm text-zinc-500 mt-1">Gestiona tus pagos y acumula puntos Poppins</p>
       </div>
 
+      {/* Plan Banner */}
+      {!loadingOnboarding && (
+        <PlanBanner
+          currentPlan={planTipo}
+          cuentasCount={cuentas.length}
+          onUpgrade={(plan) => {
+            console.log('Upgrade to', plan);
+          }}
+        />
+      )}
+
+      {/* Show onboarding if not all steps completed */}
+      {!loadingOnboarding && !onboardingState.primer_pago_realizado && (
+        <PagosOnboarding
+          state={onboardingState}
+          onStartCardSetup={() => setShowCardSetup(true)}
+          onStartDiscovery={() => setShowDiscovery(true)}
+        />
+      )}
+
       {/* Tabs */}
-      <div className="flex border-b border-zinc-200">
-        <button
-          onClick={() => setActiveTab('pagos')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'pagos'
-              ? 'border-violet-600 text-violet-600'
-              : 'border-transparent text-zinc-500 hover:text-zinc-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <CreditCard className="h-4 w-4" />
-            Mis Pagos
-          </div>
-        </button>
-        <button
-          onClick={() => setActiveTab('cuentas')}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'cuentas'
-              ? 'border-violet-600 text-violet-600'
-              : 'border-transparent text-zinc-500 hover:text-zinc-700'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Configurar Cuentas
-          </div>
-        </button>
+      <div className="flex border-b border-zinc-200 overflow-x-auto">
+        {([
+          { key: 'pagos' as const, label: 'Mis Pagos', icon: CreditCard },
+          { key: 'cuentas' as const, label: 'Mis Cuentas', icon: Settings },
+          { key: 'puntos' as const, label: 'Puntos & Millas', icon: Sparkles },
+        ]).map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              activeTab === tab.key
+                ? 'border-violet-600 text-violet-600'
+                : 'border-transparent text-zinc-500 hover:text-zinc-700'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+            </div>
+          </button>
+        ))}
       </div>
 
       {/* ════════════════════════════════════════════════════════════════ */}
@@ -1455,6 +1566,17 @@ function PagosContent() {
             </div>
           )}
         </>
+      )}
+
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {/*  TAB: PUNTOS & MILLAS                                          */}
+      {/* ════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'puntos' && (
+        <PointsDashboard
+          tarjeta={tarjetaPrincipal}
+          puntosAcumulados={totalPuntos}
+          montoMensualPromedio={totalPagado + totalPendiente || 1500000}
+        />
       )}
 
       {/* ════════════════════════════════════════════════════════════════ */}
@@ -2016,6 +2138,37 @@ function PagosContent() {
             </div>
           </div>
         </div>
+      )}
+      {/* Card Setup Modal */}
+      {showCardSetup && (
+        <CardSetup
+          onSave={handleSaveCard}
+          onClose={() => setShowCardSetup(false)}
+        />
+      )}
+
+      {/* Account Discovery Modal */}
+      {showDiscovery && (
+        <AccountDiscovery
+          direccion={null}
+          rut={null}
+          existingTypes={cuentas.map(c => c.tipo)}
+          onAddAccount={async (account) => {
+            await supabase.from('cuentas_pago').insert({
+              empleador_id: empleadorId,
+              tipo: account.tipo,
+              alias: account.proveedor || account.tipo,
+              proveedor: account.proveedor || null,
+              numero_cuenta: account.numero_cliente || null,
+              monto_fijo: account.monto_estimado,
+              fuente: account.fuente,
+              activa: false,
+            });
+            setOnboardingState(prev => ({ ...prev, primera_cuenta_agregada: true }));
+            await fetchCuentas();
+          }}
+          onClose={() => setShowDiscovery(false)}
+        />
       )}
     </div>
   );
