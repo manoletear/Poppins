@@ -31,26 +31,29 @@ type Solicitud = {
 };
 
 const TIPO_OPTIONS = [
-  { value: 'medico', label: 'Permiso Médico' },
+  { value: 'permiso_medico', label: 'Permiso Médico' },
   { value: 'vacaciones', label: 'Vacaciones' },
-  { value: 'administrativo', label: 'Día Administrativo' },
-  { value: 'sin_goce', label: 'Permiso Sin Goce' },
+  { value: 'dia_administrativo', label: 'Día Administrativo' },
+  { value: 'permiso_sin_goce', label: 'Permiso Sin Goce' },
+  { value: 'antiguedad', label: 'Día por Antigüedad' },
   { value: 'otro', label: 'Otro' },
 ];
 
 const TIPO_ICONS: Record<string, React.ElementType> = {
-  medico: Stethoscope,
+  permiso_medico: Stethoscope,
   vacaciones: Umbrella,
-  administrativo: Building,
-  sin_goce: Clock,
+  dia_administrativo: Building,
+  permiso_sin_goce: Clock,
+  antiguedad: Clock,
   otro: FileText,
 };
 
 const TIPO_LABELS: Record<string, string> = {
-  medico: 'Permiso Médico',
+  permiso_medico: 'Permiso Médico',
   vacaciones: 'Vacaciones',
-  administrativo: 'Día Administrativo',
-  sin_goce: 'Permiso Sin Goce',
+  dia_administrativo: 'Día Administrativo',
+  permiso_sin_goce: 'Permiso Sin Goce',
+  antiguedad: 'Día por Antigüedad',
   otro: 'Otro',
 };
 
@@ -100,7 +103,7 @@ export default function SolicitudesPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Form state
-  const [tipo, setTipo] = useState('medico');
+  const [tipo, setTipo] = useState('permiso_medico');
   const [fechaInicio, setFechaInicio] = useState('');
   const [fechaFin, setFechaFin] = useState('');
   const [dias, setDias] = useState(1);
@@ -149,7 +152,7 @@ export default function SolicitudesPage() {
   });
 
   function resetForm() {
-    setTipo('medico');
+    setTipo('permiso_medico');
     setFechaInicio('');
     setFechaFin('');
     setDias(1);
