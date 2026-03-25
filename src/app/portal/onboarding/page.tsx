@@ -670,19 +670,38 @@ export default function PortalOnboardingPage() {
     } else {
       // Final step — mark onboarding complete
       setSaving(true);
+      setError(null);
+
+      // Verify data was saved by reading it back
+      const { data: verificacion } = await supabase
+        .from('trabajadores')
+        .select('nombre, afp_id, salud_tipo, banco')
+        .eq('id', profile!.trabajador_id)
+        .single();
+
+      if (!verificacion?.nombre) {
+        setSaving(false);
+        setError('No se pudieron verificar los datos guardados. Intenta nuevamente.');
+        return;
+      }
+
       const { error: profileErr } = await supabase
         .from('user_profiles')
         .update({ onboarding_completado: true })
-        .eq('id', profile!.id);
-
-      setSaving(false);
+        .eq('auth_user_id', profile!.auth_user_id);
 
       if (profileErr) {
+        setSaving(false);
         setError(`Error al completar registro: ${profileErr.message}`);
         return;
       }
 
+      // Show success before redirect
+      setCompletedSteps(prev => new Set([...prev, currentStep]));
       await refreshProfile();
+
+      // Brief delay so user sees success state
+      await new Promise(r => setTimeout(r, 800));
       router.push('/portal');
     }
   };
