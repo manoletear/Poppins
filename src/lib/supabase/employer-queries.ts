@@ -1,22 +1,20 @@
 import { createClient } from './client';
 
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
-
 // Dashboard
-export async function getDashboardEmpleador() {
+export async function getDashboardEmpleador(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('v_dashboard_empleador').select('*').eq('empleador_id', EMPLEADOR_ID).single();
+  const { data } = await supabase.from('v_dashboard_empleador').select('*').eq('empleador_id', empleadorId).single();
   return data;
 }
 
 // Tareas del día
-export async function getTareasHoy(fecha?: string) {
+export async function getTareasHoy(empleadorId: string, fecha?: string) {
   const supabase = createClient();
   const targetDate = fecha || new Date().toISOString().split('T')[0];
   const { data } = await supabase
     .from('tareas')
     .select('*, trabajadores(nombre, apellido_paterno)')
-    .eq('empleador_id', EMPLEADOR_ID)
+    .eq('empleador_id', empleadorId)
     .eq('fecha', targetDate)
     .order('hora_inicio');
   return data || [];
@@ -30,24 +28,24 @@ export async function updateTareaEstado(tareaId: string, estado: string) {
   return data;
 }
 
-export async function createTarea(tarea: { titulo: string; descripcion?: string; categoria?: string; prioridad?: string; trabajador_id?: string; fecha?: string; hora_inicio?: string; hora_fin?: string }) {
+export async function createTarea(empleadorId: string, tarea: { titulo: string; descripcion?: string; categoria?: string; prioridad?: string; trabajador_id?: string; fecha?: string; hora_inicio?: string; hora_fin?: string }) {
   const supabase = createClient();
-  const { data } = await supabase.from('tareas').insert({ ...tarea, empleador_id: EMPLEADOR_ID }).select().single();
+  const { data } = await supabase.from('tareas').insert({ ...tarea, empleador_id: empleadorId }).select().single();
   return data;
 }
 
 // Resumen tareas del día (from view)
-export async function getResumenTareasDia(fecha?: string) {
+export async function getResumenTareasDia(empleadorId: string, fecha?: string) {
   const supabase = createClient();
   const targetDate = fecha || new Date().toISOString().split('T')[0];
-  const { data } = await supabase.from('v_tareas_dia').select('*').eq('empleador_id', EMPLEADOR_ID).eq('fecha', targetDate).single();
+  const { data } = await supabase.from('v_tareas_dia').select('*').eq('empleador_id', empleadorId).eq('fecha', targetDate).single();
   return data;
 }
 
 // Solicitudes
-export async function getSolicitudes(estado?: string) {
+export async function getSolicitudes(empleadorId: string, estado?: string) {
   const supabase = createClient();
-  let query = supabase.from('solicitudes_empleado').select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', EMPLEADOR_ID).order('created_at', { ascending: false });
+  let query = supabase.from('solicitudes_empleado').select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', empleadorId).order('created_at', { ascending: false });
   if (estado) query = query.eq('estado', estado);
   const { data } = await query;
   return data || [];
@@ -60,9 +58,9 @@ export async function updateSolicitudEstado(solicitudId: string, estado: 'aproba
 }
 
 // Listas de compras
-export async function getListasCompras(estado?: string) {
+export async function getListasCompras(empleadorId: string, estado?: string) {
   const supabase = createClient();
-  let query = supabase.from('listas_compras').select('*').eq('empleador_id', EMPLEADOR_ID).order('created_at', { ascending: false });
+  let query = supabase.from('listas_compras').select('*').eq('empleador_id', empleadorId).order('created_at', { ascending: false });
   if (estado) query = query.eq('estado', estado);
   const { data } = await query;
   return data || [];
@@ -80,16 +78,16 @@ export async function toggleItemComprado(itemId: string, comprado: boolean) {
   return data;
 }
 
-export async function getComprasActivas() {
+export async function getComprasActivas(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('v_compras_activas').select('*').eq('empleador_id', EMPLEADOR_ID);
+  const { data } = await supabase.from('v_compras_activas').select('*').eq('empleador_id', empleadorId);
   return data || [];
 }
 
 // Recordatorios
-export async function getRecordatorios() {
+export async function getRecordatorios(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('recordatorios').select('*').eq('empleador_id', EMPLEADOR_ID).order('hora');
+  const { data } = await supabase.from('recordatorios').select('*').eq('empleador_id', empleadorId).order('hora');
   return data || [];
 }
 
@@ -100,20 +98,20 @@ export async function toggleRecordatorioActivo(recordatorioId: string, activo: b
 }
 
 // Marcajes
-export async function getMarcajesHoy(fecha?: string) {
+export async function getMarcajesHoy(empleadorId: string, fecha?: string) {
   const supabase = createClient();
   const targetDate = fecha || new Date().toISOString().split('T')[0];
-  const { data } = await supabase.from('marcajes_horario').select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', EMPLEADOR_ID).eq('fecha', targetDate);
+  const { data } = await supabase.from('marcajes_horario').select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', empleadorId).eq('fecha', targetDate);
   return data || [];
 }
 
-export async function registrarMarcaje(trabajadorId: string, tipo: 'entrada' | 'salida') {
+export async function registrarMarcaje(empleadorId: string, trabajadorId: string, tipo: 'entrada' | 'salida') {
   const supabase = createClient();
   const hoy = new Date().toISOString().split('T')[0];
   const ahora = new Date().toTimeString().split(' ')[0].substring(0, 5);
 
   if (tipo === 'entrada') {
-    const { data } = await supabase.from('marcajes_horario').upsert({ trabajador_id: trabajadorId, empleador_id: EMPLEADOR_ID, fecha: hoy, hora_entrada: ahora }, { onConflict: 'trabajador_id,fecha' }).select().single();
+    const { data } = await supabase.from('marcajes_horario').upsert({ trabajador_id: trabajadorId, empleador_id: empleadorId, fecha: hoy, hora_entrada: ahora }, { onConflict: 'trabajador_id,fecha' }).select().single();
     return data;
   } else {
     const { data } = await supabase.from('marcajes_horario').update({ hora_salida: ahora }).eq('trabajador_id', trabajadorId).eq('fecha', hoy).select().single();
@@ -122,17 +120,17 @@ export async function registrarMarcaje(trabajadorId: string, tipo: 'entrada' | '
 }
 
 // Pagos
-export async function getPagos(periodo?: string) {
+export async function getPagos(empleadorId: string, periodo?: string) {
   const supabase = createClient();
-  let query = supabase.from('pagos_empleador').select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', EMPLEADOR_ID).order('created_at', { ascending: false });
+  let query = supabase.from('pagos_empleador').select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', empleadorId).order('created_at', { ascending: false });
   if (periodo) query = query.eq('periodo', periodo);
   const { data } = await query;
   return data || [];
 }
 
-export async function getPuntosAcumulados() {
+export async function getPuntosAcumulados(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('pagos_empleador').select('puntos_acumulados').eq('empleador_id', EMPLEADOR_ID).eq('estado', 'pagado');
+  const { data } = await supabase.from('pagos_empleador').select('puntos_acumulados').eq('empleador_id', empleadorId).eq('estado', 'pagado');
   return data?.reduce((sum: number, p: any) => sum + (p.puntos_acumulados || 0), 0) || 0;
 }
 
@@ -146,40 +144,40 @@ export async function getNoticiasLegales(categoria?: string) {
 }
 
 // Empleador perfil
-export async function getEmpleadorPerfil() {
+export async function getEmpleadorPerfil(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('empleadores').select('*').eq('id', EMPLEADOR_ID).single();
+  const { data } = await supabase.from('empleadores').select('*').eq('id', empleadorId).single();
   return data;
 }
 
-export async function getFamiliares() {
+export async function getFamiliares(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('familiares_empleador').select('*').eq('empleador_id', EMPLEADOR_ID).order('tipo');
+  const { data } = await supabase.from('familiares_empleador').select('*').eq('empleador_id', empleadorId).order('tipo');
   return data || [];
 }
 
-export async function getMascotas() {
+export async function getMascotas(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('mascotas_empleador').select('*').eq('empleador_id', EMPLEADOR_ID);
+  const { data } = await supabase.from('mascotas_empleador').select('*').eq('empleador_id', empleadorId);
   return data || [];
 }
 
-export async function getVivienda() {
+export async function getVivienda(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('viviendas_empleador').select('*').eq('empleador_id', EMPLEADOR_ID).single();
+  const { data } = await supabase.from('viviendas_empleador').select('*').eq('empleador_id', empleadorId).single();
   return data;
 }
 
-export async function getPreferenciasTrabajo() {
+export async function getPreferenciasTrabajo(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('preferencias_trabajo').select('*').eq('empleador_id', EMPLEADOR_ID).single();
+  const { data } = await supabase.from('preferencias_trabajo').select('*').eq('empleador_id', empleadorId).single();
   return data;
 }
 
 // Plantillas
-export async function getPlantillasCompras() {
+export async function getPlantillasCompras(empleadorId: string) {
   const supabase = createClient();
-  const { data } = await supabase.from('plantillas_lista_compras').select('*').or(`es_global.eq.true,empleador_id.eq.${EMPLEADOR_ID}`);
+  const { data } = await supabase.from('plantillas_lista_compras').select('*').or(`es_global.eq.true,empleador_id.eq.${empleadorId}`);
   return data || [];
 }
 
