@@ -48,7 +48,7 @@ export async function middleware(request: NextRequest) {
   // Single profile query - used for both landing redirect and role check
   const { data: profile } = await supabase
     .from('user_profiles')
-    .select('rol')
+    .select('rol, onboarding_completado')
     .eq('auth_user_id', user.id)
     .single();
 
@@ -64,6 +64,20 @@ export async function middleware(request: NextRequest) {
   const allowed = ROLE_ACCESS[rol] || [];
   if (!allowed.some(prefix => pathname.startsWith(prefix))) {
     return NextResponse.redirect(new URL(dest, request.url));
+  }
+
+  // Onboarding redirect - if not completed, send to onboarding page
+  const onboardingCompleted = profile?.onboarding_completado ?? false;
+  if (!onboardingCompleted) {
+    const onboardingPaths: Record<string, string> = {
+      empleador: '/empresa/onboarding',
+      empleado: '/portal/onboarding',
+    };
+    const onboardingPath = onboardingPaths[rol];
+    // Don't redirect if already on onboarding page
+    if (onboardingPath && !pathname.startsWith(onboardingPath)) {
+      return NextResponse.redirect(new URL(onboardingPath, request.url));
+    }
   }
 
   return response;
