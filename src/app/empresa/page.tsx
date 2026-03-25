@@ -95,7 +95,7 @@ export default function EmpresaDashboard() {
       .select('puntos_acumulados')
       .eq('empleador_id', empleadorId)
       .eq('estado', 'pagado')
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         if (data) {
           const total = data.reduce(
             (sum: number, row: { puntos_acumulados: number | null }) =>
