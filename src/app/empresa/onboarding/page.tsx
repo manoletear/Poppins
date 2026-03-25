@@ -53,7 +53,7 @@ interface Trabajador {
   rut: string;
   cargo: Cargo | '';
   sueldo_base: string;
-  tipo_jornada: 'puertas_adentro' | 'puertas_afuera' | '';
+  tipo_jornada: 'completa' | 'parcial' | 'art22' | '';
 }
 
 const CARGO_LABELS: Record<Cargo, string> = {
@@ -319,7 +319,7 @@ function StepTarjeta({
 
   const handleSaveCard = async (card: { bin: string; ultimos4: string; detected: { banco?: string; tipo?: string } }) => {
     if (!empleadorId) return;
-    await supabase.from('tarjetas_empleador').insert({
+    await supabase.from('tarjetas_cliente').insert({
       empleador_id: empleadorId,
       bin: card.bin,
       ultimos4: card.ultimos4,
@@ -523,8 +523,9 @@ function StepTrabajadores({
                   className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
                 >
                   <option value="">Seleccionar...</option>
-                  <option value="puertas_adentro">Puertas Adentro</option>
-                  <option value="puertas_afuera">Puertas Afuera</option>
+                  <option value="completa">Jornada Completa (45 hrs)</option>
+                  <option value="parcial">Jornada Parcial</option>
+                  <option value="art22">Art. 22 (Sin horario fijo)</option>
                 </select>
               </div>
             </div>
@@ -585,8 +586,8 @@ function StepCuentas({
   const handleAddAccount = async (account: {
     tipo: string;
     proveedor: string;
-    numero_cliente: string;
-    monto_estimado: number | null;
+    numero_cuenta: string;
+    monto_fijo: number | null;
     fuente: 'api' | 'manual';
   }) => {
     if (!empleadorId) return;
@@ -594,8 +595,8 @@ function StepCuentas({
       empleador_id: empleadorId,
       tipo: account.tipo,
       proveedor: account.proveedor,
-      numero_cliente: account.numero_cliente,
-      monto_estimado: account.monto_estimado,
+      numero_cuenta: account.numero_cuenta,
+      monto_fijo: account.monto_fijo,
       fuente: account.fuente,
     });
   };

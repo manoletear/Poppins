@@ -179,7 +179,7 @@ export default function PerfilEmpleadorPage() {
         supabase.from('familiares_empleador').select('*').eq('empleador_id', empleadorId),
         supabase.from('mascotas_empleador').select('*').eq('empleador_id', empleadorId),
         supabase.from('preferencias_trabajo').select('*').eq('empleador_id', empleadorId).single(),
-        supabase.from('cuentas_empleador').select('*').eq('empleador_id', empleadorId).eq('activa', true),
+        supabase.from('cuentas_pago').select('*').eq('empleador_id', empleadorId).eq('activa', true),
       ]);
 
       if (empRes.error) throw new Error('Error cargando perfil: ' + empRes.error.message);

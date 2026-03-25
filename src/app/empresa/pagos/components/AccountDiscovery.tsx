@@ -11,8 +11,8 @@ type DiscoveryTab = 'direccion' | 'rut' | 'rol' | 'servicios';
 interface DiscoveredAccount {
   tipo: string;
   proveedor: string;
-  numero_cliente: string;
-  monto_estimado: number | null;
+  numero_cuenta: string;
+  monto_fijo: number | null;
   fuente: 'api' | 'manual';
 }
 
@@ -57,8 +57,8 @@ export default function AccountDiscovery({ direccion, rut, onAddAccount, onClose
       await onAddAccount({
         tipo,
         proveedor: '',
-        numero_cliente: '',
-        monto_estimado: null,
+        numero_cuenta: '',
+        monto_fijo: null,
         fuente: 'manual',
       });
       setAdded(prev => new Set([...prev, tipo]));
