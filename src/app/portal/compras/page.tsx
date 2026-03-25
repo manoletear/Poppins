@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import {
   Plus,
   ShoppingCart,
@@ -11,8 +12,6 @@ import {
   User,
 } from 'lucide-react';
 
-const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
 
 type ListaCompra = {
   id: string;
@@ -51,6 +50,9 @@ const CATEGORIA_OPTIONS = [
 ];
 
 export default function ComprasPage() {
+  const { profile } = useAuth();
+  const trabajadorId = profile?.trabajador_id || '';
+  const [empleadorId, setEmpleadorId] = useState('');
   const [listas, setListas] = useState<ListaCompra[]>([]);
   const [items, setItems] = useState<Record<string, ItemLista[]>>({});
   const [loading, setLoading] = useState(true);
@@ -67,16 +69,23 @@ export default function ComprasPage() {
 
   const supabase = useMemo(() => createClient(), []);
 
+  // Derive empleadorId from active contract
   useEffect(() => {
-    loadListas();
-  }, []);
+    if (!trabajadorId) return;
+    supabase.from('contratos').select('empleador_id').eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).single()
+      .then(({ data }) => { if (data) setEmpleadorId(data.empleador_id); });
+  }, [trabajadorId, supabase]);
+
+  useEffect(() => {
+    if (empleadorId) loadListas();
+  }, [empleadorId]);
 
   async function loadListas() {
     setLoading(true);
     const { data, error } = await supabase
       .from('listas_compras')
       .select('*')
-      .eq('empleador_id', EMPLEADOR_ID)
+      .eq('empleador_id', empleadorId)
       .eq('estado', 'abierta');
 
     if (!error && data) {
@@ -140,7 +149,7 @@ export default function ComprasPage() {
       categoria,
       notas: notas || null,
       comprado: false,
-      agregado_por: WORKER_ID,
+      agregado_por: trabajadorId,
     });
 
     setSubmitting(false);
@@ -271,7 +280,7 @@ export default function ComprasPage() {
                             </div>
                             <div className="flex items-center gap-1 text-[10px] text-zinc-400 shrink-0">
                               <User className="h-3 w-3" />
-                              <span>{item.agregado_por === WORKER_ID ? 'Tú' : 'Empleador'}</span>
+                              <span>{item.agregado_por === trabajadorId ? 'Tú' : 'Empleador'}</span>
                             </div>
                           </div>
                         ))}

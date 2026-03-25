@@ -15,8 +15,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
+import { useAuth } from '@/lib/auth/context';
 
 interface ContratoView {
   contrato_id: string;
@@ -84,6 +83,8 @@ const empleadosFallback = [
 ];
 
 export default function EmpleadosPage() {
+  const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
   const [contratos, setContratos] = useState<ContratoView[]>([]);
   const [loadingContratos, setLoadingContratos] = useState(true);
 
@@ -93,12 +94,12 @@ export default function EmpleadosPage() {
       const { data } = await supabase
         .from('v_contratos_empleador')
         .select('*')
-        .eq('empleador_id', EMPLEADOR_ID);
+        .eq('empleador_id', empleadorId);
       if (data) setContratos(data);
       setLoadingContratos(false);
     }
     loadContratos();
-  }, []);
+  }, [empleadorId]);
 
   // Merge real contract numbers into the fallback employee data
   const empleados = empleadosFallback.map((emp) => {

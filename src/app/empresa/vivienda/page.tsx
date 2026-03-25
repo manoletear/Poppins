@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Pencil, Home, TreePine, Waves, Check, X, Loader2, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
+import { useAuth } from '@/lib/auth/context';
 
 interface Vivienda {
   id: string;
@@ -35,6 +34,8 @@ const tipoLabels: Record<string, string> = {
 };
 
 export default function ViviendaPage() {
+  const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
   const [vivienda, setVivienda] = useState<Vivienda | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,7 +51,7 @@ export default function ViviendaPage() {
       const { data, error: fetchError } = await supabase
         .from('viviendas_empleador')
         .select('*')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .single();
 
       if (fetchError) throw fetchError;
@@ -61,7 +62,7 @@ export default function ViviendaPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empleadorId]);
 
   useEffect(() => {
     fetchVivienda();

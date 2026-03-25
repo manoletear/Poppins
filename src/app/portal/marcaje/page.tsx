@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import {
   Clock,
   CheckCircle2,
@@ -11,8 +12,6 @@ import {
   Info,
 } from 'lucide-react';
 
-const TRABAJADOR_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
 
 interface Marcaje {
   id: string;
@@ -177,8 +176,19 @@ function getStepTime(marcaje: Marcaje | null, step: Step): string | null {
 }
 
 export default function MarcajePage() {
+  const { profile } = useAuth();
+  const trabajadorId = profile?.trabajador_id || '';
+  const [empleadorId, setEmpleadorId] = useState('');
   const supabaseRef = useRef(createClient());
   const supabase = supabaseRef.current;
+
+  // Derive empleadorId from active contract
+  useEffect(() => {
+    if (!trabajadorId) return;
+    supabase.from('contratos').select('empleador_id').eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).single()
+      .then(({ data }) => { if (data) setEmpleadorId(data.empleador_id); });
+  }, [trabajadorId, supabase]);
+
   const today = toDateString(new Date());
   const weekDates = getWeekDates(new Date());
 
@@ -194,11 +204,11 @@ export default function MarcajePage() {
     const { data } = await supabase
       .from('marcajes_horario')
       .select('*')
-      .eq('trabajador_id', TRABAJADOR_ID)
+      .eq('trabajador_id', trabajadorId)
       .eq('fecha', today)
       .single();
     setMarcaje(data as Marcaje | null);
-  }, [supabase, today]);
+  }, [supabase, trabajadorId, today]);
 
   const fetchWeekMarcajes = useCallback(async () => {
     const start = toDateString(weekDates[0]);
@@ -206,18 +216,19 @@ export default function MarcajePage() {
     const { data } = await supabase
       .from('marcajes_horario')
       .select('*')
-      .eq('trabajador_id', TRABAJADOR_ID)
+      .eq('trabajador_id', trabajadorId)
       .gte('fecha', start)
       .lte('fecha', end)
       .order('fecha');
     if (data) setWeekMarcajes(data as Marcaje[]);
-  }, [supabase, weekDates]);
+  }, [supabase, trabajadorId, weekDates]);
 
   useEffect(() => {
+    if (!trabajadorId) return;
     Promise.all([fetchTodayMarcaje(), fetchWeekMarcajes()]).then(() =>
       setLoading(false)
     );
-  }, [fetchTodayMarcaje, fetchWeekMarcajes]);
+  }, [fetchTodayMarcaje, fetchWeekMarcajes, trabajadorId]);
 
   // Live clock
   useEffect(() => {
@@ -233,8 +244,8 @@ export default function MarcajePage() {
       if (step === 1) {
         // Insert new row
         await supabase.from('marcajes_horario').insert({
-          trabajador_id: TRABAJADOR_ID,
-          empleador_id: EMPLEADOR_ID,
+          trabajador_id: trabajadorId,
+          empleador_id: empleadorId,
           fecha: today,
           hora_entrada: hora,
         });

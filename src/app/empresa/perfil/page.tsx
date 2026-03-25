@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import {
   Pencil,
   Heart,
@@ -20,8 +21,6 @@ import {
   AlertCircle,
   Save,
 } from 'lucide-react';
-
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
 
 const tabs = ['Familia', 'Mascotas', 'Preferencias'] as const;
 type Tab = (typeof tabs)[number];
@@ -153,6 +152,8 @@ function FormField({
 }
 
 export default function PerfilEmpleadorPage() {
+  const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
   const [activeTab, setActiveTab] = useState<Tab>('Familia');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -174,11 +175,11 @@ export default function PerfilEmpleadorPage() {
     setError(null);
     try {
       const [empRes, famRes, mascRes, prefRes, cuentasRes] = await Promise.all([
-        supabase.from('empleadores').select('*').eq('id', EMPLEADOR_ID).single(),
-        supabase.from('familiares_empleador').select('*').eq('empleador_id', EMPLEADOR_ID),
-        supabase.from('mascotas_empleador').select('*').eq('empleador_id', EMPLEADOR_ID),
-        supabase.from('preferencias_trabajo').select('*').eq('empleador_id', EMPLEADOR_ID).single(),
-        supabase.from('cuentas_empleador').select('*').eq('empleador_id', EMPLEADOR_ID).eq('activa', true),
+        supabase.from('empleadores').select('*').eq('id', empleadorId).single(),
+        supabase.from('familiares_empleador').select('*').eq('empleador_id', empleadorId),
+        supabase.from('mascotas_empleador').select('*').eq('empleador_id', empleadorId),
+        supabase.from('preferencias_trabajo').select('*').eq('empleador_id', empleadorId).single(),
+        supabase.from('cuentas_empleador').select('*').eq('empleador_id', empleadorId).eq('activa', true),
       ]);
 
       if (empRes.error) throw new Error('Error cargando perfil: ' + empRes.error.message);
@@ -203,7 +204,7 @@ export default function PerfilEmpleadorPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empleadorId, supabase]);
 
   useEffect(() => {
     fetchData();
@@ -469,6 +470,8 @@ function EditFamiliarModal({
   tipo: string;
   onSaved: () => void;
 }) {
+  const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
   const isNew = !familiar;
   const [form, setForm] = useState({
     nombre: '',
@@ -515,7 +518,7 @@ function EditFamiliarModal({
     const supabase = createClient();
     if (isNew) {
       await supabase.from('familiares_empleador').insert({
-        empleador_id: EMPLEADOR_ID,
+        empleador_id: empleadorId,
         tipo,
         ...form,
       });
@@ -589,6 +592,8 @@ function EditMascotaModal({
   mascota: Mascota | null;
   onSaved: () => void;
 }) {
+  const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
   const isNew = !mascota;
   const [form, setForm] = useState({
     nombre: '',
@@ -632,7 +637,7 @@ function EditMascotaModal({
     const supabase = createClient();
     if (isNew) {
       await supabase.from('mascotas_empleador').insert({
-        empleador_id: EMPLEADOR_ID,
+        empleador_id: empleadorId,
         ...form,
       });
     } else {
@@ -972,6 +977,8 @@ function PreferenciasTab({
   preferencias: Preferencia | null;
   onRefresh: () => void;
 }) {
+  const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
   const [prioridades, setPrioridades] = useState<{ titulo: string }[]>(
     preferencias?.prioridades || []
   );
@@ -1009,7 +1016,7 @@ function PreferenciasTab({
         .eq('id', preferencias.id);
     } else {
       await supabase.from('preferencias_trabajo').insert({
-        empleador_id: EMPLEADOR_ID,
+        empleador_id: empleadorId,
         prioridades,
         notas_generales: notas,
       });

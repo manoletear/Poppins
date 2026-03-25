@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import { FileText, Download, PenTool, CheckCircle, X } from 'lucide-react';
 
-const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
 // Matches actual `liquidaciones` table columns
 interface Liquidacion {
@@ -219,6 +219,8 @@ function downloadLiquidacionPDF(liq: Liquidacion) {
 }
 
 export default function MisLiquidacionesPage() {
+  const { profile } = useAuth();
+  const trabajadorId = profile?.trabajador_id || '';
   const [payroll, setPayroll] = useState<Liquidacion[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -226,12 +228,13 @@ export default function MisLiquidacionesPage() {
   const [firmaTarget, setFirmaTarget] = useState<Liquidacion | null>(null);
 
   const loadPayroll = async () => {
+    if (!trabajadorId) return;
     try {
       const supabase = createClient();
       const { data, error: err } = await supabase
         .from('liquidaciones')
         .select('*')
-        .eq('trabajador_id', WORKER_ID)
+        .eq('trabajador_id', trabajadorId)
         .order('periodo', { ascending: false });
       if (err) throw err;
       setPayroll((data as Liquidacion[]) || []);
@@ -244,8 +247,8 @@ export default function MisLiquidacionesPage() {
   };
 
   useEffect(() => {
-    loadPayroll();
-  }, []);
+    if (trabajadorId) loadPayroll();
+  }, [trabajadorId]);
 
   const latest = payroll[0];
   const history = payroll.slice(1);

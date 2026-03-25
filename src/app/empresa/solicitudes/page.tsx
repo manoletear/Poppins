@@ -13,8 +13,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
+import { useAuth } from '@/lib/auth/context';
 
 type TabKey = 'pendientes' | 'aprobadas' | 'rechazadas' | 'todas';
 type EstadoSolicitud = 'pendiente' | 'aprobada' | 'rechazada';
@@ -73,6 +72,8 @@ function formatDate(d: string) {
 }
 
 export default function SolicitudesPage() {
+  const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
   const [activeTab, setActiveTab] = useState<TabKey>('todas');
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +88,7 @@ export default function SolicitudesPage() {
       const { data, error: err } = await supabase
         .from('solicitudes_empleado')
         .select('*, trabajadores!inner(nombre, apellido_paterno), contratos(numero_contrato)')
-        .eq('empleador_id', EMPLEADOR_ID)
+        .eq('empleador_id', empleadorId)
         .order('created_at', { ascending: false });
 
       if (err) throw err;
@@ -113,7 +114,7 @@ export default function SolicitudesPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empleadorId]);
 
   useEffect(() => { loadSolicitudes(); }, [loadSolicitudes]);
 

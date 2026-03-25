@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useEmployees, useAbsences } from '@/hooks/useBuk';
 import { useAuth } from '@/lib/auth/context';
+import { createClient } from '@/lib/supabase/client';
 
 /* ------------------------------------------------------------------ */
 /*  Mock data (employer-specific features not in BUK)                  */
@@ -82,6 +83,30 @@ const periodos = ['Marzo 2026', 'Febrero 2026', 'Enero 2026'];
 
 export default function EmpresaDashboard() {
   const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
+
+  /* ── Puntos acumulados from Supabase ── */
+  const [puntosAcumulados, setPuntosAcumulados] = useState<number | null>(null);
+  useEffect(() => {
+    if (!empleadorId) return;
+    const supabase = createClient();
+    supabase
+      .from('pagos_empleador')
+      .select('puntos_acumulados')
+      .eq('empleador_id', empleadorId)
+      .eq('estado', 'pagado')
+      .then(({ data }) => {
+        if (data) {
+          const total = data.reduce(
+            (sum: number, row: { puntos_acumulados: number | null }) =>
+              sum + (row.puntos_acumulados ?? 0),
+            0
+          );
+          setPuntosAcumulados(total);
+        }
+      });
+  }, [empleadorId]);
+
   /* ── Real data from hooks ── */
   const { data: employees, loading: loadingEmployees } = useEmployees();
   const { data: absences, loading: loadingAbsences } = useAbsences();
@@ -195,13 +220,13 @@ export default function EmpresaDashboard() {
       },
       {
         label: 'Puntos Acumulados',
-        value: '12.450',
-        sub: 'Tarjeta ****4521',
+        value: puntosAcumulados === null ? '...' : puntosAcumulados.toLocaleString('es-CL'),
+        sub: puntosAcumulados === null ? 'Cargando...' : 'Puntos en pagos realizados',
         icon: CreditCard,
         color: 'bg-violet-500',
       },
     ],
-    [loadingEmployees, loadingAbsences, activeEmployees, pendingAbsences, employeeCountLabel, taskStats]
+    [loadingEmployees, loadingAbsences, activeEmployees, pendingAbsences, employeeCountLabel, taskStats, puntosAcumulados]
   );
 
   const toggleShoppingItem = (id: number) => {

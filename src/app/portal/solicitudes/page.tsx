@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import {
   Plus,
   Stethoscope,
@@ -15,7 +16,6 @@ import {
   Hourglass,
 } from 'lucide-react';
 
-const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
 type Solicitud = {
   id: string;
@@ -88,6 +88,9 @@ function calcBusinessDays(start: string, end: string): number {
 }
 
 export default function SolicitudesPage() {
+  const { profile } = useAuth();
+  const trabajadorId = profile?.trabajador_id || '';
+  const [empleadorId, setEmpleadorId] = useState('');
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterTab>('Todas');
@@ -105,9 +108,16 @@ export default function SolicitudesPage() {
 
   const supabase = useMemo(() => createClient(), []);
 
+  // Derive empleadorId from active contract
   useEffect(() => {
-    loadSolicitudes();
-  }, []);
+    if (!trabajadorId) return;
+    supabase.from('contratos').select('empleador_id').eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).single()
+      .then(({ data }) => { if (data) setEmpleadorId(data.empleador_id); });
+  }, [trabajadorId, supabase]);
+
+  useEffect(() => {
+    if (trabajadorId) loadSolicitudes();
+  }, [trabajadorId]);
 
   useEffect(() => {
     if (fechaInicio && fechaFin) {
@@ -122,7 +132,7 @@ export default function SolicitudesPage() {
     const { data, error } = await supabase
       .from('solicitudes_empleado')
       .select('*')
-      .eq('trabajador_id', WORKER_ID)
+      .eq('trabajador_id', trabajadorId)
       .order('created_at', { ascending: false });
 
     if (!error && data) {
@@ -152,7 +162,8 @@ export default function SolicitudesPage() {
     setErrorMsg(null);
 
     const { error } = await supabase.from('solicitudes_empleado').insert({
-      trabajador_id: WORKER_ID,
+      trabajador_id: trabajadorId,
+      empleador_id: empleadorId,
       tipo,
       descripcion,
       fecha_inicio: fechaInicio,

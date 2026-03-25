@@ -18,9 +18,6 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
 
-const TRABAJADOR_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
-
 type MarcajeStep = 'entrada' | 'salida_colacion' | 'regreso_colacion' | 'salida';
 type MarcajeState = 'not_checked_in' | 'in_progress' | 'completed';
 
@@ -92,6 +89,8 @@ function CircularProgress({ percentage, color }: { percentage: number; color: st
 
 export default function PortalDashboard() {
   const { profile } = useAuth();
+  const trabajadorId = profile?.trabajador_id || '';
+  const [empleadorId, setEmpleadorId] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
@@ -117,6 +116,14 @@ export default function PortalDashboard() {
   const [numeroContrato, setNumeroContrato] = useState<string | null>(null);
   const [empleadorNombre, setEmpleadorNombre] = useState<string | null>(null);
   const [lugarTrabajo, setLugarTrabajo] = useState<string | null>(null);
+
+  // Derive empleadorId from active contract
+  useEffect(() => {
+    if (!trabajadorId) return;
+    const supabase = createClient();
+    supabase.from('contratos').select('empleador_id').eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).single()
+      .then(({ data }) => { if (data) setEmpleadorId(data.empleador_id); });
+  }, [trabajadorId]);
 
   // Update clock every minute
   useEffect(() => {
@@ -151,11 +158,11 @@ export default function PortalDashboard() {
     try {
       // All queries in parallel for speed
       const [marcajeRes, tareasRes, solicitudesRes, recordatoriosRes, liqRes] = await Promise.all([
-        supabase.from('marcajes_horario').select('*').eq('trabajador_id', TRABAJADOR_ID).eq('fecha', today).maybeSingle(),
-        supabase.from('tareas').select('id, titulo, hora, prioridad, estado').eq('trabajador_id', TRABAJADOR_ID).eq('fecha', today).order('hora', { ascending: true }),
-        supabase.from('solicitudes_empleado').select('id, tipo, descripcion, estado, fecha_inicio, fecha_fin').eq('trabajador_id', TRABAJADOR_ID).in('estado', ['pendiente', 'aprobada']).order('created_at', { ascending: false }).limit(5),
-        supabase.from('recordatorios').select('id, titulo, hora, tipo').eq('empleador_id', EMPLEADOR_ID).eq('activo', true),
-        supabase.from('liquidaciones').select('liquido_pagar, periodo').eq('trabajador_id', TRABAJADOR_ID).order('periodo', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('marcajes_horario').select('*').eq('trabajador_id', trabajadorId).eq('fecha', today).maybeSingle(),
+        supabase.from('tareas').select('id, titulo, hora, prioridad, estado').eq('trabajador_id', trabajadorId).eq('fecha', today).order('hora', { ascending: true }),
+        supabase.from('solicitudes_empleado').select('id, tipo, descripcion, estado, fecha_inicio, fecha_fin').eq('trabajador_id', trabajadorId).in('estado', ['pendiente', 'aprobada']).order('created_at', { ascending: false }).limit(5),
+        empleadorId ? supabase.from('recordatorios').select('id, titulo, hora, tipo').eq('empleador_id', empleadorId).eq('activo', true) : Promise.resolve({ data: [] }),
+        supabase.from('liquidaciones').select('liquido_pagar, periodo').eq('trabajador_id', trabajadorId).order('periodo', { ascending: false }).limit(1).maybeSingle(),
       ]);
 
       // Process marcaje
@@ -191,11 +198,11 @@ export default function PortalDashboard() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [trabajadorId, empleadorId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (trabajadorId) loadData();
+  }, [loadData, trabajadorId]);
 
   // Handle marcaje step
   const handleMarcajeStep = async (step: MarcajeStep) => {
@@ -212,8 +219,8 @@ export default function PortalDashboard() {
         const { data } = await supabase
           .from('marcajes_horario')
           .insert({
-            trabajador_id: TRABAJADOR_ID,
-            empleador_id: EMPLEADOR_ID,
+            trabajador_id: trabajadorId,
+            empleador_id: empleadorId,
             fecha: today,
             hora_entrada: timeStr,
           })

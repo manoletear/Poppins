@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import { FileText, Receipt, Award, Download, Search, ChevronDown, CheckCircle, Clock, FolderOpen } from 'lucide-react';
 
 // Matches actual `documentos_empleado` table columns
@@ -17,7 +18,6 @@ interface DocType {
   [key: string]: unknown;
 }
 
-const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
 type FilterTab = 'todos' | 'contrato' | 'liquidacion' | 'certificado';
 
@@ -40,6 +40,8 @@ function getTipoBadge(tipo: string) {
 }
 
 export default function MisDocumentosPage() {
+  const { profile } = useAuth();
+  const trabajadorId = profile?.trabajador_id || '';
   const [documents, setDocuments] = useState<DocType[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState<FilterTab>('todos');
@@ -47,18 +49,19 @@ export default function MisDocumentosPage() {
   const [solicitudEnviada, setSolicitudEnviada] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!trabajadorId) return;
     const supabase = createClient();
     async function load() {
       const { data } = await supabase
         .from('documentos_empleado')
         .select('*')
-        .eq('trabajador_id', WORKER_ID)
+        .eq('trabajador_id', trabajadorId)
         .order('created_at', { ascending: false });
       setDocuments(data || []);
       setLoading(false);
     }
     load();
-  }, []);
+  }, [trabajadorId]);
 
   const filters: { id: FilterTab; label: string }[] = [
     { id: 'todos', label: 'Todos' },

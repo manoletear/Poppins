@@ -3,8 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Heart, User, Dog, Cat, Bird, Fish, Phone, Mail, Loader2, AlertCircle, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-
-const EMPLEADOR_ID = '11111111-1111-1111-1111-111111111111';
+import { useAuth } from '@/lib/auth/context';
 
 interface Familiar {
   id: string;
@@ -82,6 +81,8 @@ function getMascotaIcon(tipo: string) {
 }
 
 export default function FamiliaPage() {
+  const { profile } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
   const [familiares, setFamiliares] = useState<Familiar[]>([]);
   const [mascotas, setMascotas] = useState<Mascota[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,8 +110,8 @@ export default function FamiliaPage() {
     try {
       const supabase = createClient();
       const [familiaresRes, mascotasRes] = await Promise.all([
-        supabase.from('familiares_empleador').select('*').eq('empleador_id', EMPLEADOR_ID).order('tipo'),
-        supabase.from('mascotas_empleador').select('*').eq('empleador_id', EMPLEADOR_ID),
+        supabase.from('familiares_empleador').select('*').eq('empleador_id', empleadorId).order('tipo'),
+        supabase.from('mascotas_empleador').select('*').eq('empleador_id', empleadorId),
       ]);
       if (familiaresRes.error) throw familiaresRes.error;
       if (mascotasRes.error) throw mascotasRes.error;
@@ -122,7 +123,7 @@ export default function FamiliaPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [empleadorId]);
 
   useEffect(() => {
     fetchData();
@@ -165,7 +166,7 @@ export default function FamiliaPage() {
       } else {
         const { error } = await supabase
           .from('familiares_empleador')
-          .insert({ ...familiarForm, empleador_id: EMPLEADOR_ID });
+          .insert({ ...familiarForm, empleador_id: empleadorId });
         if (error) throw error;
       }
       setShowFamiliarModal(false);
@@ -225,7 +226,7 @@ export default function FamiliaPage() {
       } else {
         const { error } = await supabase
           .from('mascotas_empleador')
-          .insert({ ...mascotaForm, empleador_id: EMPLEADOR_ID });
+          .insert({ ...mascotaForm, empleador_id: empleadorId });
         if (error) throw error;
       }
       setShowMascotaModal(false);

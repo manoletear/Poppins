@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import {
   ChevronLeft,
   ChevronRight,
@@ -11,7 +12,6 @@ import {
   ChevronUp,
 } from 'lucide-react';
 
-const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
 interface Tarea {
   id: string;
@@ -60,6 +60,8 @@ function toDateString(date: Date): string {
 }
 
 export default function MisTareasPage() {
+  const { profile } = useAuth();
+  const trabajadorId = profile?.trabajador_id || '';
   const supabase = createClient();
   const [currentDate, setCurrentDate] = useState(() => new Date(2026, 2, 20));
   const [tareas, setTareas] = useState<Tarea[]>([]);
@@ -69,11 +71,12 @@ export default function MisTareasPage() {
   const today = toDateString(currentDate);
 
   const fetchTareas = useCallback(async () => {
+    if (!trabajadorId) return;
     setLoading(true);
     const { data, error } = await supabase
       .from('tareas')
       .select('*')
-      .eq('trabajador_id', WORKER_ID)
+      .eq('trabajador_id', trabajadorId)
       .eq('fecha', today)
       .order('hora_inicio');
 
@@ -81,7 +84,7 @@ export default function MisTareasPage() {
       setTareas(data as Tarea[]);
     }
     setLoading(false);
-  }, [today]);
+  }, [trabajadorId, today]);
 
   useEffect(() => {
     fetchTareas();

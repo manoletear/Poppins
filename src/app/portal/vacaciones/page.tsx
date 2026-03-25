@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import {
   Plus,
   Umbrella,
@@ -14,7 +15,6 @@ import {
   XCircle,
 } from 'lucide-react';
 
-const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
 type Solicitud = {
   id: string;
@@ -80,6 +80,8 @@ function getDaysInRange(start: string, end: string): Set<string> {
 }
 
 export default function VacacionesPage() {
+  const { profile } = useAuth();
+  const trabajadorId = profile?.trabajador_id || '';
   const [vacaciones, setVacaciones] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -100,8 +102,8 @@ export default function VacacionesPage() {
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    loadVacaciones();
-  }, []);
+    if (trabajadorId) loadVacaciones();
+  }, [trabajadorId]);
 
   useEffect(() => {
     if (fechaInicio && fechaFin) {
@@ -116,7 +118,7 @@ export default function VacacionesPage() {
     const { data, error } = await supabase
       .from('solicitudes_empleado')
       .select('*')
-      .eq('trabajador_id', WORKER_ID)
+      .eq('trabajador_id', trabajadorId)
       .in('tipo', ['vacaciones'])
       .order('created_at', { ascending: false });
 
@@ -213,7 +215,7 @@ export default function VacacionesPage() {
     setSubmitting(true);
 
     const { error } = await supabase.from('solicitudes_empleado').insert({
-      trabajador_id: WORKER_ID,
+      trabajador_id: trabajadorId,
       tipo,
       descripcion,
       fecha_inicio: fechaInicio,
