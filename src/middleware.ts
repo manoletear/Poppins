@@ -18,7 +18,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes - skip entirely
-  if (pathname.startsWith('/auth/') || pathname.startsWith('/api/')) {
+  if (pathname === '/' || pathname.startsWith('/auth/') || pathname.startsWith('/api/') || pathname.startsWith('/landing/')) {
     return NextResponse.next();
   }
 
@@ -41,7 +41,6 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) {
-    if (pathname === '/') return NextResponse.redirect(new URL('/auth/login', request.url));
     return NextResponse.redirect(new URL('/auth/login', request.url));
   }
 
@@ -54,11 +53,6 @@ export async function middleware(request: NextRequest) {
 
   const rol = profile?.rol || 'empleador';
   const dest = ROLE_REDIRECT[rol] || '/empresa';
-
-  // Landing → redirect to portal
-  if (pathname === '/') {
-    return NextResponse.redirect(new URL(dest, request.url));
-  }
 
   // Role-based access check
   const allowed = ROLE_ACCESS[rol] || [];

@@ -1,76 +1,92 @@
-import Link from 'next/link';
-import { Shield, Building2, CircleUser } from 'lucide-react';
-import { AuthBar } from '@/components/AuthBar';
+'use client';
 
-const roles = [
-  {
-    title: 'Administrador',
-    href: '/admin',
-    icon: Shield,
-    gradient: 'from-zinc-900 to-zinc-700',
-    badge: 'Admin',
-    description:
-      'Acceso completo al sistema. Gestión de empleados, liquidaciones, PREVIRED, LRE, finiquitos e indicadores.',
-  },
-  {
-    title: 'Empleador',
-    href: '/empresa',
-    icon: Building2,
-    gradient: 'from-blue-600 to-blue-800',
-    badge: 'Empresa',
-    description:
-      'Gestión de tu empresa. Colaboradores, contratos, liquidaciones, costos y cumplimiento legal.',
-  },
-  {
-    title: 'Empleado',
-    href: '/portal',
-    icon: CircleUser,
-    gradient: 'from-emerald-600 to-emerald-800',
-    badge: 'Portal',
-    description:
-      'Tu portal personal. Mi ficha, liquidaciones, vacaciones, documentos y firma digital.',
-  },
-];
+import { useEffect } from 'react';
+import { useAuth } from '@/lib/auth/context';
+import { getRedirectForRole } from '@/lib/auth/helpers';
+import { useRouter } from 'next/navigation';
 
 export default function Home() {
+  const { user, profile, loading } = useAuth();
+  const router = useRouter();
+
+  // If logged in, redirect to portal
+  useEffect(() => {
+    if (!loading && user && profile) {
+      router.replace(getRedirectForRole(profile.rol));
+    }
+  }, [loading, user, profile, router]);
+
+  // While checking auth, show the landing immediately (no blank screen)
   return (
-    <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center px-4 py-16">
-      <AuthBar />
+    <>
+      {/* Auth redirect overlay - only shows briefly for logged-in users */}
+      {!loading && user && profile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-white">
+          <div className="text-center">
+            <p className="text-sm text-zinc-500">Redirigiendo a tu portal...</p>
+          </div>
+        </div>
+      )}
 
-      <div className="text-center mb-10">
-        <h1 className="text-4xl font-bold text-zinc-900">Poppins</h1>
-        <p className="text-lg text-zinc-500 mt-2">ERP RRHH Chile 2026</p>
+      {/* Landing page - Vite React SPA */}
+      <div id="landing-root">
+        <LandingPage />
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl w-full">
-        {roles.map((role) => {
-          const Icon = role.icon;
-          return (
-            <Link key={role.title} href={role.href}>
-              <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 cursor-pointer h-full">
-                <div
-                  className={`bg-gradient-to-br ${role.gradient} h-12 w-12 rounded-xl flex items-center justify-center mb-4`}
-                >
-                  <Icon className="h-6 w-6 text-white" />
-                </div>
-                <span className="inline-flex rounded-full bg-zinc-100 px-2.5 py-0.5 text-[10px] font-semibold uppercase text-zinc-600">
-                  {role.badge}
-                </span>
-                <h2 className="text-lg font-semibold text-zinc-900 mt-3">
-                  {role.title}
-                </h2>
-                <p className="text-sm text-zinc-500 mt-2 leading-relaxed">
-                  {role.description}
-                </p>
-              </div>
-            </Link>
-          );
-        })}
-      </div>
-
-      <p className="text-xs text-zinc-400 mt-10">
-        Selecciona tu perfil para continuar
-      </p>
-    </div>
+    </>
   );
+}
+
+function LandingPage() {
+  useEffect(() => {
+    // Inject the landing CSS
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = '/landing/assets/index-CTwfptOR.css';
+    document.head.appendChild(link);
+
+    // Inject the landing JS bundle
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = '/landing/assets/index-Z8XIpR4j.js';
+    document.body.appendChild(script);
+
+    // Override CTA links after the landing renders
+    const observer = new MutationObserver(() => {
+      // Find all links/buttons with CTA text and redirect to auth
+      const allLinks = document.querySelectorAll('a, button');
+      allLinks.forEach((el) => {
+        const text = el.textContent?.toLowerCase() || '';
+        if (
+          text.includes('comenzar') ||
+          text.includes('crear mi contrato') ||
+          text.includes('empieza ahora') ||
+          text.includes('formaliza ahora')
+        ) {
+          el.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.location.href = '/auth/register';
+          });
+          if (el.tagName === 'A') {
+            (el as HTMLAnchorElement).href = '/auth/register';
+          }
+        }
+      });
+    });
+
+    // Observe the root div for changes (when React renders the landing)
+    const root = document.getElementById('root');
+    if (root) {
+      observer.observe(root, { childList: true, subtree: true });
+    }
+
+    return () => {
+      observer.disconnect();
+      link.remove();
+      script.remove();
+    };
+  }, []);
+
+  // The Vite landing app renders into #root
+  return <div id="root" />;
 }
