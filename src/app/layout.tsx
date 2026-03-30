@@ -7,9 +7,17 @@ import { LoadingScreen } from "@/components/LoadingScreen";
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
 
 export const metadata: Metadata = {
-  title: "Poppins ERP 2026 - RRHH Chile",
+  title: "Poppins - Magia en tu Casa | Gestión Laboral para el Hogar Chileno",
   description:
-    "ERP de Recursos Humanos para Chile - Liquidaciones, PREVIRED, LRE, Finiquitos",
+    "Formaliza a tu trabajadora de casa particular en minutos. Contratos, liquidaciones, cotizaciones, pagos y cumplimiento legal — todo automático con Poppins.",
+  keywords: "poppins, empleada doméstica, trabajadora casa particular, contrato trabajo, liquidaciones, cotizaciones, previred, chile, nana, asesora del hogar, leyes sociales, sueldo nana",
+  openGraph: {
+    title: "Poppins - Magia en tu Casa",
+    description: "Formaliza a tu trabajadora de casa particular en minutos. Contratos, liquidaciones y pagos automáticos.",
+    images: ["/landing/logo-poppins.png"],
+    type: "website",
+    locale: "es_CL",
+  },
 };
 
 export default function RootLayout({
