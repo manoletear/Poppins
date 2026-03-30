@@ -92,9 +92,19 @@ function Navbar() {
       }}
     >
       <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <img src="/landing/logo-poppins.png" alt="Poppins" className="h-8 rounded" />
-          <span className="text-lg font-bold" style={{ color: scrolled ? NAVY : '#fff' }}>Poppins</span>
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 flex items-center justify-center">
+            <svg viewBox="0 0 40 44" fill="none" className="h-8 w-8">
+              <path d="M20 4C20 4 6 10 6 20C6 24 8 26 10 26C10 26 10 28 12 28C14 28 14 26 14 26" stroke={scrolled ? NAVY : 'white'} strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M20 4C20 4 34 10 34 20C34 24 32 26 30 26C30 26 30 28 28 28C26 28 26 26 26 26" stroke={scrolled ? NAVY : 'white'} strokeWidth="2.5" strokeLinecap="round"/>
+              <line x1="20" y1="4" x2="20" y2="36" stroke={scrolled ? NAVY : 'white'} strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M20 36C20 36 20 40 24 40" stroke={scrolled ? NAVY : 'white'} strokeWidth="2.5" strokeLinecap="round"/>
+            </svg>
+          </div>
+          <div>
+            <span className="text-lg font-bold" style={{ color: scrolled ? NAVY : PINK }}>Poppins</span>
+            <span className="hidden sm:inline text-[10px] ml-2 tracking-wider uppercase" style={{ color: scrolled ? NAVY_DEEP : 'rgba(255,255,255,0.6)' }}>Magia en tu casa</span>
+          </div>
         </div>
         <div className="hidden md:flex items-center gap-6">
           {navLinks.map((l) => (
@@ -135,8 +145,9 @@ function Hero() {
       style={{ background: `linear-gradient(180deg, ${NAVY} 0%, ${LAVENDER} 60%, ${PINK_LIGHT} 100%)` }}>
       <div className="max-w-5xl mx-auto text-center">
         <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-white leading-tight fade-in">
-          Formaliza a tu trabajadora<br className="hidden sm:block" /> en minutos.{' '}
-          <span style={{ color: PINK }}>POPPINS™</span> se encarga del resto.
+          El sueldo de tu nana, el arriendo,{' '}
+          <span style={{ color: PINK }}>el súper, la bodega,</span>{' '}
+          y mucho más.
         </h1>
         <p className="mt-6 text-base sm:text-lg max-w-2xl mx-auto fade-in fade-in-d1" style={{ color: 'rgba(255,255,255,0.85)' }}>
           Crea contratos, liquida sueldos, paga cotizaciones y cumple la ley chilena — todo desde una app simple, segura y humana.
@@ -460,10 +471,17 @@ function Footer() {
     <footer className="py-10 px-4" style={{ backgroundColor: NAVY_DEEP }}>
       <div className="max-w-5xl mx-auto">
         <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2">
-            <img src="/landing/logo-poppins.png" alt="Poppins" className="h-8 rounded" />
-            <span className="text-white font-bold">Poppins</span>
-            <span className="text-white/40 text-xs ml-2">Magia en tu casa</span>
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 flex items-center justify-center">
+              <svg viewBox="0 0 40 44" fill="none" className="h-7 w-7">
+                <path d="M20 4C20 4 6 10 6 20C6 24 8 26 10 26C10 26 10 28 12 28C14 28 14 26 14 26" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M20 4C20 4 34 10 34 20C34 24 32 26 30 26C30 26 30 28 28 28C26 28 26 26 26 26" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                <line x1="20" y1="4" x2="20" y2="36" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M20 36C20 36 20 40 24 40" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <span className="font-bold" style={{ color: PINK }}>Poppins</span>
+            <span className="text-white/40 text-xs ml-1">Magia en tu casa</span>
           </div>
           <div className="flex gap-6 text-sm text-white/60">
             <a href="#hero" className="hover:text-white transition-colors">Inicio</a>
