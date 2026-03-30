@@ -25,6 +25,110 @@ export default function Home() {
     link.id = 'landing-css';
     document.head.appendChild(link);
 
+    // Inject responsive overrides
+    const style = document.createElement('style');
+    style.id = 'landing-responsive-fixes';
+    style.textContent = `
+      /* ===== MOBILE RESPONSIVE FIXES ===== */
+      #root { overflow-x: hidden; }
+
+      @media (max-width: 768px) {
+        /* Hero text containment */
+        #root h1 {
+          font-size: 1.75rem !important;
+          line-height: 1.3 !important;
+          padding: 0 1rem !important;
+          word-break: break-word;
+        }
+        #root h2 {
+          font-size: 1.5rem !important;
+          padding: 0 0.5rem !important;
+        }
+        #root p {
+          padding-left: 1rem !important;
+          padding-right: 1rem !important;
+        }
+
+        /* Cards grid → single column */
+        #root [class*="grid-cols-3"],
+        #root [class*="grid-cols-2"] {
+          grid-template-columns: 1fr !important;
+          gap: 1rem !important;
+          padding: 0 1rem !important;
+        }
+
+        /* Cards containment */
+        #root [class*="rounded"] {
+          max-width: 100% !important;
+          overflow: hidden;
+        }
+
+        /* Tabs wrap */
+        #root [role="tablist"],
+        #root .flex.gap-2,
+        #root .flex.gap-3 {
+          flex-wrap: wrap !important;
+          justify-content: center !important;
+        }
+
+        /* Container padding */
+        #root section {
+          padding-left: 1rem !important;
+          padding-right: 1rem !important;
+          overflow: hidden;
+        }
+        #root > div {
+          overflow-x: hidden;
+          max-width: 100vw;
+        }
+
+        /* Navbar mobile fix */
+        #root nav {
+          padding: 0.75rem 1rem !important;
+        }
+
+        /* CTA buttons full width */
+        #root a[class*="rounded-full"],
+        #root button[class*="rounded-full"] {
+          max-width: calc(100vw - 2rem);
+        }
+
+        /* Testimonial cards */
+        #root [class*="shadow"] {
+          margin-left: 0 !important;
+          margin-right: 0 !important;
+        }
+
+        /* Steps horizontal → vertical */
+        #root [class*="md\\:grid-cols-3"] {
+          grid-template-columns: 1fr !important;
+        }
+
+        /* Footer links wrap */
+        #root footer .flex {
+          flex-wrap: wrap !important;
+          gap: 0.75rem !important;
+          justify-content: center !important;
+        }
+
+        /* Orbital/diagram containment */
+        #root [class*="relative"][class*="h-"] {
+          max-width: 100% !important;
+          transform: scale(0.85);
+        }
+      }
+
+      @media (max-width: 480px) {
+        #root h1 {
+          font-size: 1.5rem !important;
+        }
+        #root h2 {
+          font-size: 1.25rem !important;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+
     // Inject JS bundle (React + Framer Motion + full landing)
     const script = document.createElement('script');
     script.type = 'module';
@@ -84,6 +188,7 @@ export default function Home() {
       clearTimeout(timer);
       document.getElementById('landing-css')?.remove();
       document.getElementById('landing-js')?.remove();
+      document.getElementById('landing-responsive-fixes')?.remove();
     };
   }, []);
 
