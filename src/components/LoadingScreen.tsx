@@ -2,11 +2,14 @@
 
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
+import { usePathname } from 'next/navigation';
 
 export function LoadingScreen() {
   const { loading, signOut } = useAuth();
+  const pathname = usePathname();
 
-  if (!loading) return null;
+  // Don't block public pages (landing, auth) with loading screen
+  if (!loading || pathname === '/' || pathname.startsWith('/auth/') || pathname.startsWith('/landing/')) return null;
 
   return (
     <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-white">
