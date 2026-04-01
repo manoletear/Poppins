@@ -1,0 +1,189 @@
+
+<style>
+@keyframes held {
+  0%   { transform: rotate(-14deg) translateY(0px)   translateX(0px); }
+  20%  { transform: rotate(-12deg) translateY(-8px)  translateX(3px); }
+  50%  { transform: rotate(-16deg) translateY(-13px) translateX(-2px); }
+  75%  { transform: rotate(-12.5deg) translateY(-5px) translateX(2px); }
+  100% { transform: rotate(-14deg) translateY(0px)   translateX(0px); }
+}
+@keyframes shadow-move {
+  0%   { transform: translateX(-50%) scaleX(1)    scaleY(1);    opacity:.18; }
+  50%  { transform: translateX(-54%) scaleX(.82)  scaleY(.7);   opacity:.10; }
+  100% { transform: translateX(-50%) scaleX(1)    scaleY(1);    opacity:.18; }
+}
+.phone-wrap {
+  animation: held 5s cubic-bezier(.45,.05,.55,.95) infinite;
+  transform-origin: 50% 82%;
+  position: relative;
+  display: inline-block;
+}
+.phone-shadow {
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  width: 210px;
+  height: 18px;
+  background: #000;
+  border-radius: 50%;
+  opacity: .15;
+  animation: shadow-move 5s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+.screen-scroll {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #f5f5f5;
+  scrollbar-width: none;
+}
+.screen-scroll::-webkit-scrollbar { display: none; }
+.stat-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 9px 10px;
+  border: 0.5px solid #ebebeb;
+}
+.badge-green {
+  background: #dcfce7;
+  color: #166534;
+  font-size: 6px;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.quick-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  margin: 0 auto 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+</style>
+
+<div style="display:flex;justify-content:center;align-items:center;padding:60px 20px 80px;min-height:680px;">
+  <div class="phone-wrap">
+
+    <div style="width:268px;height:554px;background:#0d0d0d;border-radius:48px;padding:13px;position:relative;outline:1px solid #2a2a2a;">
+
+      <div style="width:100%;height:100%;border-radius:36px;overflow:hidden;position:relative;background:#f5f5f5;">
+
+        <div style="position:absolute;top:11px;left:50%;transform:translateX(-50%);width:96px;height:28px;background:#0d0d0d;border-radius:16px;z-index:10;"></div>
+
+        <div class="screen-scroll">
+
+          <div style="background:#fff;padding:48px 13px 10px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="font-size:10.5px;font-weight:700;color:#111;">Buenas tardes, María</div>
+                <div style="font-size:7.5px;color:#999;margin-top:1px;">Miércoles 1 de abril, 2026</div>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#111;">05:47 p.m.</div>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:6px 10px;">
+            <div class="stat-card">
+              <div style="font-size:7px;color:#999;">Tareas Hoy</div>
+              <div style="font-size:11px;font-weight:700;color:#111;margin:2px 0;">0 de 10</div>
+              <div style="font-size:7px;color:#FF0080;">10 pendientes</div>
+            </div>
+            <div class="stat-card">
+              <div style="font-size:7px;color:#999;">Horas Trabajadas</div>
+              <div style="font-size:11px;font-weight:700;color:#111;margin:2px 0;">0h 00m</div>
+              <div style="font-size:7px;color:#22c55e;">Sin marcar</div>
+            </div>
+            <div class="stat-card">
+              <div style="font-size:7px;color:#999;">Vacaciones</div>
+              <div style="font-size:11px;font-weight:700;color:#111;margin:2px 0;">8.5</div>
+              <div style="font-size:7px;color:#f59e0b;">días disponibles</div>
+            </div>
+            <div class="stat-card">
+              <div style="font-size:7px;color:#999;">Sueldo Líquido</div>
+              <div style="font-size:10px;font-weight:700;color:#111;margin:2px 0;">$526.550</div>
+              <div style="font-size:7px;color:#8b5cf6;">Marzo 2026</div>
+            </div>
+          </div>
+
+          <div style="margin:2px 10px 6px;background:#edfaf4;border-radius:12px;padding:11px 12px;border:1px solid #b2e8cf;">
+            <div style="font-size:8px;font-weight:700;color:#0d6e4a;margin-bottom:9px;">Marcaje Rápido</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+              <div style="text-align:center;">
+                <div style="width:17px;height:17px;border-radius:50%;background:#ddd;font-size:8px;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#888;font-weight:600;">1</div>
+                <div style="font-size:6px;color:#888;margin-top:2px;">Entrada</div>
+              </div>
+              <div style="flex:1;height:1px;background:#c5e6d6;margin:0 3px;"></div>
+              <div style="text-align:center;">
+                <div style="width:17px;height:17px;border-radius:50%;background:#ddd;font-size:8px;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#888;font-weight:600;">2</div>
+                <div style="font-size:6px;color:#888;margin-top:2px;">Sal. Col.</div>
+              </div>
+              <div style="flex:1;height:1px;background:#c5e6d6;margin:0 3px;"></div>
+              <div style="text-align:center;">
+                <div style="width:17px;height:17px;border-radius:50%;background:#ddd;font-size:8px;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#888;font-weight:600;">3</div>
+                <div style="font-size:6px;color:#888;margin-top:2px;">Reg. Col.</div>
+              </div>
+              <div style="flex:1;height:1px;background:#c5e6d6;margin:0 3px;"></div>
+              <div style="text-align:center;">
+                <div style="width:17px;height:17px;border-radius:50%;background:#ddd;font-size:8px;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#888;font-weight:600;">4</div>
+                <div style="font-size:6px;color:#888;margin-top:2px;">Salida</div>
+              </div>
+            </div>
+            <div style="text-align:center;font-size:7px;color:#0d6e4a;margin-bottom:7px;">Hora actual: 05:47 p.m.</div>
+            <div style="background:#1D9E75;color:#fff;border-radius:9px;padding:7px;font-size:9px;font-weight:700;text-align:center;">Marcar Entrada</div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;padding:0 10px 8px;">
+            <div class="stat-card">
+              <div style="font-size:7.5px;font-weight:700;color:#111;">Mis Tareas de Hoy</div>
+              <div style="font-size:6.5px;color:#999;margin:3px 0;">0/10 completadas</div>
+              <div style="font-size:6.5px;color:#bbb;text-align:center;padding:5px 0;">No hay tareas hoy</div>
+              <div style="font-size:7px;color:#22c55e;margin-top:2px;">Ver todas →</div>
+            </div>
+            <div class="stat-card">
+              <div style="font-size:7.5px;font-weight:700;color:#111;">Próximas Solicitudes</div>
+              <div style="font-size:6.5px;color:#444;margin:4px 0 2px;">vacaciones</div>
+              <div style="font-size:6px;color:#888;margin-bottom:4px;">Vacaciones familiares</div>
+              <span class="badge-green">Aprobada</span>
+              <div style="font-size:7px;color:#22c55e;margin-top:5px;">Ver todas →</div>
+            </div>
+          </div>
+
+          <div style="padding:0 10px 20px;">
+            <div style="font-size:8px;font-weight:700;color:#111;margin-bottom:7px;">Accesos Directos</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;">
+              <div style="text-align:center;">
+                <div class="quick-icon" style="background:#edfaf4;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+                </div>
+                <div style="font-size:5.5px;color:#888;line-height:1.3;">Nueva Solicitud</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="quick-icon" style="background:#eff6ff;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div style="font-size:5.5px;color:#888;line-height:1.3;">Ver Liquidación</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="quick-icon" style="background:#fefce8;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+                </div>
+                <div style="font-size:5.5px;color:#888;line-height:1.3;">Lista Compras</div>
+              </div>
+              <div style="text-align:center;">
+                <div class="quick-icon" style="background:#fff0f3;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                </div>
+                <div style="font-size:5.5px;color:#888;line-height:1.3;">Ayuda Médica</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="phone-shadow"></div>
+  </div>
+</div>

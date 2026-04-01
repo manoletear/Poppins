@@ -1,0 +1,223 @@
+
+<style>
+@keyframes held {
+  0%   { transform: rotate(-14deg) translateY(0px)    translateX(0px); }
+  20%  { transform: rotate(-11.5deg) translateY(-9px) translateX(4px); }
+  50%  { transform: rotate(-16deg)   translateY(-15px) translateX(-2px); }
+  75%  { transform: rotate(-12deg)   translateY(-6px)  translateX(2px); }
+  100% { transform: rotate(-14deg)   translateY(0px)   translateX(0px); }
+}
+@keyframes shadow-anim {
+  0%   { transform: translateX(-50%) scaleX(1)   scaleY(1);   opacity:.22; }
+  50%  { transform: translateX(-55%) scaleX(.78) scaleY(.65); opacity:.12; }
+  100% { transform: translateX(-50%) scaleX(1)   scaleY(1);   opacity:.22; }
+}
+.pwrap {
+  animation: held 5.5s cubic-bezier(.45,.05,.55,.95) infinite;
+  transform-origin: 50% 84%;
+  position: relative;
+  display: inline-block;
+}
+.pshad {
+  position: absolute;
+  bottom: -22px;
+  left: 50%;
+  width: 200px;
+  height: 22px;
+  background: #000;
+  border-radius: 50%;
+  animation: shadow-anim 5.5s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+.screen-scroll {
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #f2f2f7;
+  scrollbar-width: none;
+}
+.screen-scroll::-webkit-scrollbar { display: none; }
+.scard {
+  background: #fff;
+  border-radius: 11px;
+  padding: 9px 10px;
+}
+</style>
+
+<div style="display:flex;justify-content:center;align-items:center;padding:70px 20px 100px;min-height:780px;">
+<div class="pwrap">
+
+  <div style="
+    position:relative;
+    width:268px;
+    height:578px;
+    border-radius:48px;
+    background:linear-gradient(162deg,
+      rgba(120,120,128,.9) 0%,
+      #242426 6%,
+      #1a1a1c 18%,
+      #0d0d0f 40%,
+      #131315 58%,
+      #1e1e20 78%,
+      #2a2a2c 90%,
+      rgba(100,100,108,.7) 100%
+    );
+    box-shadow:
+      inset 0 0 0 .5px rgba(255,255,255,.18),
+      inset 0 1px 0 rgba(255,255,255,.08),
+      0 0 0 .5px rgba(0,0,0,.95),
+      0 30px 70px rgba(0,0,0,.55),
+      0 8px 20px rgba(0,0,0,.4);
+  ">
+
+    <div style="position:absolute;left:-3.5px;top:86px;width:3.5px;height:28px;background:linear-gradient(to right,#5a5a5e,#2c2c2e);border-radius:2px 0 0 2px;box-shadow:-1px 0 2px rgba(0,0,0,.6);"></div>
+    <div style="position:absolute;left:-3.5px;top:128px;width:3.5px;height:54px;background:linear-gradient(to right,#5a5a5e,#2c2c2e);border-radius:2px 0 0 2px;box-shadow:-1px 0 2px rgba(0,0,0,.6);"></div>
+    <div style="position:absolute;left:-3.5px;top:194px;width:3.5px;height:54px;background:linear-gradient(to right,#5a5a5e,#2c2c2e);border-radius:2px 0 0 2px;box-shadow:-1px 0 2px rgba(0,0,0,.6);"></div>
+    <div style="position:absolute;right:-3.5px;top:150px;width:3.5px;height:76px;background:linear-gradient(to left,#5a5a5e,#2c2c2e);border-radius:0 2px 2px 0;box-shadow:1px 0 2px rgba(0,0,0,.6);"></div>
+
+    <div style="
+      position:absolute;
+      inset:13px;
+      border-radius:36px;
+      overflow:hidden;
+      background:#000;
+      box-shadow:inset 0 0 0 1px rgba(0,0,0,.8),inset 0 0 0 .5px rgba(255,255,255,.03);
+    ">
+      <div class="screen-scroll">
+
+        <div style="height:16px;background:#fff;flex-shrink:0;"></div>
+
+        <div style="background:#fff;padding:0 14px 12px;flex-shrink:0;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:#111;font-family:sans-serif;">Buenas tardes, María</div>
+              <div style="font-size:7px;color:#8e8e93;margin-top:1px;font-family:sans-serif;">Miércoles 1 de abril, 2026</div>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:#111;font-family:sans-serif;">05:47 p.m.</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 10px 6px;">
+          <div class="scard">
+            <div style="font-size:7px;color:#8e8e93;font-family:sans-serif;">Tareas Hoy</div>
+            <div style="display:flex;align-items:center;gap:6px;margin:3px 0 2px;">
+              <div style="font-size:12px;font-weight:700;color:#111;font-family:sans-serif;">0 de 10</div>
+              <div style="width:20px;height:20px;border-radius:50%;border:2.5px solid #e5e5ea;flex-shrink:0;"></div>
+            </div>
+            <div style="font-size:7px;color:#FF2D55;font-family:sans-serif;">10 pendientes</div>
+          </div>
+          <div class="scard">
+            <div style="font-size:7px;color:#8e8e93;font-family:sans-serif;">Horas Trabajadas</div>
+            <div style="font-size:12px;font-weight:700;color:#111;margin:3px 0 2px;font-family:sans-serif;">0h 00m</div>
+            <div style="font-size:7px;color:#34C759;font-family:sans-serif;">Sin marcar</div>
+          </div>
+          <div class="scard">
+            <div style="font-size:7px;color:#8e8e93;font-family:sans-serif;">Vacaciones</div>
+            <div style="font-size:12px;font-weight:700;color:#111;margin:3px 0 2px;font-family:sans-serif;">8.5</div>
+            <div style="font-size:7px;color:#FF9500;font-family:sans-serif;">días disponibles</div>
+          </div>
+          <div class="scard">
+            <div style="font-size:7px;color:#8e8e93;font-family:sans-serif;">Sueldo Líquido</div>
+            <div style="font-size:10.5px;font-weight:700;color:#111;margin:3px 0 2px;font-family:sans-serif;">$526.550</div>
+            <div style="font-size:7px;color:#AF52DE;font-family:sans-serif;">Marzo 2026</div>
+          </div>
+        </div>
+
+        <div style="margin:0 10px 7px;background:linear-gradient(135deg,#e8faf2,#d4f5e7);border-radius:13px;padding:12px 13px;border:1px solid #a8e6c8;">
+          <div style="font-size:8px;font-weight:700;color:#1a7a50;margin-bottom:10px;font-family:sans-serif;">Marcaje Rápido</div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:9px;">
+            <div style="text-align:center;">
+              <div style="width:18px;height:18px;border-radius:50%;background:#e5e5ea;font-size:8px;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#8e8e93;font-weight:600;font-family:sans-serif;">1</div>
+              <div style="font-size:6px;color:#8e8e93;margin-top:3px;font-family:sans-serif;">Entrada</div>
+            </div>
+            <div style="flex:1;height:1px;background:linear-gradient(to right,#b2d8be,#c5e6d0);margin:9px 3px 0;"></div>
+            <div style="text-align:center;">
+              <div style="width:18px;height:18px;border-radius:50%;background:#e5e5ea;font-size:8px;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#8e8e93;font-weight:600;font-family:sans-serif;">2</div>
+              <div style="font-size:6px;color:#8e8e93;margin-top:3px;font-family:sans-serif;">Sal.Col.</div>
+            </div>
+            <div style="flex:1;height:1px;background:linear-gradient(to right,#b2d8be,#c5e6d0);margin:9px 3px 0;"></div>
+            <div style="text-align:center;">
+              <div style="width:18px;height:18px;border-radius:50%;background:#e5e5ea;font-size:8px;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#8e8e93;font-weight:600;font-family:sans-serif;">3</div>
+              <div style="font-size:6px;color:#8e8e93;margin-top:3px;font-family:sans-serif;">Reg.Col.</div>
+            </div>
+            <div style="flex:1;height:1px;background:linear-gradient(to right,#b2d8be,#c5e6d0);margin:9px 3px 0;"></div>
+            <div style="text-align:center;">
+              <div style="width:18px;height:18px;border-radius:50%;background:#e5e5ea;font-size:8px;display:flex;align-items:center;justify-content:center;margin:0 auto;color:#8e8e93;font-weight:600;font-family:sans-serif;">4</div>
+              <div style="font-size:6px;color:#8e8e93;margin-top:3px;font-family:sans-serif;">Salida</div>
+            </div>
+          </div>
+          <div style="text-align:center;font-size:7px;color:#1a7a50;margin-bottom:8px;font-family:sans-serif;">Hora actual: 05:47 p.m.</div>
+          <div style="background:linear-gradient(135deg,#1D9E75,#15825f);color:#fff;border-radius:10px;padding:8px;font-size:9px;font-weight:700;text-align:center;font-family:sans-serif;letter-spacing:.2px;">Marcar Entrada</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:0 10px 7px;">
+          <div class="scard">
+            <div style="font-size:7.5px;font-weight:700;color:#111;font-family:sans-serif;">Mis Tareas de Hoy</div>
+            <div style="font-size:6.5px;color:#8e8e93;margin:3px 0;font-family:sans-serif;">0/10 completadas</div>
+            <div style="font-size:6.5px;color:#c7c7cc;text-align:center;padding:6px 0;font-family:sans-serif;">No hay tareas hoy</div>
+            <div style="font-size:7px;color:#34C759;font-family:sans-serif;">Ver todas →</div>
+          </div>
+          <div class="scard">
+            <div style="font-size:7.5px;font-weight:700;color:#111;font-family:sans-serif;">Próximas Solicitudes</div>
+            <div style="font-size:6.5px;color:#444;margin:4px 0 1px;font-family:sans-serif;">vacaciones</div>
+            <div style="font-size:6px;color:#8e8e93;margin-bottom:4px;font-family:sans-serif;">Vacaciones familiares</div>
+            <div style="display:inline-block;background:#d1fae5;color:#065f46;font-size:5.5px;padding:2px 6px;border-radius:5px;font-weight:700;font-family:sans-serif;">Aprobada</div>
+            <div style="font-size:7px;color:#34C759;margin-top:5px;font-family:sans-serif;">Ver todas →</div>
+          </div>
+        </div>
+
+        <div style="padding:0 10px 24px;">
+          <div style="font-size:8px;font-weight:700;color:#111;margin-bottom:8px;font-family:sans-serif;">Accesos Directos</div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+            <div style="text-align:center;">
+              <div style="width:30px;height:30px;background:#e8faf2;border-radius:10px;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1D9E75" stroke-width="2.2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+              </div>
+              <div style="font-size:5.5px;color:#8e8e93;font-family:sans-serif;line-height:1.3;">Nueva Solicitud</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="width:30px;height:30px;background:#eef3ff;border-radius:10px;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4f7df3" stroke-width="2.2"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              </div>
+              <div style="font-size:5.5px;color:#8e8e93;font-family:sans-serif;line-height:1.3;">Ver Liquidación</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="width:30px;height:30px;background:#fff8ec;border-radius:10px;margin:0 auto 4px;display:flex;align-items:center;justify-content:justify-content;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2.2"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 01-8 0"/></svg>
+              </div>
+              <div style="font-size:5.5px;color:#8e8e93;font-family:sans-serif;line-height:1.3;">Lista de Compras</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="width:30px;height:30px;background:#fff0f5;border-radius:10px;margin:0 auto 4px;display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#e5407a" stroke-width="2.2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              </div>
+              <div style="font-size:5.5px;color:#8e8e93;font-family:sans-serif;line-height:1.3;">Ayuda Médica</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="height:6px;background:#f2f2f7;display:flex;justify-content:center;align-items:center;padding-bottom:8px;padding-top:4px;">
+          <div style="width:100px;height:4px;background:#c7c7cc;border-radius:3px;"></div>
+        </div>
+
+      </div>
+
+      <div style="position:absolute;top:0;left:0;right:0;height:62px;pointer-events:none;z-index:20;">
+        <div style="display:flex;justify-content:center;padding-top:14px;">
+          <div style="width:112px;height:32px;background:#000;border-radius:18px;display:flex;align-items:center;justify-content:flex-end;padding-right:11px;">
+            <div style="width:9px;height:9px;border-radius:50%;background:#1a1a22;border:1.5px solid #2a2a35;box-shadow:0 0 0 1px #0a0a12,inset 0 0 3px #000;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="position:absolute;inset:0;border-radius:36px;pointer-events:none;z-index:25;background:linear-gradient(138deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,.025) 28%,transparent 50%);"></div>
+
+    </div>
+
+    <div style="position:absolute;bottom:0;left:13px;right:13px;height:2px;background:linear-gradient(to right,transparent,rgba(255,255,255,.04),transparent);border-radius:0 0 36px 36px;pointer-events:none;"></div>
+
+  </div>
+
+  <div class="pshad"></div>
+</div>
+</div>
