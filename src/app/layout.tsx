@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Outfit } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/context";
 import { LoadingScreen } from "@/components/LoadingScreen";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const outfit = Outfit({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], variable: "--font-outfit" });
 
 export const metadata: Metadata = {
   title: "Poppins - Magia en tu Casa | Gestión Laboral para el Hogar Chileno",
@@ -27,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${inter.variable} antialiased`}>
+      <body className={`${outfit.variable} font-outfit antialiased`}>
         <AuthProvider>
           <LoadingScreen />
           {children}
