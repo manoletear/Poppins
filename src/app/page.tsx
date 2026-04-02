@@ -9,15 +9,21 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { Navbar } from "@/components/landing/Navbar";
 import { StoryPhone } from "@/components/landing/StoryPhone";
 import { 
+  Shield, 
+  Clock, 
+  HandCoins, 
   CheckCircle2, 
-  ArrowRight, 
+  ArrowRight,
+  Menu,
+  X,
+  CreditCard,
+  BarChart3,
+  Bot,
   Zap, 
   ShieldCheck, 
   LineChart, 
   Star,
-  Umbrella,
-  Menu,
-  X
+  Umbrella
 } from "lucide-react";
 
 export default function Home() {
@@ -112,6 +118,61 @@ export default function Home() {
           <div className="flex-1 flex justify-center lg:justify-end items-center mt-12 lg:mt-0">
             <div className="w-full max-w-[320px] sm:max-w-[380px]">
               <StoryPhone />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Cómo Funciona Section */}
+      <section id="how-it-works" className="py-24 bg-white relative overflow-hidden">
+        <div className="container mx-auto px-6">
+          <div className="max-w-4xl mx-auto text-center mb-16">
+            <h2 className="text-4xl md:text-5xl font-bold text-poppins-navy mb-6 leading-tight">
+              Cómo funciona Poppins: Automatización y control total de tus pagos del hogar
+            </h2>
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Por una tarifa fija, centralizas todo lo que tu casa necesita para administrar gastos y servicios desde un solo lugar, donde además podrás acceder a recordatorios e informes mensuales para ordenar y optimizar sus gastos. Una sola app, un sólo pago, cero preocupaciones. Sin olvidos, sin enredos, sin estrés.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {/* Feature 1 */}
+            <div className="bg-white p-10 rounded-2xl shadow-[0_5_15_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col items-center text-center group hover:translate-y-[-10px] transition-all duration-300">
+              <div className="w-20 h-20 bg-poppins-pink rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-poppins-pink/20">
+                <CreditCard className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-4 px-2">
+                Programación automática de pagos
+              </h3>
+              <p className="text-gray-600 leading-relaxed">
+                Evita olvidos o atrasos: establece pagos recurrentes y Poppins los ejecuta por ti al día.
+              </p>
+            </div>
+
+            {/* Feature 2 */}
+            <div className="bg-white p-10 rounded-2xl shadow-[0_5_15_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col items-center text-center group hover:translate-y-[-10px] transition-all duration-300">
+              <div className="w-20 h-20 bg-poppins-pink rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-poppins-pink/20">
+                <BarChart3 className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-4 px-2">
+                Historial consolidado de gastos domésticos
+              </h3>
+              <p className="text-gray-600 leading-relaxed">
+                Presupuestos claros, con reportes por categoría que te permiten visualizar en un solo lugar el flujo financiero de tu hogar.
+              </p>
+            </div>
+
+            {/* Feature 3 */}
+            <div className="bg-white p-10 rounded-2xl shadow-[0_5_15_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col items-center text-center group hover:translate-y-[-10px] transition-all duration-300">
+              <div className="w-20 h-20 bg-poppins-pink rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-poppins-pink/20">
+                <Bot className="w-10 h-10 text-white" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-800 mb-4 px-2">
+                Asistente Virtual Inteligente (AVI)
+              </h3>
+              <p className="text-gray-600 leading-relaxed">
+                Recibe recomendaciones personalizadas, optimización de gastos y alertas sobre ofertas o condiciones favorables con tus tarjetas.
+              </p>
             </div>
           </div>
         </div>
