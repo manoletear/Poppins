@@ -64,7 +64,7 @@ export default function Home() {
         }
         nav { background: var(--navy); padding: 0 40px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
         .logo { display: flex; align-items: center; gap: 10px; color: var(--white); text-decoration: none; }
-        .logo-icon { width: 36px; height: 36px; background: var(--pink); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+        .logo-icon { width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
         .logo-text { display: flex; flex-direction: column; line-height: 1.1; }
         .logo-text strong { font-size: 18px; font-weight: 800; color: var(--pink); }
         .logo-text span { font-size: 9px; letter-spacing: 1.5px; opacity: 0.8; text-transform: uppercase; }
@@ -186,7 +186,7 @@ export default function Home() {
       <nav>
         <a href="#" className="logo">
           <div className="logo-icon">
-            <img src="/Poppins_icono.png" alt="Poppins Logo" style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '8px' }} />
+            <img src="/logo-umbrella.svg" alt="Poppins Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
           </div>
           <div className="logo-text">
             <strong>Poppins</strong>
