@@ -45,9 +45,13 @@ export default function Home() {
           formId: formId,
           target: "#hubspot-form-container",
           onFormReady: () => {
+            console.log("HubSpot Form Ready");
             setIsFormReady(true);
           },
         });
+        
+        // Fallback: Si en 5 segundos no ha disparado el evento (posible error 403 o red), ocultar el loader
+        setTimeout(() => setIsFormReady(true), 5000);
       }
     };
 
