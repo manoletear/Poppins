@@ -24,6 +24,31 @@ export default function Home() {
     const btn = document.getElementById('btn-login');
     if (btn) (btn as HTMLAnchorElement).href = base + '/auth/login';
 
+    // HubSpot Form initialization
+    const portalId = '51289712';
+    const formId = '5e8bb93c-bc8c-4eef-babf-904efc6c2280';
+
+    const loadHubSpot = () => {
+      if ((window as any).hbspt) {
+        (window as any).hbspt.forms.create({
+          region: 'na1',
+          portalId: portalId,
+          formId: formId,
+          target: '#hubspot-form-container'
+        });
+      }
+    };
+
+    if (!document.querySelector('script[src*="js.hsforms.net"]')) {
+      const script = document.createElement('script');
+      script.src = 'https://js.hsforms.net/forms/v2.js';
+      script.async = true;
+      script.onload = loadHubSpot;
+      document.body.appendChild(script);
+    } else {
+      loadHubSpot();
+    }
+
     // Scroll to contact form logic (if shared buttons exist)
     const ctaLinks = document.querySelectorAll('a[href^="#"]');
     ctaLinks.forEach(link => {
@@ -405,9 +430,11 @@ export default function Home() {
 
       <section id="contactanos" className="contacto">
         <h2 className="section-title">Contáctanos</h2>
-        <div className="hs-form-frame" id="hubspot-form-container">
-          {/* script handled via external injection or next/script if needed, but for now we rely on the user original script in html if they want it exactly as is */}
-          <div className="hs-form-frame" data-region="na1" data-form-id="5e8bb93c-bc8c-4eef-babf-904efc6c2280" data-portal-id="51289712"></div>
+        <div id="hubspot-form-container" className="hs-form-frame" style={{ minHeight: '400px' }}>
+          {/* Opcional: Loader mientras carga HubSpot */}
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+            <span style={{ color: '#6b7280', fontSize: '14px' }}>Cargando formulario...</span>
+          </div>
         </div>
       </section>
 
@@ -424,14 +451,7 @@ export default function Home() {
         <p>© 2026 Poppins. Magia en tu casa.</p>
       </footer>
       
-      <script dangerouslySetInnerHTML={{ __html: `
-        (function() {
-          const script = document.createElement('script');
-          script.src = 'https://js.hsforms.net/forms/embed/51289712.js';
-          script.defer = true;
-          document.body.appendChild(script);
-        })();
-      ` }} />
+
     </>
   );
 }
