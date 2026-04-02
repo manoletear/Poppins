@@ -51,6 +51,7 @@ interface Trabajador {
   nombre: string;
   apellido_paterno: string;
   rut: string;
+  email: string;
   cargo: Cargo | '';
   sueldo_base: string;
   tipo_jornada: 'completa' | 'parcial' | 'art22' | '';
@@ -317,14 +318,18 @@ function StepTarjeta({
   const [cardSaved, setCardSaved] = useState(false);
   const supabase = createClient();
 
-  const handleSaveCard = async (card: { bin: string; ultimos4: string; detected: { banco?: string; tipo?: string } }) => {
+  const handleSaveCard = async (card: { bin: string; ultimos4: string; detected: { banco?: string; tipo?: string; categoria?: string; programa_puntos?: string; tasa_puntos?: number } }) => {
     if (!empleadorId) return;
     await supabase.from('tarjetas_cliente').insert({
       empleador_id: empleadorId,
       bin: card.bin,
-      ultimos4: card.ultimos4,
-      banco: card.detected?.banco ?? null,
-      tipo: card.detected?.tipo ?? null,
+      ultimos_4: card.ultimos4,
+      banco: card.detected?.banco ?? 'Desconocido',
+      tipo_tarjeta: card.detected?.tipo ?? 'visa',
+      categoria: card.detected?.categoria ?? 'classic',
+      programa_puntos: card.detected?.programa_puntos ?? 'Sin programa',
+      tasa_puntos: card.detected?.tasa_puntos ?? 0.5,
+      es_principal: true,
     });
     setCardSaved(true);
     setShowCardSetup(false);
@@ -397,6 +402,7 @@ const EMPTY_WORKER: Trabajador = {
   nombre: '',
   apellido_paterno: '',
   rut: '',
+  email: '',
   cargo: '',
   sueldo_base: '',
   tipo_jornada: '',
@@ -502,6 +508,17 @@ function StepTrabajadores({
                     <option key={val} value={val}>{label}</option>
                   ))}
                 </select>
+              </div>
+              {/* Email */}
+              <div>
+                <label className="block text-xs font-medium text-zinc-600 mb-1">Email del trabajador</label>
+                <input
+                  type="email"
+                  value={w.email}
+                  onChange={e => updateWorker(idx, 'email', e.target.value)}
+                  placeholder="para invitarlo al portal"
+                  className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400 bg-white"
+                />
               </div>
               {/* Sueldo */}
               <div>
@@ -808,11 +825,14 @@ export default function OnboardingPage() {
     try {
       if (!empleadorId) throw new Error('No se encontró el ID del empleador.');
 
+      // Delete existing vivienda if re-running onboarding, then insert fresh
+      await supabase.from('viviendas_empleador').delete().eq('empleador_id', empleadorId);
+
       const { error: vivErr } = await supabase.from('viviendas_empleador').insert({
         empleador_id: empleadorId,
         tipo: datosVivienda.tipo,
-        direccion: datosVivienda.direccion || null,
-        comuna: datosVivienda.comuna || null,
+        direccion: datosVivienda.direccion || datosPersonales.direccion || null,
+        comuna: datosVivienda.comuna || datosPersonales.comuna || null,
         metros_construidos: datosVivienda.metros_construidos ? Number(datosVivienda.metros_construidos) : null,
         pisos: datosVivienda.pisos ? Number(datosVivienda.pisos) : null,
         dormitorios: datosVivienda.dormitorios ? Number(datosVivienda.dormitorios) : null,
@@ -848,32 +868,41 @@ export default function OnboardingPage() {
     try {
       if (!empleadorId) throw new Error('No se encontró el ID del empleador.');
 
+      const horasMap: Record<string, number> = { completa: 45, parcial: 30, art22: 45 };
+
       for (const w of savedWorkers) {
-        // Create trabajador
+        // Create trabajador — email triggers auto-link with user_profiles
         const { data: trab, error: trabErr } = await supabase
           .from('trabajadores')
           .insert({
-            empleador_id: empleadorId,
             nombre: w.nombre,
             apellido_paterno: w.apellido_paterno,
             rut: w.rut,
+            email: w.email || null,
             cargo: w.cargo,
-            tipo_jornada: w.tipo_jornada,
+            estado: 'activo',
           })
           .select('id')
           .single();
 
         if (trabErr) throw trabErr;
 
-        // Create contrato
-        await supabase.from('contratos').insert({
+        // Create contrato with all NOT NULL fields
+        const horas = horasMap[w.tipo_jornada] || 45;
+        const { error: contErr } = await supabase.from('contratos').insert({
           trabajador_id: trab.id,
           empleador_id: empleadorId,
+          numero_contrato: `PA-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
           sueldo_base: Number(w.sueldo_base),
+          tipo_contrato: 'indefinido',
           tipo_jornada: w.tipo_jornada,
+          horas_semanales: horas,
           fecha_inicio: new Date().toISOString().split('T')[0],
+          cargo: w.cargo,
           estado: 'activo',
         });
+
+        if (contErr) throw contErr;
       }
 
       markComplete(3);

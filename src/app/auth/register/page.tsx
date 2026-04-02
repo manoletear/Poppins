@@ -75,7 +75,7 @@ export default function RegisterPage() {
 
       if (data.session) {
         // Auto-confirmed, redirect
-        router.push('/dashboard');
+        router.push('/empresa');
       } else {
         // Email confirmation required
         setSuccess(true);
