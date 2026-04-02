@@ -9,8 +9,8 @@ const ROLE_REDIRECT: Record<string, string> = {
 };
 
 const ROLE_ACCESS: Record<string, string[]> = {
-  admin: ['/admin', '/dashboard', '/empresa', '/portal'],
-  empleador: ['/empresa', '/dashboard'],
+  admin: ['/admin', '/empresa', '/portal'],
+  empleador: ['/empresa'],
   empleado: ['/portal'],
 };
 
@@ -78,5 +78,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/dashboard/:path*', '/empresa/:path*', '/portal/:path*', '/admin/:path*'],
+  matcher: ['/', '/empresa/:path*', '/portal/:path*', '/admin/:path*'],
 };

@@ -2,7 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
+
+async function getWorkerId(supabase: any): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return '';
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('trabajador_id')
+    .eq('auth_user_id', user.id)
+    .single();
+  return profile?.trabajador_id || '';
+}
 
 // Complete medical knowledge system prompt
 const SYSTEM_PROMPT = `Eres el asistente médico de Poppins, una plataforma de gestión de empleadas de hogar en Chile. Tu nombre es "Poppins Salud".
@@ -144,14 +154,15 @@ export async function POST(request: NextRequest) {
     }
 
     const supabase = await createClient();
+    const workerId = await getWorkerId(supabase);
     let convId = conversationId;
 
     // Create new conversation if none exists
-    if (!convId) {
+    if (!convId && workerId) {
       const titulo = message.length > 50 ? message.substring(0, 50) + '...' : message;
       const { data: conv } = await supabase
         .from('chat_conversaciones')
-        .insert({ trabajador_id: WORKER_ID, titulo, tags: [] })
+        .insert({ trabajador_id: workerId, titulo, tags: [] })
         .select()
         .single();
       convId = conv?.id;
@@ -227,7 +238,7 @@ export async function GET(request: NextRequest) {
   const { data } = await supabase
     .from('v_chat_historial')
     .select('*')
-    .eq('trabajador_id', WORKER_ID)
+    .eq('trabajador_id', await getWorkerId(supabase))
     .limit(20);
   return NextResponse.json({ conversations: data || [] });
 }

@@ -72,9 +72,9 @@ const navSections = [
 ];
 
 const plans = [
-  { id: 'free', name: 'Free', price: '$0', features: ['2 empleados', '1 cuenta acceso', 'Funciones básicas'] },
-  { id: 'premium', name: 'Premium', price: '$49.990/mes', features: ['5 empleados', '2 cuentas acceso', 'Pagos con puntos', 'Listas de compras', 'Recordatorios'], current: true },
-  { id: 'enterprise', name: 'Enterprise', price: '$99.990/mes', features: ['Empleados ilimitados', '5 cuentas acceso', 'API integrations', 'Soporte prioritario', 'Reportes avanzados'] },
+  { id: 'starter', name: 'Starter', price: '$0', features: ['2 cuentas de pago', 'Pago con tarjeta de crédito', 'Acumulación de puntos del banco', 'Comprobantes de pago'] },
+  { id: 'casa', name: 'Casa', price: '$14.990/mes', features: ['5 cuentas de pago', 'Comisión reducida (2.5%)', 'Alertas de vencimiento', 'Historial completo', 'Proyección de puntos/millas'], current: true },
+  { id: 'hogar', name: 'Hogar', price: '$29.990/mes', features: ['Cuentas ilimitadas', 'Comisión mínima (1.8%)', 'Pago consolidado "Pagar Todo"', 'Proyección de millas a destinos', 'Soporte prioritario', 'Promociones bancarias exclusivas'] },
 ];
 
 function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
@@ -111,7 +111,7 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-zinc-900 truncate">{displayShortName}</p>
-            <p className="text-[11px] text-zinc-500">Plan Premium</p>
+            <p className="text-[11px] text-zinc-500">Plan Casa</p>
           </div>
           <ChevronUp className={`h-4 w-4 text-zinc-400 transition-transform ${open ? 'rotate-0' : 'rotate-180'}`} />
         </button>
@@ -136,7 +136,7 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
                   <Crown className="h-4 w-4 text-amber-500" />
                   <div className="text-left">
                     <p className="font-medium">Mi Plan</p>
-                    <p className="text-[11px] text-zinc-400">Premium · Ver detalles o hacer upgrade</p>
+                    <p className="text-[11px] text-zinc-400">Casa · Ver detalles o hacer upgrade</p>
                   </div>
                 </button>
 
@@ -213,7 +213,7 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
                         <div className="w-full rounded-lg bg-blue-100 py-2 text-center text-sm font-medium text-blue-700">
                           Plan Actual
                         </div>
-                      ) : plan.id === 'enterprise' ? (
+                      ) : plan.id === 'hogar' ? (
                         <button className="w-full rounded-lg bg-zinc-900 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors">
                           Hacer Upgrade
                         </button>

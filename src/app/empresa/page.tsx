@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import {
   Users,
@@ -18,6 +18,7 @@ import {
 import { useEmployees, useAbsences } from '@/hooks/useBuk';
 import { useAuth } from '@/lib/auth/context';
 import { createClient } from '@/lib/supabase/client';
+import { getTareasHoy, updateTareaEstado, getComprasActivas, getNoticiasLegales } from '@/lib/supabase/employer-queries';
 
 /* ------------------------------------------------------------------ */
 /*  Mock data (employer-specific features not in BUK)                  */
@@ -33,47 +34,18 @@ const quickActions = [
 type TaskStatus = 'completed' | 'in_progress' | 'pending';
 
 interface Task {
-  id: number;
+  id: string;
   title: string;
   assignee: string;
   role: string;
   status: TaskStatus;
 }
 
-const initialTasks: Task[] = [
-  { id: 1, title: 'Aseo general living y comedor', assignee: 'María', role: 'nana', status: 'completed' },
-  { id: 2, title: 'Lavar y planchar ropa', assignee: 'María', role: 'nana', status: 'completed' },
-  { id: 3, title: 'Preparar almuerzo', assignee: 'María', role: 'nana', status: 'completed' },
-  { id: 4, title: 'Planchar uniformes', assignee: 'María', role: 'nana', status: 'in_progress' },
-  { id: 5, title: 'Cortar pasto sector norte', assignee: 'Juan', role: 'jardinero', status: 'pending' },
-  { id: 6, title: 'Podar arbustos entrada', assignee: 'Juan', role: 'jardinero', status: 'pending' },
-  { id: 7, title: 'Limpiar piscina y revisar pH', assignee: 'Pedro', role: 'piscinero', status: 'pending' },
-  { id: 8, title: 'Revisar filtro piscina', assignee: 'Pedro', role: 'piscinero', status: 'pending' },
-  { id: 9, title: 'Regar jardín trasero', assignee: 'Juan', role: 'jardinero', status: 'pending' },
-  { id: 10, title: 'Limpiar terraza', assignee: 'María', role: 'nana', status: 'pending' },
-];
-
 interface ShoppingItem {
-  id: number;
+  id: string;
   name: string;
   checked: boolean;
 }
-
-const initialShoppingItems: ShoppingItem[] = [
-  { id: 1, name: 'Leche (2lt)', checked: true },
-  { id: 2, name: 'Pan (2un)', checked: true },
-  { id: 3, name: 'Frutas (1kg)', checked: true },
-  { id: 4, name: 'Detergente', checked: false },
-  { id: 5, name: 'Carne', checked: false },
-  { id: 6, name: 'Arroz', checked: false },
-  { id: 7, name: 'Verduras', checked: false },
-  { id: 8, name: 'Cloro piscina', checked: false },
-];
-
-const noticias = [
-  { id: 1, title: 'Nuevo salario mínimo 2026', date: '15 Mar 2026', badge: 'laboral', badgeColor: 'bg-blue-100 text-blue-700' },
-  { id: 2, title: 'Cambios en cotización AFC', date: '12 Mar 2026', badge: 'previsión', badgeColor: 'bg-purple-100 text-purple-700' },
-];
 
 const periodos = ['Marzo 2026', 'Febrero 2026', 'Enero 2026'];
 
@@ -166,23 +138,50 @@ export default function EmpresaDashboard() {
   }, [pendingAbsences, employees]);
 
   /* ── Local state for interactive features ── */
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
-  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>(initialShoppingItems);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [shoppingItems, setShoppingItems] = useState<ShoppingItem[]>([]);
+  const [noticiasData, setNoticiasData] = useState<any[]>([]);
   const [periodoOpen, setPeriodoOpen] = useState(false);
   const [periodoSelected, setPeriodoSelected] = useState(periodos[0]);
-  const [resolvedSolicitudes, setResolvedSolicitudes] = useState<Record<number, 'aprobada' | 'rechazada'>>({});
+  const [resolvedSolicitudes, setResolvedSolicitudes] = useState<Record<string, 'aprobada' | 'rechazada'>>({});
   const [taskDetailOpen, setTaskDetailOpen] = useState(false);
 
-  const toggleTask = (id: number) => {
+  /* ── Load tareas, compras, noticias from Supabase ── */
+  useEffect(() => {
+    if (!empleadorId) return;
+    getTareasHoy(empleadorId).then((data) => {
+      setTasks((data || []).map((t: any) => ({
+        id: t.id,
+        title: t.titulo,
+        assignee: t.trabajadores ? t.trabajadores.nombre : '',
+        role: t.categoria || '',
+        status: t.estado === 'completada' ? 'completed' as const : t.estado === 'en_progreso' ? 'in_progress' as const : 'pending' as const,
+      })));
+    });
+    getComprasActivas(empleadorId).then((data) => {
+      setShoppingItems((data || []).map((i: any) => ({
+        id: i.id || i.item_id || String(Math.random()),
+        name: i.nombre || i.item_nombre || '',
+        checked: i.comprado ?? false,
+      })));
+    });
+    getNoticiasLegales().then((data) => setNoticiasData(data || []));
+  }, [empleadorId]);
+
+  const toggleTask = (id: string) => {
     setTasks((prev) =>
       prev.map((t) => {
         if (t.id !== id) return t;
-        // Cycle: pending -> in_progress -> completed -> pending
         const next: TaskStatus =
           t.status === 'pending' ? 'in_progress' : t.status === 'in_progress' ? 'completed' : 'pending';
         return { ...t, status: next };
       })
     );
+    const task = tasks.find((t) => t.id === id);
+    if (task) {
+      const nextEstado = task.status === 'pending' ? 'en_progreso' : task.status === 'in_progress' ? 'completada' : 'pendiente';
+      updateTareaEstado(id, nextEstado);
+    }
   };
 
   const taskStats = useMemo(() => {
@@ -229,12 +228,12 @@ export default function EmpresaDashboard() {
     [loadingEmployees, loadingAbsences, activeEmployees, pendingAbsences, employeeCountLabel, taskStats, puntosAcumulados]
   );
 
-  const toggleShoppingItem = (id: number) => {
+  const toggleShoppingItem = (id: string) => {
     setShoppingItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
   };
 
-  const handleSolicitud = (id: number, action: 'aprobada' | 'rechazada') => {
-    setResolvedSolicitudes((prev) => ({ ...prev, [id]: action }));
+  const handleSolicitud = (id: string | number, action: 'aprobada' | 'rechazada') => {
+    setResolvedSolicitudes((prev) => ({ ...prev, [String(id)]: action }));
   };
 
   const checkedCount = shoppingItems.filter((i) => i.checked).length;
@@ -642,24 +641,27 @@ export default function EmpresaDashboard() {
             <h2 className="text-base font-semibold text-zinc-900">Noticias Legales</h2>
           </div>
           <div className="divide-y divide-zinc-100">
-            {noticias.map((n) => (
+            {noticiasData.slice(0, 3).map((n: any) => (
               <div key={n.id} className="px-5 py-4">
                 <div className="flex items-start justify-between gap-2">
-                  <p className="text-sm font-medium text-zinc-800">{n.title}</p>
-                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${n.badgeColor}`}>
-                    {n.badge}
+                  <p className="text-sm font-medium text-zinc-800">{n.titulo}</p>
+                  <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium bg-blue-100 text-blue-700">
+                    {n.categoria}
                   </span>
                 </div>
-                <p className="text-xs text-zinc-400 mt-1">{n.date}</p>
+                <p className="text-xs text-zinc-400 mt-1">{n.fecha_publicacion ? new Date(n.fecha_publicacion).toLocaleDateString('es-CL') : ''}</p>
               </div>
             ))}
+            {noticiasData.length === 0 && (
+              <div className="px-5 py-4 text-sm text-zinc-400">Sin noticias recientes</div>
+            )}
           </div>
         </div>
       </div>
 
       {/* ── Footer ─────────────────────────────────────────────── */}
       <p className="text-xs text-zinc-400 text-right">
-        Última actualización: 20 Mar 2026, 09:15
+        Última actualización: {new Date().toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' })}, {new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
       </p>
     </div>
   );

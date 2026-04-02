@@ -1,37 +1,26 @@
 'use client';
 
-import { useState } from 'react';
-import { Plus, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { useAuth } from '@/lib/auth/context';
+import { getTareasHoy, updateTareaEstado, createTarea } from '@/lib/supabase/employer-queries';
 
-type TaskStatus = 'Completada' | 'En Progreso' | 'Pendiente';
-type Priority = 'alta' | 'media' | 'baja';
-type FilterTab = 'all' | 'Pendiente' | 'En Progreso' | 'Completada';
+type TaskStatus = 'completada' | 'en_progreso' | 'pendiente';
+type FilterTab = 'all' | 'pendiente' | 'en_progreso' | 'completada';
 
 interface Task {
-  id: number;
-  title: string;
-  description?: string;
-  assignee: string;
-  category: string;
-  priority: Priority;
-  time: string;
-  status: TaskStatus;
+  id: string;
+  titulo: string;
+  descripcion?: string;
+  categoria?: string;
+  prioridad?: string;
+  hora_inicio?: string;
+  hora_fin?: string;
+  estado: string;
+  trabajadores?: { nombre: string; apellido_paterno: string } | null;
 }
 
-const initialTasks: Task[] = [
-  { id: 1, title: 'Aseo general living y comedor', assignee: 'María', category: 'Aseo', priority: 'alta', time: '08:00 - 10:00', status: 'Completada' },
-  { id: 2, title: 'Preparar desayuno', assignee: 'María', category: 'Cocina', priority: 'alta', time: '07:30 - 08:00', status: 'Completada' },
-  { id: 3, title: 'Lavar y planchar ropa de la semana', assignee: 'María', category: 'Lavado', priority: 'media', time: '10:00 - 12:00', status: 'Pendiente' },
-  { id: 4, title: 'Preparar almuerzo', assignee: 'María', category: 'Cocina', priority: 'alta', time: '12:00 - 13:00', status: 'Pendiente' },
-  { id: 5, title: 'Aseo dormitorios y baños', assignee: 'María', category: 'Aseo', priority: 'media', time: '14:00 - 16:00', status: 'Pendiente' },
-  { id: 6, title: 'Cortar pasto sector norte', assignee: 'Juan', category: 'Jardinería', priority: 'media', time: '08:00 - 10:00', status: 'En Progreso' },
-  { id: 7, title: 'Podar arbustos entrada', assignee: 'Juan', category: 'Jardinería', priority: 'baja', time: '10:00 - 12:00', status: 'Pendiente' },
-  { id: 8, title: 'Limpiar piscina', assignee: 'Pedro', category: 'Piscina', priority: 'alta', time: '08:00 - 09:00', status: 'Pendiente' },
-  { id: 9, title: 'Revisar pH y cloro', assignee: 'Pedro', category: 'Piscina', priority: 'alta', time: '09:00 - 09:30', status: 'Pendiente' },
-  { id: 10, title: 'Pasear a Rocky (mañana)', assignee: 'María', category: 'Mascotas', priority: 'alta', time: '07:00 - 07:30', status: 'Completada' },
-];
-
-const priorityBorderColor: Record<Priority, string> = {
+const priorityBorderColor: Record<string, string> = {
   alta: 'border-l-red-500',
   media: 'border-l-amber-500',
   baja: 'border-l-green-500',
@@ -48,31 +37,85 @@ const categoryColors: Record<string, string> = {
 
 const filterTabs: { label: string; value: FilterTab }[] = [
   { label: 'All', value: 'all' },
-  { label: 'Pendientes', value: 'Pendiente' },
-  { label: 'En Progreso', value: 'En Progreso' },
-  { label: 'Completadas', value: 'Completada' },
+  { label: 'Pendientes', value: 'pendiente' },
+  { label: 'En Progreso', value: 'en_progreso' },
+  { label: 'Completadas', value: 'completada' },
 ];
 
+function formatDate(date: Date): string {
+  return date.toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function formatDateShort(date: Date): string {
+  return date.toLocaleDateString('es-CL', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function toISODate(date: Date): string {
+  return date.toISOString().split('T')[0];
+}
+
 export default function TareasPage() {
+  const { profile } = useAuth();
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [showNewForm, setShowNewForm] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newCategoria, setNewCategoria] = useState('');
+  const [newPrioridad, setNewPrioridad] = useState('media');
+  const [saving, setSaving] = useState(false);
+
+  const empleadorId = profile?.empleador_id;
+
+  const loadTareas = useCallback(async () => {
+    if (!empleadorId) return;
+    setLoading(true);
+    const data = await getTareasHoy(empleadorId, toISODate(currentDate));
+    setTasks(data || []);
+    setLoading(false);
+  }, [empleadorId, currentDate]);
+
+  useEffect(() => { loadTareas(); }, [loadTareas]);
 
   const filteredTasks = activeFilter === 'all'
     ? tasks
-    : tasks.filter((t) => t.status === activeFilter);
+    : tasks.filter((t) => t.estado === activeFilter);
 
-  const completadas = tasks.filter((t) => t.status === 'Completada').length;
-  const enProgreso = tasks.filter((t) => t.status === 'En Progreso').length;
-  const pendientes = tasks.filter((t) => t.status === 'Pendiente').length;
+  const completadas = tasks.filter((t) => t.estado === 'completada').length;
+  const enProgreso = tasks.filter((t) => t.estado === 'en_progreso').length;
+  const pendientes = tasks.filter((t) => t.estado === 'pendiente').length;
 
-  function toggleTask(id: number) {
-    setTasks((prev) =>
-      prev.map((t) =>
-        t.id === id
-          ? { ...t, status: t.status === 'Completada' ? 'Pendiente' : 'Completada' as TaskStatus }
-          : t
-      )
-    );
+  async function toggleTask(id: string, currentEstado: string) {
+    const nuevoEstado = currentEstado === 'completada' ? 'pendiente' : 'completada';
+    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, estado: nuevoEstado } : t));
+    await updateTareaEstado(id, nuevoEstado);
+  }
+
+  async function handleCreateTarea(e: React.FormEvent) {
+    e.preventDefault();
+    if (!empleadorId || !newTitle.trim()) return;
+    setSaving(true);
+    await createTarea(empleadorId, {
+      titulo: newTitle.trim(),
+      categoria: newCategoria || undefined,
+      prioridad: newPrioridad,
+      fecha: toISODate(currentDate),
+    });
+    setNewTitle('');
+    setNewCategoria('');
+    setNewPrioridad('media');
+    setShowNewForm(false);
+    setSaving(false);
+    loadTareas();
+  }
+
+  function changeDate(delta: number) {
+    setCurrentDate((prev) => {
+      const d = new Date(prev);
+      d.setDate(d.getDate() + delta);
+      return d;
+    });
   }
 
   return (
@@ -81,21 +124,57 @@ export default function TareasPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold">Tareas del Día</h1>
-          <p className="text-zinc-500 text-sm mt-1">Viernes 20 de marzo, 2026</p>
+          <p className="text-zinc-500 text-sm mt-1 capitalize">{formatDate(currentDate)}</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm font-medium hover:bg-zinc-800 transition-colors">
+        <button
+          onClick={() => setShowNewForm(!showNewForm)}
+          className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm font-medium hover:bg-zinc-800 transition-colors"
+        >
           <Plus className="w-4 h-4" />
           Nueva Tarea
         </button>
       </div>
 
+      {/* New task form */}
+      {showNewForm && (
+        <form onSubmit={handleCreateTarea} className="rounded-xl border border-zinc-200 bg-white p-4 mb-6 space-y-3">
+          <input
+            type="text"
+            placeholder="Título de la tarea"
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300"
+            autoFocus
+          />
+          <div className="flex gap-3">
+            <select value={newCategoria} onChange={(e) => setNewCategoria(e.target.value)} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm flex-1">
+              <option value="">Categoría</option>
+              {Object.keys(categoryColors).map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+            <select value={newPrioridad} onChange={(e) => setNewPrioridad(e.target.value)} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm flex-1">
+              <option value="alta">Alta</option>
+              <option value="media">Media</option>
+              <option value="baja">Baja</option>
+            </select>
+          </div>
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving || !newTitle.trim()} className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50">
+              {saving ? 'Guardando...' : 'Crear'}
+            </button>
+            <button type="button" onClick={() => setShowNewForm(false)} className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium hover:bg-zinc-50">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      )}
+
       {/* Date selector */}
       <div className="flex items-center gap-3 mb-6">
-        <button className="p-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 transition-colors">
+        <button onClick={() => changeDate(-1)} className="p-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 transition-colors">
           <ChevronLeft className="w-4 h-4 text-zinc-600" />
         </button>
-        <span className="text-sm font-medium text-zinc-700">20 Mar 2026</span>
-        <button className="p-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 transition-colors">
+        <span className="text-sm font-medium text-zinc-700">{formatDateShort(currentDate)}</span>
+        <button onClick={() => changeDate(1)} className="p-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 transition-colors">
           <ChevronRight className="w-4 h-4 text-zinc-600" />
         </button>
       </div>
@@ -136,71 +215,75 @@ export default function TareasPage() {
       </div>
 
       {/* Task list */}
-      <div className="space-y-2">
-        {filteredTasks.map((task) => (
-          <div
-            key={task.id}
-            className={`rounded-xl border border-zinc-200 bg-white px-5 py-4 border-l-4 ${priorityBorderColor[task.priority]} flex items-start gap-4 transition-colors ${
-              task.status === 'Completada' ? 'opacity-75' : ''
-            }`}
-          >
-            {/* Toggle */}
-            <button
-              onClick={() => toggleTask(task.id)}
-              className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                task.status === 'Completada'
-                  ? 'bg-emerald-500 border-emerald-500 text-white'
-                  : 'border-zinc-300 hover:border-zinc-400'
-              }`}
-            >
-              {task.status === 'Completada' && (
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
-              )}
-            </button>
+      {loading ? (
+        <div className="flex justify-center py-12">
+          <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filteredTasks.map((task) => {
+            const assigneeName = task.trabajadores
+              ? `${task.trabajadores.nombre} ${task.trabajadores.apellido_paterno || ''}`.trim()
+              : null;
+            const timeRange = [task.hora_inicio, task.hora_fin].filter(Boolean).join(' - ');
 
-            {/* Content */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span
-                  className={`text-sm font-medium ${
-                    task.status === 'Completada' ? 'line-through text-zinc-400' : 'text-zinc-900'
+            return (
+              <div
+                key={task.id}
+                className={`rounded-xl border border-zinc-200 bg-white px-5 py-4 border-l-4 ${priorityBorderColor[task.prioridad || 'media']} flex items-start gap-4 transition-colors ${
+                  task.estado === 'completada' ? 'opacity-75' : ''
+                }`}
+              >
+                <button
+                  onClick={() => toggleTask(task.id, task.estado)}
+                  className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
+                    task.estado === 'completada'
+                      ? 'bg-emerald-500 border-emerald-500 text-white'
+                      : 'border-zinc-300 hover:border-zinc-400'
                   }`}
                 >
-                  {task.title}
-                </span>
+                  {task.estado === 'completada' && (
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </button>
+
+                <div className="flex-1 min-w-0">
+                  <span className={`text-sm font-medium ${task.estado === 'completada' ? 'line-through text-zinc-400' : 'text-zinc-900'}`}>
+                    {task.titulo}
+                  </span>
+                  <div className="flex items-center gap-2 mt-2 flex-wrap">
+                    {assigneeName && (
+                      <span className="rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-xs font-medium">
+                        {assigneeName}
+                      </span>
+                    )}
+                    {task.categoria && (
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${categoryColors[task.categoria] || 'bg-zinc-100 text-zinc-700'}`}>
+                        {task.categoria}
+                      </span>
+                    )}
+                    {timeRange && <span className="text-xs text-zinc-400">{timeRange}</span>}
+                  </div>
+                </div>
+
+                {task.estado === 'en_progreso' && (
+                  <span className="rounded-full bg-blue-100 text-blue-700 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap">
+                    En Progreso
+                  </span>
+                )}
               </div>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
-                <span className="rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-xs font-medium">
-                  {task.assignee}
-                </span>
-                <span
-                  className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                    categoryColors[task.category] || 'bg-zinc-100 text-zinc-700'
-                  }`}
-                >
-                  {task.category}
-                </span>
-                <span className="text-xs text-zinc-400">{task.time}</span>
-              </div>
+            );
+          })}
+
+          {filteredTasks.length === 0 && (
+            <div className="text-center py-12 text-zinc-400 text-sm">
+              No hay tareas para este día.
             </div>
-
-            {/* Status indicator */}
-            {task.status === 'En Progreso' && (
-              <span className="rounded-full bg-blue-100 text-blue-700 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap">
-                En Progreso
-              </span>
-            )}
-          </div>
-        ))}
-
-        {filteredTasks.length === 0 && (
-          <div className="text-center py-12 text-zinc-400 text-sm">
-            No hay tareas en esta categoría.
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

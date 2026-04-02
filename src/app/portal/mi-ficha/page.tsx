@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import { User, Briefcase, Shield, Mail, Phone, MapPin, Calendar, Clock, Send, FileText, Building2 } from 'lucide-react';
 
 // Matches actual `trabajadores` table columns
@@ -9,8 +10,6 @@ type Trabajador = Record<string, any>;
 
 // Matches actual `contratos` table columns
 type ContratoRow = Record<string, any>;
-
-const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
 interface ContratoEmpleador {
   numero_contrato: string;
@@ -39,6 +38,8 @@ function calcAntiguedad(fechaIngreso: string): string {
 }
 
 export default function MiFichaPage() {
+  const { profile } = useAuth();
+  const WORKER_ID = profile?.trabajador_id || '';
   const [employee, setEmployee] = useState<Trabajador | null>(null);
   const [contrato, setContrato] = useState<ContratoRow | null>(null);
   const [contratoInfo, setContratoInfo] = useState<ContratoEmpleador | null>(null);

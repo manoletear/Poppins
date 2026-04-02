@@ -11,7 +11,12 @@ import { getBukSDK } from '@/lib/buk-sdk';
 import type { BukEmployeeSummary } from '@/lib/buk-sdk/types/employees';
 import { mapBukEmployees, mapBukPayrollItems, mapBukAbsences } from './mappers';
 import { MOCK_EMPLOYEES, MOCK_PAYROLL_ITEMS, MOCK_ABSENCES, MOCK_BENEFITS } from './mock-data';
-import type { Employee, Payroll, Absence, Benefit } from '@/types/database';
+// Legacy BUK types - these map to the old English-named schema
+// The actual DB tables are in Spanish (trabajadores, liquidaciones, etc.)
+type Employee = Record<string, any>;
+type Payroll = Record<string, any>;
+type Absence = Record<string, any>;
+type Benefit = Record<string, any>;
 import { createClient } from '@/lib/supabase/server';
 
 const useMock = process.env.USE_MOCK_DATA === 'true';

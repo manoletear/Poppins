@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/lib/auth/context';
 import {
   Gift,
   Shield,
@@ -14,8 +15,6 @@ import {
   ChevronUp,
   Info,
 } from 'lucide-react';
-
-const WORKER_ID = 'c711d829-4a6d-4496-a93b-221b81eb1258';
 
 interface BeneficioPersonalizado {
   id: string;
@@ -92,18 +91,21 @@ const legalBenefits: LegalBenefit[] = [
 ];
 
 export default function BeneficiosPage() {
+  const { profile } = useAuth();
+  const trabajadorId = profile?.trabajador_id || '';
   const [expandedLegal, setExpandedLegal] = useState<number | null>(null);
   const [beneficiosPersonalizados, setBeneficiosPersonalizados] = useState<BeneficioPersonalizado[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadBeneficios() {
+      if (!trabajadorId) { setLoading(false); return; }
       try {
         const supabase = createClient();
         const { data } = await supabase
           .from('beneficios_empleador')
           .select('*')
-          .eq('trabajador_id', WORKER_ID)
+          .eq('trabajador_id', trabajadorId)
           .eq('vigente', true);
         setBeneficiosPersonalizados(data ?? []);
       } catch {

@@ -63,7 +63,7 @@ export default function MisTareasPage() {
   const { profile } = useAuth();
   const trabajadorId = profile?.trabajador_id || '';
   const supabase = createClient();
-  const [currentDate, setCurrentDate] = useState(() => new Date(2026, 2, 20));
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCompleted, setShowCompleted] = useState(true);
