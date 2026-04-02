@@ -165,13 +165,13 @@ export default function Home() {
             {/* Feature 3 */}
             <div className="bg-white p-10 rounded-2xl shadow-[0_5_15_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col items-center text-center group hover:translate-y-[-10px] transition-all duration-300">
               <div className="w-20 h-20 bg-poppins-pink rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-poppins-pink/20">
-                <Bot className="w-10 h-10 text-white" />
+                <ShieldCheck className="w-10 h-10 text-white" />
               </div>
               <h3 className="text-xl font-bold text-gray-800 mb-4 px-2">
-                Asistente Virtual Inteligente (AVI)
+                CONDICIONES LEGALES CUMPLIDAS
               </h3>
               <p className="text-gray-600 leading-relaxed">
-                Recibe recomendaciones personalizadas, optimización de gastos y alertas sobre ofertas o condiciones favorables con tus tarjetas.
+                Gestión automática de contratos, leyes laborales y aportes previsionales. Aseguramos que tu hogar cumpla siempre con la normativa vigente sin esfuerzo.
               </p>
             </div>
           </div>

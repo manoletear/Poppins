@@ -11,8 +11,9 @@ const STORIES = [
     icon: "💸",
     headline: "Pagos Automáticos",
     caption: "Olvídate de transferir cada mes.\nPoppins lo hace por ti.",
-    color: "#4F46E5, #7C3AED", // Poppins Navy/Indigoish
+    color: "#4F46E5, #7C3AED", 
     bg: "linear-gradient(155deg, #1e293b 0%, #0f172a 100%)",
+    imageUrl: "/images/story-onboarding.png", // Added image
   },
   {
     id: 2,
@@ -158,16 +159,33 @@ export const StoryPhone: React.FC = () => {
                     i === cur ? "opacity-100 z-10" : "opacity-0 z-0"
                   )}
                 >
-                  <div className="absolute inset-0 flex items-center justify-center" style={{ background: story.bg }}>
-                    <div className="px-6 text-center text-white">
-                      <span className="text-7xl block mb-4 drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)]">{story.icon}</span>
-                      <h3 className="text-xl font-bold tracking-tight leading-tight mb-2 shadow-black drop-shadow-md">
-                        {story.headline}
-                      </h3>
-                      <p className="text-[13px] opacity-90 leading-relaxed whitespace-pre-line drop-shadow-sm">
-                        {story.caption}
-                      </p>
-                    </div>
+                  <div className="absolute inset-0 flex items-center justify-center overflow-hidden" style={{ background: story.bg }}>
+                    {story.imageUrl ? (
+                      <div className="relative w-full h-full flex flex-col">
+                        <div className="flex-1 relative w-full mt-10">
+                          <img 
+                            src={story.imageUrl} 
+                            alt={story.headline}
+                            className="w-full h-full object-contain object-top animate-fade-in"
+                          />
+                        </div>
+                        {/* Overlay text for branding but keeps the app visible */}
+                        <div className="absolute bottom-12 inset-x-0 px-6 text-center text-white bg-black/40 backdrop-blur-sm py-4">
+                          <h3 className="text-lg font-bold mb-1">{story.headline}</h3>
+                          <p className="text-[12px] opacity-90">{story.caption}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="px-6 text-center text-white">
+                        <span className="text-7xl block mb-4 drop-shadow-[0_8px_24px_rgba(0,0,0,0.35)]">{story.icon}</span>
+                        <h3 className="text-xl font-bold tracking-tight leading-tight mb-2 shadow-black drop-shadow-md">
+                          {story.headline}
+                        </h3>
+                        <p className="text-[13px] opacity-90 leading-relaxed whitespace-pre-line drop-shadow-sm">
+                          {story.caption}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
