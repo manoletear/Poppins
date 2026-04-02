@@ -43,11 +43,18 @@ import type { PlanTipo } from '@/lib/pagos/types';
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-const PERIODOS = [
-  { value: '2026-03', label: 'Marzo 2026' },
-  { value: '2026-02', label: 'Febrero 2026' },
-  { value: '2026-01', label: 'Enero 2026' },
-];
+function buildPeriodos(): { value: string; label: string }[] {
+  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+  const now = new Date();
+  const items: { value: string; label: string }[] = [];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    items.push({ value: val, label: `${meses[d.getMonth()]} ${d.getFullYear()}` });
+  }
+  return items;
+}
+const PERIODOS = buildPeriodos();
 
 const TIPO_CONFIG: Record<string, { icon: typeof Home; iconColor: string; label: string }> = {
   arriendo:         { icon: Home,       iconColor: 'text-blue-500 bg-blue-50',     label: 'Arriendo' },
@@ -262,7 +269,7 @@ function PagosContent() {
   //  TAB 1: MIS PAGOS
   // ════════════════════════════════════════════════════════════════════
 
-  const [periodo, setPeriodo] = useState('2026-03');
+  const [periodo, setPeriodo] = useState(getCurrentPeriodo());
   const [pagos, setPagos] = useState<Pago[]>([]);
   const [allPagos, setAllPagos] = useState<Pago[]>([]);
   const [totalPuntos, setTotalPuntos] = useState(0);
@@ -424,16 +431,21 @@ function PagosContent() {
     }
   }, [supabase]);
 
-  // ── Fetch trabajadores ──
+  // ── Fetch trabajadores (via contratos) ──
   const fetchTrabajadores = useCallback(async () => {
     try {
-      const { data } = await supabase
-        .from('trabajadores')
-        .select('id, nombre, apellido_paterno')
+      const { data: contratos } = await supabase
+        .from('contratos')
+        .select('trabajador_id, trabajadores(id, nombre, apellido_paterno)')
         .eq('empleador_id', empleadorId)
-        .order('nombre');
+        .eq('estado', 'activo');
 
-      if (data) setTrabajadores(data as Trabajador[]);
+      if (contratos) {
+        const trabs = contratos
+          .map((c: any) => c.trabajadores)
+          .filter(Boolean) as Trabajador[];
+        setTrabajadores(trabs);
+      }
     } catch {
       // Non-blocking
     }
