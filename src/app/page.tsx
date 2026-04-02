@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Navbar } from "@/components/landing/Navbar";
-import { ThreeDPhone } from "@/components/landing/ThreeDPhone";
+import { StoryPhone } from "@/components/landing/StoryPhone";
 import { 
   CheckCircle2, 
   ArrowRight, 
@@ -109,22 +109,10 @@ export default function Home() {
             </div>
           </motion.div>
 
-          <div className="hidden md:block absolute right-0 top-0 w-1/2 h-full">
-            <ThreeDPhone />
-          </div>
-          
-          {/* Mobile Phone Mockup (Simpler) */}
-          <div className="md:hidden flex justify-center mt-12 bg-poppins-navy/5 rounded-[3rem] p-4 scale-90">
-             <div className="w-[280px] h-[580px] bg-[#0f172a] rounded-[2.5rem] border-[8px] border-[#334155] overflow-hidden shadow-2xl">
-                <div className="w-full h-full bg-white pt-10 px-4">
-                  <div className="w-1/2 h-4 bg-poppins-pink/10 rounded mb-6" />
-                  <div className="space-y-4">
-                    <div className="h-20 bg-poppins-light rounded-2xl" />
-                    <div className="h-20 bg-poppins-light rounded-2xl" />
-                    <div className="h-20 bg-poppins-light rounded-2xl" />
-                  </div>
-                </div>
-             </div>
+          <div className="flex-1 flex justify-center lg:justify-end items-center mt-12 lg:mt-0">
+            <div className="w-full max-w-[320px] sm:max-w-[380px]">
+              <StoryPhone />
+            </div>
           </div>
         </div>
       </section>
