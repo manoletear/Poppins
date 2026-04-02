@@ -9,12 +9,14 @@ interface ListItem {
   id: string;
   nombre: string;
   cantidad: string;
+  unidad?: string;
   comprado: boolean;
 }
 
 interface ShoppingList {
   id: string;
-  titulo: string;
+  nombre: string;
+  titulo?: string;
   estado: string;
   created_at: string;
   items: ListItem[];
@@ -119,7 +121,7 @@ export default function ComprasPage() {
               <div key={list.id} className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
                 <div className="px-5 pt-5 pb-3">
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-semibold text-zinc-900">{list.titulo}</h3>
+                    <h3 className="text-sm font-semibold text-zinc-900">{list.nombre || list.titulo}</h3>
                     <span className="rounded-full px-2.5 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700">
                       {list.estado === 'abierta' ? 'Abierta' : 'Cerrada'}
                     </span>
@@ -145,7 +147,7 @@ export default function ComprasPage() {
                       <span className={`text-sm flex-1 ${item.comprado ? 'line-through text-zinc-400' : 'text-zinc-700'}`}>
                         {item.nombre}
                       </span>
-                      <span className="text-xs text-zinc-400">{item.cantidad}</span>
+                      <span className="text-xs text-zinc-400">{item.cantidad}{item.unidad ? ` ${item.unidad}` : ''}</span>
                     </label>
                   ))}
                 </div>
@@ -191,7 +193,7 @@ export default function ComprasPage() {
               {closedLists.map((cl) => (
                 <div key={cl.id} className="rounded-xl border border-zinc-100 bg-zinc-50 px-5 py-3 flex items-center justify-between">
                   <div>
-                    <p className="text-sm text-zinc-500 font-medium">{cl.titulo}</p>
+                    <p className="text-sm text-zinc-500 font-medium">{cl.nombre || cl.titulo}</p>
                     <p className="text-xs text-zinc-400">{new Date(cl.created_at).toLocaleDateString('es-CL')}</p>
                   </div>
                   <span className="text-xs text-zinc-400">{cl.items.length} items</span>

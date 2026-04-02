@@ -9,7 +9,7 @@ interface Recordatorio {
   id: string;
   titulo: string;
   hora: string;
-  dias_semana: string;
+  dias_semana: number[] | string;
   tipo: string;
   activo: boolean;
   trabajador_id?: string | null;
@@ -95,7 +95,7 @@ export default function RecordatoriosPage() {
                     <div>
                       <p className="text-sm font-semibold text-zinc-900">{rec.titulo}</p>
                       <p className="text-xs text-zinc-500 mt-0.5">
-                        {rec.hora || ''} {rec.dias_semana ? `· ${rec.dias_semana}` : ''}
+                        {rec.hora || ''} {rec.dias_semana ? `· ${Array.isArray(rec.dias_semana) ? rec.dias_semana.map((d: number) => ['','L','M','M','J','V','S','D'][d] || d).join('-') : rec.dias_semana}` : ''}
                       </p>
                       {asignado && (
                         <p className="text-xs text-zinc-400 mt-0.5">Asignado: {asignado}</p>
