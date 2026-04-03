@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useAuth } from "@/lib/auth/context";
 import { getRedirectForRole } from "@/lib/auth/helpers";
 import { useRouter } from "next/navigation";
@@ -25,6 +25,131 @@ import {
   Star,
   Umbrella
 } from "lucide-react";
+
+// ─── CardShowcase (inspired by Framer CardShowcase-3qxj) ─────────────────────
+
+const SHOWCASE_CARDS = [
+  {
+    number: "01",
+    tag: "Registro",
+    title: "Configura tu hogar en minutos",
+    description: "Registra a tus trabajadores, define sus contratos y programa todos los pagos del hogar desde un solo lugar.",
+    icon: CreditCard,
+    gradient: "from-violet-600 to-indigo-700",
+  },
+  {
+    number: "02",
+    tag: "Automatización",
+    title: "Poppins paga por ti, cada mes",
+    description: "Sueldos, cotizaciones, arriendo, servicios básicos — todo se ejecuta automáticamente el día que tú elijas.",
+    icon: BarChart3,
+    gradient: "from-pink-500 to-rose-600",
+  },
+  {
+    number: "03",
+    tag: "Cumplimiento",
+    title: "Legal al día, sin esfuerzo",
+    description: "Contratos, liquidaciones, PREVIRED y Dirección del Trabajo. Poppins asegura que tu hogar cumpla la normativa vigente.",
+    icon: ShieldCheck,
+    gradient: "from-emerald-500 to-teal-600",
+  },
+];
+
+function CardShowcaseSection() {
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [progress, setProgress] = useState(0);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const DURATION = 5000;
+
+  const startTimer = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setProgress(0);
+    const step = 50;
+    let elapsed = 0;
+    intervalRef.current = setInterval(() => {
+      elapsed += step;
+      setProgress(Math.min((elapsed / DURATION) * 100, 100));
+      if (elapsed >= DURATION) {
+        setActiveIndex((prev) => (prev + 1) % SHOWCASE_CARDS.length);
+        elapsed = 0;
+        setProgress(0);
+      }
+    }, step);
+  }, []);
+
+  useEffect(() => {
+    startTimer();
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
+  }, [startTimer]);
+
+  const handleClick = (idx: number) => {
+    setActiveIndex(idx);
+    startTimer();
+  };
+
+  return (
+    <div className="flex flex-col md:flex-row gap-4 max-w-5xl mx-auto">
+      {SHOWCASE_CARDS.map((card, idx) => {
+        const isActive = idx === activeIndex;
+        const Icon = card.icon;
+        return (
+          <motion.div
+            key={idx}
+            onClick={() => handleClick(idx)}
+            animate={{ flex: isActive ? 3 : 1 }}
+            transition={{ duration: 0.5, ease: [0.4, 0, 0.2, 1] }}
+            className={`relative cursor-pointer rounded-2xl overflow-hidden bg-gradient-to-br ${card.gradient} min-h-[320px] md:min-h-[400px]`}
+          >
+            {/* Progress bar */}
+            {isActive && (
+              <div className="absolute top-0 left-0 right-0 h-1 bg-white/20">
+                <motion.div
+                  className="h-full bg-white"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            )}
+
+            <div className="relative z-10 p-6 md:p-8 h-full flex flex-col justify-between text-white">
+              {/* Top: number + tag */}
+              <div className="flex items-center justify-between">
+                <span className="text-4xl md:text-5xl font-black opacity-30">{card.number}</span>
+                <span className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-wider">
+                  {card.tag}
+                </span>
+              </div>
+
+              {/* Bottom: content */}
+              <div>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center">
+                    <Icon className="w-5 h-5 text-white" />
+                  </div>
+                  <h3 className="text-lg md:text-xl font-bold leading-tight">{card.title}</h3>
+                </div>
+
+                <motion.div
+                  animate={{ opacity: isActive ? 1 : 0, height: isActive ? "auto" : 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <p className="text-sm md:text-base text-white/80 leading-relaxed">
+                    {card.description}
+                  </p>
+                </motion.div>
+              </div>
+            </div>
+
+            {/* Decorative glow */}
+            <div className="absolute -bottom-20 -right-20 w-60 h-60 bg-white/5 rounded-full blur-3xl" />
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Landing Page ────────────────────────────────────────────────────────────
 
 export default function Home() {
   const { user, profile, loading } = useAuth();
@@ -123,58 +248,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Cómo Funciona Section */}
+      {/* Cómo Funciona Section — CardShowcase */}
       <section id="how-it-works" className="py-24 bg-white relative overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-bold text-poppins-navy mb-6 leading-tight">
-              Cómo funciona Poppins: Automatización y control total de tus pagos del hogar
+              Cómo funciona Poppins
             </h2>
             <p className="text-lg text-gray-600 leading-relaxed">
-              Por una tarifa fija, centralizas todo lo que tu casa necesita para administrar gastos y servicios desde un solo lugar, donde además podrás acceder a recordatorios e informes mensuales para ordenar y optimizar sus gastos. Una sola app, un sólo pago, cero preocupaciones. Sin olvidos, sin enredos, sin estrés.
+              Automatización y control total de tus pagos del hogar. Una sola app, un solo pago, cero preocupaciones.
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-white p-10 rounded-2xl shadow-[0_5_15_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col items-center text-center group hover:translate-y-[-10px] transition-all duration-300">
-              <div className="w-20 h-20 bg-poppins-pink rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-poppins-pink/20">
-                <CreditCard className="w-10 h-10 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-4 px-2">
-                Programación automática de pagos
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                Evita olvidos o atrasos: establece pagos recurrentes y Poppins los ejecuta por ti al día.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="bg-white p-10 rounded-2xl shadow-[0_5_15_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col items-center text-center group hover:translate-y-[-10px] transition-all duration-300">
-              <div className="w-20 h-20 bg-poppins-pink rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-poppins-pink/20">
-                <BarChart3 className="w-10 h-10 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-4 px-2">
-                Historial consolidado de gastos domésticos
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                Presupuestos claros, con reportes por categoría que te permiten visualizar en un solo lugar el flujo financiero de tu hogar.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-white p-10 rounded-2xl shadow-[0_5_15_rgba(0,0,0,0.05)] border border-gray-100 flex flex-col items-center text-center group hover:translate-y-[-10px] transition-all duration-300">
-              <div className="w-20 h-20 bg-poppins-pink rounded-2xl flex items-center justify-center mb-8 shadow-lg shadow-poppins-pink/20">
-                <ShieldCheck className="w-10 h-10 text-white" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-800 mb-4 px-2">
-                CONDICIONES LEGALES CUMPLIDAS
-              </h3>
-              <p className="text-gray-600 leading-relaxed">
-                Gestión automática de contratos, leyes laborales y aportes previsionales. Aseguramos que tu hogar cumpla siempre con la normativa vigente sin esfuerzo.
-              </p>
-            </div>
-          </div>
+          <CardShowcaseSection />
         </div>
       </section>
 
