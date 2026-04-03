@@ -15,10 +15,10 @@ const INTERVAL = 2200;
 const EXIT_HOLD = 1000;
 const TRANS_DUR = 0.7;
 const EASING = "cubic-bezier(0.34, 0.0, 0.15, 1)";
-const CARD_GAP = 80;
+const CARD_GAP = 90;
 const DEPTH = 300;
 const ROTATE_X = -8;
-const SCALE_STEP = 0.12;
+const SCALE_STEP = 0.10;
 const BLUR_STEP = 1.2;
 const OVERLAY_MAX = 0.5;
 const OVERLAY_STEP = 0.10;
@@ -46,7 +46,6 @@ export function RotatingCardStack() {
   }, []);
 
   useEffect(() => {
-    // First render instant, then enable transitions
     const t = setTimeout(() => setInstant(false), 50);
     cycleTimer.current = setInterval(cycle, INTERVAL);
     return () => {
@@ -60,13 +59,13 @@ export function RotatingCardStack() {
   const maxBelow = Math.min(3, N - 1 - maxAbove);
 
   return (
-    <div className="w-full max-w-[480px] mx-auto">
+    <div className="w-full max-w-[560px] mx-auto">
       <div
-        className="rounded-3xl relative overflow-hidden flex items-center justify-center"
+        className="relative overflow-hidden flex items-center justify-center"
         style={{
-          background: "#eeeeee",
-          height: "480px",
-          padding: "40px",
+          background: "transparent",
+          height: "560px",
+          padding: "40px 20px",
           perspective: "2000px",
         }}
       >
@@ -94,13 +93,13 @@ export function RotatingCardStack() {
             return (
               <div
                 key={n}
-                className="absolute flex items-center gap-4"
+                className="absolute flex items-center gap-5"
                 style={{
-                  width: "85%",
+                  width: "90%",
                   background: "#fff",
-                  borderRadius: "20px",
-                  padding: "20px 28px",
-                  boxShadow: "0 8px 24px rgba(0,0,0,.08)",
+                  borderRadius: "24px",
+                  padding: "28px 36px",
+                  boxShadow: "0 12px 32px rgba(0,0,0,.10)",
                   willChange: "transform, opacity, filter",
                   transform: `perspective(2000px) translateY(${translateY}px) translateZ(${translateZ}px) rotateX(${rotateX}deg) scale(${scale})`,
                   opacity,
@@ -115,7 +114,7 @@ export function RotatingCardStack() {
                     position: "absolute",
                     inset: 0,
                     background: "#000",
-                    borderRadius: "20px",
+                    borderRadius: "24px",
                     pointerEvents: "none",
                     zIndex: 10,
                     opacity: overlayOp,
@@ -126,11 +125,11 @@ export function RotatingCardStack() {
                 <div
                   className="flex-shrink-0 flex items-center justify-center"
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 8,
-                    background: item.color + "22",
-                    fontSize: 17,
+                    width: 56,
+                    height: 56,
+                    borderRadius: 14,
+                    background: item.color + "18",
+                    fontSize: 26,
                   }}
                 >
                   {item.icon}
@@ -139,8 +138,8 @@ export function RotatingCardStack() {
                 <div
                   className="flex-1"
                   style={{
-                    fontSize: "14.5px",
-                    fontWeight: 600,
+                    fontSize: "18px",
+                    fontWeight: 700,
                     color: "#0a0a0a",
                     letterSpacing: "-0.02em",
                     lineHeight: 1.35,
