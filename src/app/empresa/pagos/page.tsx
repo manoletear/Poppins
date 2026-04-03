@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import {
   CreditCard,
@@ -43,18 +43,18 @@ import type { PlanTipo } from '@/lib/pagos/types';
 
 // ── Constants ──────────────────────────────────────────────────────────
 
+const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+
 function buildPeriodos(): { value: string; label: string }[] {
-  const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
   const now = new Date();
   const items: { value: string; label: string }[] = [];
   for (let i = 0; i < 6; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const val = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    items.push({ value: val, label: `${meses[d.getMonth()]} ${d.getFullYear()}` });
+    items.push({ value: val, label: `${MESES[d.getMonth()]} ${d.getFullYear()}` });
   }
   return items;
 }
-const PERIODOS = buildPeriodos();
 
 const TIPO_CONFIG: Record<string, { icon: typeof Home; iconColor: string; label: string }> = {
   arriendo:         { icon: Home,       iconColor: 'text-blue-500 bg-blue-50',     label: 'Arriendo' },
@@ -1109,7 +1109,7 @@ function PagosContent() {
                   onChange={(e) => setPeriodo(e.target.value)}
                   className="appearance-none rounded-lg border border-zinc-200 bg-white pl-3 pr-8 py-1.5 text-sm text-zinc-700 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
                 >
-                  {PERIODOS.map(p => (
+                  {buildPeriodos().map(p => (
                     <option key={p.value} value={p.value}>{p.label}</option>
                   ))}
                 </select>
@@ -2186,10 +2186,34 @@ function PagosContent() {
   );
 }
 
+class PagosErrorBoundary extends React.Component<{ children: React.ReactNode }, { error: Error | null }> {
+  state = { error: null as Error | null };
+  static getDerivedStateFromError(error: Error) { return { error }; }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="max-w-2xl mx-auto p-8">
+          <div className="rounded-xl border border-red-200 bg-red-50 p-6">
+            <h2 className="text-lg font-bold text-red-800 mb-2">Error en Pagos</h2>
+            <p className="text-sm text-red-700 mb-4">{this.state.error.message}</p>
+            <pre className="text-xs text-red-600 bg-red-100 rounded p-3 overflow-auto max-h-40">{this.state.error.stack}</pre>
+            <button onClick={() => this.setState({ error: null })} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
+              Reintentar
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function PagosPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900" /></div>}>
-      <PagosContent />
-    </Suspense>
+    <PagosErrorBoundary>
+      <Suspense fallback={<div className="flex items-center justify-center py-20"><div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900" /></div>}>
+        <PagosContent />
+      </Suspense>
+    </PagosErrorBoundary>
   );
 }
