@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Navbar } from "@/components/landing/Navbar";
-import { StoryPhone } from "@/components/landing/StoryPhone";
+import { RotatingCardStack } from "@/components/landing/RotatingCardStack";
 import { 
   Shield, 
   Clock, 
@@ -240,11 +240,14 @@ export default function Home() {
             </div>
           </motion.div>
 
-          <div className="flex-1 flex justify-center lg:justify-end items-center mt-12 lg:mt-0">
-            <div className="w-full max-w-[320px] sm:max-w-[380px]">
-              <StoryPhone />
-            </div>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="flex-1 flex justify-center lg:justify-end items-center mt-12 lg:mt-0"
+          >
+            <RotatingCardStack />
+          </motion.div>
         </div>
       </section>
 
