@@ -15,7 +15,7 @@ function formatCLP(amount: number): string {
 }
 
 export default function PlanBanner({ currentPlan, cuentasCount, onUpgrade }: Props) {
-  const plan = PLANES[currentPlan];
+  const plan = PLANES[currentPlan] || PLANES.starter;
   const isMaxPlan = currentPlan === 'hogar';
   const isNearLimit = plan.max_cuentas > 0 && cuentasCount >= plan.max_cuentas - 1;
   const nextPlanKey = currentPlan === 'starter' ? 'casa' : currentPlan === 'casa' ? 'hogar' : null;

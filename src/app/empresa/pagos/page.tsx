@@ -511,7 +511,7 @@ function PagosContent() {
           supabase.from('tarjetas_cliente').select('*').eq('empleador_id', empleadorId).eq('es_principal', true).limit(1),
           supabase.from('cuentas_pago').select('id').eq('empleador_id', empleadorId).eq('activa', true).limit(1),
           supabase.from('pagos_empleador').select('id').eq('empleador_id', empleadorId).eq('estado', 'pagado').limit(1),
-          supabase.from('empleadores').select('plan').eq('id', empleadorId).single(),
+          supabase.from('empleadores').select('plan_tipo').eq('id', empleadorId).single(),
         ]);
 
         const tarjeta = tarjetaRes.data?.[0] || null;
@@ -525,7 +525,7 @@ function PagosContent() {
           });
         }
 
-        setPlanTipo((perfilRes.data?.plan as PlanTipo) || 'starter');
+        setPlanTipo((perfilRes.data?.plan_tipo as PlanTipo) || 'starter');
 
         setOnboardingState({
           tarjeta_registrada: !!tarjeta,
