@@ -319,6 +319,46 @@ export default function EmpleadoDetallePage() {
               <CField label="Vacaciones" value={`${contrato.dias_vacaciones_anuales || 15} días anuales`} />
               <CField label="Estado" value={contrato.estado} />
             </div>
+
+            {/* Upload contrato/acuerdo */}
+            <div className="mt-6 pt-6 border-t border-zinc-200">
+              <h4 className="text-sm font-semibold text-zinc-700 mb-3">Subir Contrato o Acuerdo</h4>
+              <p className="text-xs text-zinc-500 mb-3">Sube un documento firmado (PDF, imagen) al perfil de la trabajadora. Se notificará al administrador.</p>
+              <label className="inline-flex items-center gap-2 rounded-lg border border-dashed border-zinc-300 px-4 py-3 text-sm text-zinc-600 hover:bg-zinc-50 cursor-pointer transition">
+                <FileText className="w-4 h-4" />
+                Seleccionar archivo
+                <input type="file" accept=".pdf,image/*" className="hidden" onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file || !contrato) return;
+                  const supabase = createClient();
+                  const ext = file.name.split('.').pop();
+                  const path = `contratos/${id}/${Date.now()}.${ext}`;
+                  await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+                  const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+                  const archivo_url = urlData.publicUrl;
+                  // Save to documentos_empleado
+                  await supabase.from('documentos_empleado').insert({
+                    trabajador_id: id,
+                    tipo: 'contrato',
+                    nombre: file.name,
+                    archivo_url,
+                  });
+                  // Notify admin
+                  await supabase.from('notificaciones_admin').insert({
+                    tipo: 'contrato_subido',
+                    titulo: `Nuevo contrato subido: ${worker.nombre} ${worker.apellido_paterno || ''}`,
+                    descripcion: `El empleador subió el documento "${file.name}" al perfil del trabajador.`,
+                    empleador_id: profile?.empleador_id,
+                    trabajador_id: id,
+                  });
+                  alert('Documento subido correctamente. El administrador ha sido notificado.');
+                  loadData();
+                }} />
+              </label>
+
+              {/* List uploaded docs */}
+              <DocsList trabajadorId={id} />
+            </div>
           </div>
         )}
         {activeTab === 'contrato' && !contrato && <p className="text-sm text-zinc-500 text-center py-8">Sin contrato activo.</p>}
@@ -420,7 +460,7 @@ export default function EmpleadoDetallePage() {
                 )}
               </div>
             </div>
-            {filteredMarcajes.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin filteredMarcajes en este período.</p> : (
+            {filteredMarcajes.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin marcajes en este período.</p> : (
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
@@ -470,6 +510,28 @@ function CField({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg bg-zinc-50 p-3">
       <p className="text-xs text-zinc-500 mb-1">{label}</p>
       <p className="text-sm font-medium text-zinc-900 capitalize">{value}</p>
+    </div>
+  );
+}
+
+function DocsList({ trabajadorId }: { trabajadorId: string }) {
+  const [docs, setDocs] = useState<any[]>([]);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.from('documentos_empleado').select('*').eq('trabajador_id', trabajadorId).eq('tipo', 'contrato').order('created_at', { ascending: false })
+      .then(({ data }: any) => setDocs(data || []));
+  }, [trabajadorId]);
+
+  if (docs.length === 0) return null;
+  return (
+    <div className="mt-4 space-y-2">
+      <p className="text-xs font-medium text-zinc-500">Documentos subidos</p>
+      {docs.map((d: any) => (
+        <a key={d.id} href={d.archivo_url} target="_blank" rel="noopener noreferrer"
+          className="flex items-center gap-2 text-sm text-violet-600 hover:underline">
+          <FileText className="w-4 h-4" /> {d.nombre}
+        </a>
+      ))}
     </div>
   );
 }

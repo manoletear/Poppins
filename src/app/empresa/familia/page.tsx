@@ -18,6 +18,7 @@ interface Familiar {
   email: string | null;
   es_cuenta_activa: boolean;
   notas: string | null;
+  foto_url: string | null;
 }
 
 interface Mascota {
@@ -30,6 +31,12 @@ interface Mascota {
   instrucciones_cuidado: string | null;
   veterinario_nombre: string | null;
   veterinario_telefono: string | null;
+  foto_url: string | null;
+}
+
+function Avatar({ src, fallback, size = 'md' }: { src: string | null; fallback: React.ReactNode; size?: 'sm' | 'md' }) {
+  const s = size === 'sm' ? 'h-8 w-8' : 'h-10 w-10';
+  return src ? <img src={src} alt="" className={`${s} rounded-full object-cover shrink-0`} /> : <>{fallback}</>;
 }
 
 type FamiliarForm = Omit<Familiar, 'id' | 'empleador_id'>;
@@ -46,6 +53,7 @@ const emptyFamiliar: FamiliarForm = {
   email: null,
   es_cuenta_activa: false,
   notas: null,
+  foto_url: null,
 };
 
 const emptyMascota: MascotaForm = {
@@ -56,6 +64,7 @@ const emptyMascota: MascotaForm = {
   instrucciones_cuidado: null,
   veterinario_nombre: null,
   veterinario_telefono: null,
+  foto_url: null,
 };
 
 function calcularEdad(fechaNacimiento: string | null): number | null {
@@ -148,6 +157,7 @@ export default function FamiliaPage() {
       email: f.email,
       es_cuenta_activa: f.es_cuenta_activa,
       notas: f.notas,
+      foto_url: f.foto_url,
     });
     setEditingFamiliarId(f.id);
     setShowFamiliarModal(true);
@@ -208,6 +218,7 @@ export default function FamiliaPage() {
       instrucciones_cuidado: m.instrucciones_cuidado,
       veterinario_nombre: m.veterinario_nombre,
       veterinario_telefono: m.veterinario_telefono,
+      foto_url: m.foto_url,
     });
     setEditingMascotaId(m.id);
     setShowMascotaModal(true);
@@ -315,8 +326,9 @@ export default function FamiliaPage() {
             {conyuges.map((c) => {
               const edad = calcularEdad(c.fecha_nacimiento);
               return (
-                <div key={c.id} className="flex items-start justify-between">
-                  <div className="space-y-2">
+                <div key={c.id} className="flex items-start gap-3 justify-between">
+                  <Avatar src={c.foto_url} fallback={<div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0"><Heart className="h-5 w-5 text-rose-500" /></div>} />
+                  <div className="flex-1 space-y-2">
                     <p className="text-base font-medium text-zinc-900">
                       {c.nombre} {c.apellido}
                       {edad !== null && <span className="text-sm text-zinc-500 ml-2">({edad} anos)</span>}
@@ -410,9 +422,7 @@ export default function FamiliaPage() {
                 <div key={hijo.id} className="rounded-xl border bg-white p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-full bg-zinc-100 p-2">
-                        <User className="h-4 w-4 text-zinc-500" />
-                      </div>
+                      <Avatar src={hijo.foto_url} fallback={<div className="rounded-full bg-zinc-100 p-2"><User className="h-4 w-4 text-zinc-500" /></div>} size="sm" />
                       <div>
                         <p className="text-sm font-semibold text-zinc-900">
                           {hijo.nombre} {hijo.apellido}
@@ -506,9 +516,7 @@ export default function FamiliaPage() {
                 <div key={otro.id} className="rounded-xl border bg-white p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-full bg-zinc-100 p-2">
-                        <User className="h-4 w-4 text-zinc-500" />
-                      </div>
+                      <Avatar src={otro.foto_url} fallback={<div className="rounded-full bg-zinc-100 p-2"><User className="h-4 w-4 text-zinc-500" /></div>} size="sm" />
                       <div>
                         <p className="text-sm font-semibold text-zinc-900">
                           {otro.nombre} {otro.apellido}
@@ -589,9 +597,7 @@ export default function FamiliaPage() {
                 <div key={mascota.id} className="rounded-xl border bg-white p-5">
                   <div className="flex items-start justify-between mb-3">
                     <div className="flex items-center gap-3">
-                      <div className="rounded-full bg-amber-50 p-2">
-                        <Icon className="h-5 w-5 text-amber-600" />
-                      </div>
+                      <Avatar src={mascota.foto_url} fallback={<div className="rounded-full bg-amber-50 p-2"><Icon className="h-5 w-5 text-amber-600" /></div>} />
                       <div>
                         <p className="text-sm font-semibold text-zinc-900">{mascota.nombre}</p>
                         <p className="text-xs text-zinc-500">
