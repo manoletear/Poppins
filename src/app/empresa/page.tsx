@@ -16,10 +16,9 @@ import {
   Loader2,
   Trash2,
 } from 'lucide-react';
-import { useEmployees, useAbsences } from '@/hooks/useBuk';
 import { useAuth } from '@/lib/auth/context';
 import { createClient } from '@/lib/supabase/client';
-import { getTareasHoy, updateTareaEstado, getComprasActivas, getNoticiasLegales, updateSolicitudEstado, toggleItemComprado, deleteItemLista, getSolicitudes } from '@/lib/supabase/employer-queries';
+import { getTareasHoy, updateTareaEstado, getComprasActivas, getNoticiasLegales, updateSolicitudEstado, toggleItemComprado, deleteItemLista, getSolicitudes, getMarcajesHoy } from '@/lib/supabase/employer-queries';
 
 /* ------------------------------------------------------------------ */
 /*  Mock data (employer-specific features not in BUK)                  */
@@ -80,63 +79,46 @@ export default function EmpresaDashboard() {
       });
   }, [empleadorId]);
 
-  /* ── Real data from hooks ── */
-  const { data: employees, loading: loadingEmployees } = useEmployees();
-  const { data: absences, loading: loadingAbsences } = useAbsences();
+  /* ── Data from Supabase ── */
+  const [trabajadores, setTrabajadores] = useState<any[]>([]);
+  const [marcajesHoy, setMarcajesHoy] = useState<any[]>([]);
+  const [solicitudesPendientes, setSolicitudesPendientes] = useState<any[]>([]);
+  const [vacacionesInfo, setVacacionesInfo] = useState<{ tomados: number; pendientes: number }>({ tomados: 0, pendientes: 15 });
+  const [loadingData, setLoadingData] = useState(true);
 
-  /* ── Derived real data ── */
-  const activeEmployees = useMemo(
-    () => (employees ?? []).filter((e) => e.estado === 'activo'),
-    [employees]
-  );
-
-  const pendingAbsences = useMemo(
-    () => (absences ?? []).filter((a) => a.estado === 'pendiente'),
-    [absences]
-  );
-
-  const employeeCountLabel = useMemo(() => {
-    if (!activeEmployees.length) return '';
-    const roles = activeEmployees.map((e) => e.cargo.toLowerCase());
-    const grouped: Record<string, number> = {};
-    roles.forEach((r) => {
-      grouped[r] = (grouped[r] || 0) + 1;
+  useEffect(() => {
+    if (!empleadorId) return;
+    const supabase = createClient();
+    Promise.all([
+      supabase.from('contratos').select('*, trabajadores(id, nombre, apellido_paterno, cargo)').eq('empleador_id', empleadorId).eq('estado', 'activo'),
+      getMarcajesHoy(empleadorId),
+      supabase.from('solicitudes_empleado').select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', empleadorId).eq('estado', 'pendiente').order('created_at', { ascending: false }).limit(5),
+      supabase.from('solicitudes_empleado').select('dias').eq('empleador_id', empleadorId).eq('tipo', 'vacaciones').eq('estado', 'aprobada'),
+    ]).then(([contRes, marcajes, solRes, vacRes]) => {
+      setTrabajadores((contRes.data || []).map((c: any) => c.trabajadores).filter(Boolean));
+      setMarcajesHoy(marcajes || []);
+      setSolicitudesPendientes(solRes.data || []);
+      const diasTomados = (vacRes.data || []).reduce((s: number, v: any) => s + (v.dias || 0), 0);
+      setVacacionesInfo({ tomados: diasTomados, pendientes: Math.max(0, 15 - diasTomados) });
+      setLoadingData(false);
     });
-    return Object.entries(grouped)
-      .map(([role, count]) => `${count} ${role}`)
-      .join(', ');
-  }, [activeEmployees]);
+  }, [empleadorId]);
 
-  /* ── Marcaje built from real employee data ── */
-  const marcaje = useMemo(() => {
-    if (!activeEmployees.length) {
-      return [
-        { name: 'Cargando...', entrada: '-', salida: '-', estado: '-', color: 'bg-zinc-100 text-zinc-500' },
-      ];
-    }
-    // Use real employee names with mock attendance data
-    return activeEmployees.map((emp, idx) => ({
-      name: emp.nombreCompleto,
-      entrada: idx === 0 ? '08:02' : idx === 1 ? '08:30' : 'No marcó',
-      salida: '-',
-      estado: idx < 2 ? 'En turno' : 'Sin marcar',
-      color: idx < 2 ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
-    }));
-  }, [activeEmployees]);
+  const marcaje = marcajesHoy.map((m: any) => ({
+    name: m.trabajadores ? `${m.trabajadores.nombre} ${m.trabajadores.apellido_paterno || ''}` : 'Trabajador',
+    entrada: m.hora_entrada || '-',
+    salida: m.hora_salida || '-',
+    estado: m.hora_salida ? 'Completado' : m.hora_entrada ? 'En turno' : 'Sin marcar',
+    color: m.hora_salida ? 'bg-blue-100 text-blue-700' : m.hora_entrada ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700',
+  }));
 
-  /* ── Solicitudes from absences data ── */
-  const solicitudesDashboard = useMemo(() => {
-    return pendingAbsences.slice(0, 3).map((a) => {
-      const emp = (employees ?? []).find((e) => e.id === a.empleadoId);
-      return {
-        id: a.id,
-        type: a.tipo,
-        name: emp?.nombreCompleto ?? `Empleado #${a.empleadoId}`,
-        date: a.inicio,
-        status: a.estado,
-      };
-    });
-  }, [pendingAbsences, employees]);
+  const solicitudesDashboard = solicitudesPendientes.map((s: any) => ({
+    id: s.id,
+    type: s.tipo,
+    name: s.trabajadores ? `${s.trabajadores.nombre} ${s.trabajadores.apellido_paterno || ''}` : 'Empleado',
+    date: s.fecha_inicio,
+    status: s.estado,
+  }));
 
   /* ── Local state for interactive features ── */
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -199,16 +181,16 @@ export default function EmpresaDashboard() {
     () => [
       {
         label: 'Colaboradores Activos',
-        value: loadingEmployees ? '...' : String(activeEmployees.length),
-        sub: loadingEmployees ? 'Cargando...' : employeeCountLabel || 'Sin colaboradores',
+        value: loadingData ? '...' : String(trabajadores.length),
+        sub: loadingData ? 'Cargando...' : trabajadores.map((t: any) => t.cargo || 'Empleado').join(', ') || 'Sin colaboradores',
         icon: Users,
         color: 'bg-emerald-500',
         href: '/empresa/empleados',
       },
       {
         label: 'Solicitudes Pendientes',
-        value: loadingAbsences ? '...' : String(pendingAbsences.length),
-        sub: loadingAbsences ? 'Cargando...' : pendingAbsences.length > 0 ? 'Requieren tu atención' : 'Todo al día',
+        value: loadingData ? '...' : String(solicitudesPendientes.length),
+        sub: loadingData ? 'Cargando...' : solicitudesPendientes.length > 0 ? 'Requieren tu atención' : 'Todo al día',
         icon: MessageSquare,
         color: 'bg-amber-500',
         href: '/empresa/solicitudes',
@@ -229,8 +211,16 @@ export default function EmpresaDashboard() {
         color: 'bg-violet-500',
         href: '/empresa/pagos',
       },
+      {
+        label: 'Vacaciones',
+        value: `${vacacionesInfo.tomados}/${vacacionesInfo.tomados + vacacionesInfo.pendientes}`,
+        sub: `${vacacionesInfo.pendientes} días pendientes`,
+        icon: CheckSquare,
+        color: 'bg-cyan-500',
+        href: '/empresa/solicitudes',
+      },
     ],
-    [loadingEmployees, loadingAbsences, activeEmployees, pendingAbsences, employeeCountLabel, taskStats, puntosAcumulados]
+    [loadingData, trabajadores, solicitudesPendientes, taskStats, puntosAcumulados, vacacionesInfo]
   );
 
   const toggleShoppingItem = async (id: string) => {
@@ -252,7 +242,7 @@ export default function EmpresaDashboard() {
 
   const checkedCount = shoppingItems.filter((i) => i.checked).length;
 
-  const isLoading = loadingEmployees || loadingAbsences;
+  const isLoading = loadingData;
 
   return (
     <div className="space-y-6">
@@ -512,12 +502,12 @@ export default function EmpresaDashboard() {
             <div className="flex items-center gap-2">
               <h2 className="text-base font-semibold text-zinc-900">Solicitudes Pendientes</h2>
               <span className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-100 text-[11px] font-bold text-amber-700">
-                {loadingAbsences ? '...' : pendingAbsences.length}
+                {loadingData ? '...' : solicitudesPendientes.length}
               </span>
             </div>
           </div>
           <div className="divide-y divide-zinc-100">
-            {loadingAbsences ? (
+            {loadingData ? (
               <div className="px-5 py-8 text-center">
                 <Loader2 className="h-5 w-5 animate-spin text-zinc-400 mx-auto" />
                 <p className="text-sm text-zinc-400 mt-2">Cargando solicitudes...</p>
