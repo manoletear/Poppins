@@ -22,6 +22,7 @@ import {
   Save,
   Trash2,
   Camera,
+  Shield,
 } from 'lucide-react';
 
 const tabs = ['Familia', 'Mascotas', 'Preferencias'] as const;
@@ -1096,15 +1097,6 @@ function MascotasTab({
 }
 
 // --- Preferencias Tab ---
-const DEFAULT_PRIORIDADES = [
-  { titulo: 'Aseo y orden del hogar' },
-  { titulo: 'Preparación de comidas' },
-  { titulo: 'Cuidado de niños' },
-  { titulo: 'Lavado y planchado' },
-  { titulo: 'Cuidado de mascotas' },
-  { titulo: 'Jardinería y exteriores' },
-];
-
 function PreferenciasTab({
   preferencias,
   onRefresh,
@@ -1114,28 +1106,21 @@ function PreferenciasTab({
 }) {
   const { profile } = useAuth();
   const empleadorId = profile?.empleador_id || '';
-  const [prioridades, setPrioridades] = useState<{ titulo: string }[]>(
-    preferencias?.prioridades?.length ? preferencias.prioridades : DEFAULT_PRIORIDADES
-  );
   const [notas, setNotas] = useState(preferencias?.notas_generales || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setPrioridades(preferencias?.prioridades?.length ? preferencias.prioridades : DEFAULT_PRIORIDADES);
     setNotas(preferencias?.notas_generales || '');
   }, [preferencias]);
-
-  const moveUp = (i: number) => { if (i === 0) return; const n = [...prioridades]; [n[i-1], n[i]] = [n[i], n[i-1]]; setPrioridades(n); };
-  const moveDown = (i: number) => { if (i === prioridades.length - 1) return; const n = [...prioridades]; [n[i], n[i+1]] = [n[i+1], n[i]]; setPrioridades(n); };
 
   const handleSave = async () => {
     setSaving(true);
     const supabase = createClient();
     if (preferencias) {
-      await supabase.from('preferencias_trabajo').update({ prioridades, notas_generales: notas }).eq('id', preferencias.id);
+      await supabase.from('preferencias_trabajo').update({ notas_generales: notas }).eq('id', preferencias.id);
     } else {
-      await supabase.from('preferencias_trabajo').insert({ empleador_id: empleadorId, prioridades, notas_generales: notas });
+      await supabase.from('preferencias_trabajo').insert({ empleador_id: empleadorId, notas_generales: notas });
     }
     setSaving(false); setSaved(true); onRefresh();
     setTimeout(() => setSaved(false), 2000);
@@ -1143,41 +1128,54 @@ function PreferenciasTab({
 
   return (
     <div className="space-y-6">
+      {/* Instrucciones del hogar */}
       <div>
-        <h3 className="mb-1 text-sm font-semibold text-zinc-700">Prioridades del Hogar</h3>
-        <p className="text-xs text-zinc-500 mb-3">Ordena las tareas según lo que más importa en tu casa. Tu trabajadora verá este orden como guía diaria.</p>
-        <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-          {prioridades.map((item, i) => (
-            <div key={i} className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-b-0">
-              <div className="flex flex-col">
-                <button onClick={() => moveUp(i)} disabled={i === 0} className="rounded p-0.5 hover:bg-zinc-100 disabled:opacity-20"><ChevronUp className="h-3.5 w-3.5 text-zinc-500" /></button>
-                <button onClick={() => moveDown(i)} disabled={i === prioridades.length - 1} className="rounded p-0.5 hover:bg-zinc-100 disabled:opacity-20"><ChevronDown className="h-3.5 w-3.5 text-zinc-500" /></button>
-              </div>
-              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${i === 0 ? 'bg-emerald-500' : i === 1 ? 'bg-blue-500' : 'bg-zinc-400'}`}>{i + 1}</div>
-              <span className="flex-1 text-sm font-medium text-zinc-800">{item.titulo}</span>
-              {i === 0 && <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">Más importante</span>}
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <h3 className="mb-1 text-sm font-semibold text-zinc-700">Instrucciones Especiales</h3>
-        <p className="text-xs text-zinc-500 mb-3">Indicaciones importantes para tu trabajadora: horarios especiales, restricciones, preferencias de limpieza, etc.</p>
+        <h3 className="mb-1 text-sm font-semibold text-zinc-700">Instrucciones del Hogar</h3>
+        <p className="text-xs text-zinc-500 mb-3">
+          Define las reglas, expectativas y condiciones de trabajo para tu trabajadora.
+          Estos lineamientos quedarán registrados y serán visibles para ella en su portal.
+        </p>
         <textarea
           value={notas}
           onChange={(e) => setNotas(e.target.value)}
-          placeholder="Ej: No usar cloro en pisos de madera. Los miércoles Martín sale a las 12:30 del colegio. Luna no puede salir al jardín sin supervisión."
+          placeholder={"Ejemplo:\n\n— Horario de trabajo: Lunes a Viernes 08:00 a 17:00 con 1 hora de colación.\n— No usar cloro ni productos abrasivos en pisos de madera.\n— Los miércoles Martín sale del colegio a las 12:30, debe ser recogido.\n— Luna (gata) no puede salir al jardín sin supervisión.\n— Mantener stock mínimo de productos de limpieza y avisar cuando falte.\n— Ropa delicada se lava a mano, no en lavadora.\n— En caso de emergencia médica de los niños, llamar primero a Catalina (+56 9 1234 5678).\n— Se espera orden y limpieza general al término de cada jornada."}
           className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-          rows={4}
+          rows={10}
         />
+      </div>
+
+      {/* Marco regulador */}
+      <div className="rounded-xl border border-zinc-200 bg-white p-5">
+        <h3 className="text-sm font-semibold text-zinc-700 mb-3">Marco Regulador Aplicable</h3>
+        <div className="space-y-2 text-sm text-zinc-600">
+          <div className="flex items-start gap-2">
+            <Shield className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <div><strong>Código del Trabajo, Art. 146-152</strong> — Régimen especial para trabajadores de casa particular.</div>
+          </div>
+          <div className="flex items-start gap-2">
+            <Shield className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <div><strong>Ley 21.561 (Ley 40 Horas)</strong> — Jornada máxima 42h semanales desde abril 2026.</div>
+          </div>
+          <div className="flex items-start gap-2">
+            <Shield className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <div><strong>Ley 21.643 (Ley Karin)</strong> — Protocolo de prevención de acoso laboral y sexual.</div>
+          </div>
+          <div className="flex items-start gap-2">
+            <Shield className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <div><strong>Ley 20.786</strong> — Igualdad de derechos para trabajadores de casa particular (jornada, descanso, feriados).</div>
+          </div>
+          <div className="flex items-start gap-2">
+            <Shield className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" />
+            <div><strong>Ingreso Mínimo Mensual</strong> — $500.000 desde enero 2026. El sueldo no puede ser inferior.</div>
+          </div>
+        </div>
       </div>
 
       <div className="flex justify-end">
         <button onClick={handleSave} disabled={saving}
           className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          {saved ? 'Guardado ✓' : 'Guardar Preferencias'}
+          {saved ? 'Guardado ✓' : 'Guardar Instrucciones'}
         </button>
       </div>
     </div>
