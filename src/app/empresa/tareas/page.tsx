@@ -26,14 +26,20 @@ const priorityBorderColor: Record<string, string> = {
   baja: 'border-l-green-500',
 };
 
-const categoryColors: Record<string, string> = {
-  Aseo: 'bg-emerald-100 text-emerald-700',
-  Cocina: 'bg-orange-100 text-orange-700',
-  Lavado: 'bg-violet-100 text-violet-700',
-  Jardinería: 'bg-lime-100 text-lime-700',
-  Piscina: 'bg-cyan-100 text-cyan-700',
-  Mascotas: 'bg-pink-100 text-pink-700',
-};
+const CATEGORIAS = [
+  { value: 'aseo', label: 'Aseo', color: 'bg-emerald-100 text-emerald-700' },
+  { value: 'cocina', label: 'Cocina', color: 'bg-orange-100 text-orange-700' },
+  { value: 'lavado_planchado', label: 'Lavado y Planchado', color: 'bg-violet-100 text-violet-700' },
+  { value: 'jardineria', label: 'Jardinería', color: 'bg-lime-100 text-lime-700' },
+  { value: 'piscina', label: 'Piscina', color: 'bg-cyan-100 text-cyan-700' },
+  { value: 'mascotas', label: 'Mascotas', color: 'bg-pink-100 text-pink-700' },
+  { value: 'cuidado_ninos', label: 'Cuidado Niños', color: 'bg-amber-100 text-amber-700' },
+  { value: 'compras', label: 'Compras', color: 'bg-blue-100 text-blue-700' },
+  { value: 'orden', label: 'Orden', color: 'bg-zinc-100 text-zinc-700' },
+  { value: 'otro', label: 'Otro', color: 'bg-gray-100 text-gray-700' },
+];
+const categoryColors: Record<string, string> = Object.fromEntries(CATEGORIAS.map(c => [c.value, c.color]));
+const categoryLabels: Record<string, string> = Object.fromEntries(CATEGORIAS.map(c => [c.value, c.label]));
 
 const filterTabs: { label: string; value: FilterTab }[] = [
   { label: 'All', value: 'all' },
@@ -149,7 +155,7 @@ export default function TareasPage() {
           <div className="flex gap-3">
             <select value={newCategoria} onChange={(e) => setNewCategoria(e.target.value)} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm flex-1">
               <option value="">Categoría</option>
-              {Object.keys(categoryColors).map((c) => <option key={c} value={c}>{c}</option>)}
+              {CATEGORIAS.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
             </select>
             <select value={newPrioridad} onChange={(e) => setNewPrioridad(e.target.value)} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm flex-1">
               <option value="alta">Alta</option>
@@ -261,7 +267,7 @@ export default function TareasPage() {
                     )}
                     {task.categoria && (
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${categoryColors[task.categoria] || 'bg-zinc-100 text-zinc-700'}`}>
-                        {task.categoria}
+                        {categoryLabels[task.categoria] || task.categoria}
                       </span>
                     )}
                     {timeRange && <span className="text-xs text-zinc-400">{timeRange}</span>}

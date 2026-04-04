@@ -174,17 +174,16 @@ export default function PerfilEmpleadorPage() {
   // Modals
   const [editPerfilOpen, setEditPerfilOpen] = useState(false);
 
-  const supabase = createClient();
-
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
+      const supabase = createClient();
       const [empRes, famRes, mascRes, prefRes, cuentasRes] = await Promise.all([
         supabase.from('empleadores').select('*').eq('id', empleadorId).single(),
         supabase.from('familiares_empleador').select('*').eq('empleador_id', empleadorId),
         supabase.from('mascotas_empleador').select('*').eq('empleador_id', empleadorId),
-        supabase.from('preferencias_trabajo').select('*').eq('empleador_id', empleadorId).single(),
+        supabase.from('preferencias_trabajo').select('*').eq('empleador_id', empleadorId).maybeSingle(),
         supabase.from('cuentas_pago').select('*').eq('empleador_id', empleadorId).eq('activa', true),
       ]);
 
@@ -199,10 +198,7 @@ export default function PerfilEmpleadorPage() {
       if (mascRes.error) throw new Error('Error cargando mascotas: ' + mascRes.error.message);
       setMascotas(mascRes.data as Mascota[]);
 
-      if (prefRes.error && prefRes.error.code !== 'PGRST116') {
-        throw new Error('Error cargando preferencias: ' + prefRes.error.message);
-      }
-      setPreferencias(prefRes.data as Preferencia | null);
+      setPreferencias((prefRes.data as Preferencia) || null);
 
       setCuentasActivas(cuentasRes.data?.length ?? 0);
     } catch (err: unknown) {
@@ -210,7 +206,7 @@ export default function PerfilEmpleadorPage() {
     } finally {
       setLoading(false);
     }
-  }, [empleadorId, supabase]);
+  }, [empleadorId]);
 
   useEffect(() => {
     fetchData();
