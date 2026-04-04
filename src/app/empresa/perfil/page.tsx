@@ -238,9 +238,15 @@ export default function PerfilEmpleadorPage() {
     );
   }
 
-  if (!empleador) return null;
+  if (!empleador) {
+    return loading ? null : (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-sm text-zinc-500">No se pudo cargar el perfil. <button onClick={fetchData} className="text-violet-600 underline">Reintentar</button></p>
+      </div>
+    );
+  }
 
-  const initials = `${empleador.nombre.charAt(0)}${empleador.apellido.charAt(0)}`.toUpperCase();
+  const initials = `${(empleador.nombre || '').charAt(0)}${(empleador.apellido || '').charAt(0)}`.toUpperCase();
 
   return (
     <div className="min-h-screen bg-zinc-50 p-6">
@@ -274,7 +280,7 @@ export default function PerfilEmpleadorPage() {
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 pt-8 pb-6 flex flex-col items-center text-center">
               <div className="relative group">
-                {empleador.foto_url ? (
+                {empleador?.foto_url ? (
                   <img src={empleador.foto_url} alt="Foto" className="h-20 w-20 rounded-full object-cover border-2 border-white shadow" />
                 ) : (
                   <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-2xl font-bold text-white">
