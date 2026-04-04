@@ -531,6 +531,8 @@ async function uploadFamilyPhoto(bucket: string, folder: string, id: string, fil
 }
 
 // --- Edit Familiar Modal ---
+const EMPTY_FAMILIAR = { id: '', empleador_id: '', tipo: '', nombre: '', apellido: '', fecha_nacimiento: '', alergias: '', condiciones_medicas: '', telefono: '', email: '', es_cuenta_activa: false, notas: '', foto_url: '' } as Familiar & { foto_url: string };
+
 function EditFamiliarModal({
   open,
   onClose,
@@ -540,15 +542,15 @@ function EditFamiliarModal({
 }: {
   open: boolean;
   onClose: () => void;
-  familiar: (Familiar & { foto_url?: string }) | null;
+  familiar: Familiar & { foto_url?: string };
   tipo: string;
   onSaved: () => void;
 }) {
   const { profile } = useAuth();
   const empleadorId = profile?.empleador_id || '';
-  const isNew = !familiar;
-  const familiarId = familiar?.id ?? '';
-  const familiarFoto = (familiar as any)?.foto_url ?? null;
+  const isNew = !familiar.id;
+  const familiarId = familiar.id || '';
+  const familiarFoto = (familiar as any).foto_url || null;
   const [form, setForm] = useState({
     nombre: '', apellido: '', fecha_nacimiento: '', alergias: '',
     condiciones_medicas: '', telefono: '', email: '', notas: '',
@@ -563,7 +565,7 @@ function EditFamiliarModal({
       setConfirmDelete(false);
       setFotoFile(null);
       setFotoPreview(familiarFoto);
-      setForm(familiar ? {
+      setForm(familiarId ? {
         nombre: familiar.nombre || '', apellido: familiar.apellido || '',
         fecha_nacimiento: familiar.fecha_nacimiento || '', alergias: familiar.alergias || '',
         condiciones_medicas: familiar.condiciones_medicas || '', telefono: familiar.telefono || '',
@@ -682,16 +684,18 @@ const TIPOS_MASCOTA = [
   { value: 'otro', label: 'Otro' },
 ];
 
+const EMPTY_MASCOTA = { id: '', empleador_id: '', nombre: '', tipo: 'perro', raza: '', edad: 0, instrucciones_cuidado: '', veterinario_nombre: '', veterinario_telefono: '', foto_url: '' } as Mascota & { foto_url: string };
+
 function EditMascotaModal({
   open, onClose, mascota, onSaved,
 }: {
-  open: boolean; onClose: () => void; mascota: (Mascota & { foto_url?: string }) | null; onSaved: () => void;
+  open: boolean; onClose: () => void; mascota: Mascota & { foto_url?: string }; onSaved: () => void;
 }) {
   const { profile } = useAuth();
   const empleadorId = profile?.empleador_id || '';
-  const isNew = !mascota;
-  const mascotaId = mascota?.id ?? '';
-  const mascotaFoto = (mascota as any)?.foto_url ?? null;
+  const isNew = !mascota.id;
+  const mascotaId = mascota.id || '';
+  const mascotaFoto = (mascota as any).foto_url || null;
   const [form, setForm] = useState({ nombre: '', tipo: 'perro', raza: '', edad: 0, instrucciones_cuidado: '', veterinario_nombre: '', veterinario_telefono: '' });
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
@@ -703,7 +707,7 @@ function EditMascotaModal({
       setConfirmDelete(false);
       setFotoFile(null);
       setFotoPreview(mascotaFoto);
-      setForm(mascota ? {
+      setForm(mascotaId ? {
         nombre: mascota.nombre || '', tipo: mascota.tipo || 'perro', raza: mascota.raza || '',
         edad: mascota.edad || 0, instrucciones_cuidado: mascota.instrucciones_cuidado || '',
         veterinario_nombre: mascota.veterinario_nombre || '', veterinario_telefono: mascota.veterinario_telefono || '',
@@ -839,7 +843,7 @@ function FamiliaTab({
       <EditFamiliarModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        familiar={editFamiliar}
+        familiar={editFamiliar || EMPTY_FAMILIAR}
         tipo={editTipo}
         onSaved={onRefresh}
       />
@@ -1020,7 +1024,7 @@ function MascotasTab({
       <EditMascotaModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        mascota={editMascota}
+        mascota={editMascota || EMPTY_MASCOTA}
         onSaved={onRefresh}
       />
 
