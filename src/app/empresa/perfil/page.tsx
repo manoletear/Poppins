@@ -158,7 +158,7 @@ function FormField({
 }
 
 export default function PerfilEmpleadorPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const empleadorId = profile?.empleador_id || '';
   const [activeTab, setActiveTab] = useState<Tab>('Familia');
   const [loading, setLoading] = useState(true);
@@ -180,28 +180,22 @@ export default function PerfilEmpleadorPage() {
     setError(null);
     try {
       const supabase = createClient();
-      const [empRes, famRes, mascRes, prefRes, cuentasRes] = await Promise.all([
-        supabase.from('empleadores').select('*').eq('id', empleadorId).maybeSingle(),
+      const empRes = await supabase.from('empleadores').select('*').eq('id', empleadorId).maybeSingle();
+      if (empRes.error || !empRes.data) throw new Error(empRes.error?.message || 'Perfil no encontrado');
+      setEmpleador(empRes.data);
+
+      const [famRes, mascRes, prefRes, cuentasRes] = await Promise.all([
         supabase.from('familiares_empleador').select('*').eq('empleador_id', empleadorId),
         supabase.from('mascotas_empleador').select('*').eq('empleador_id', empleadorId),
         supabase.from('preferencias_trabajo').select('*').eq('empleador_id', empleadorId).maybeSingle(),
         supabase.from('cuentas_pago').select('*').eq('empleador_id', empleadorId).eq('activa', true),
       ]);
 
-      if (empRes.error) throw new Error('Error cargando perfil: ' + empRes.error.message);
-      if (!empRes.data) throw new Error('Perfil de empleador no encontrado');
-      setEmpleador(empRes.data);
-
-      if (famRes.error) throw new Error('Error cargando familiares: ' + famRes.error.message);
-      const familiares = famRes.data as Familiar[];
+      const familiares = (famRes.data || []) as Familiar[];
       setConyuge(familiares.find((f) => f.tipo === 'conyuge') || null);
-      setHijos(familiares.filter((f) => f.tipo === 'hijo'));
-
-      if (mascRes.error) throw new Error('Error cargando mascotas: ' + mascRes.error.message);
-      setMascotas(mascRes.data as Mascota[]);
-
+      setHijos(familiares.filter((f) => f.tipo === 'hijo' || f.tipo === 'otro'));
+      setMascotas((mascRes.data || []) as Mascota[]);
       setPreferencias((prefRes.data as Preferencia) || null);
-
       setCuentasActivas(cuentasRes.data?.length ?? 0);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
@@ -211,8 +205,10 @@ export default function PerfilEmpleadorPage() {
   }, [empleadorId]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!empleadorId) { setLoading(false); setError('No se encontró tu perfil de empleador'); return; }
     fetchData();
-  }, [fetchData]);
+  }, [fetchData, authLoading, empleadorId]);
 
   if (loading) {
     return (
