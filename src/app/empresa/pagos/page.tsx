@@ -340,6 +340,7 @@ function PagosContent() {
   } | null>(null);
   const [planTipo, setPlanTipo] = useState<PlanTipo>('starter');
   const [loadingOnboarding, setLoadingOnboarding] = useState(true);
+  const [dismissedOnboarding, setDismissedOnboarding] = useState(false);
 
   // ── Check flow_status on mount ──
   useEffect(() => {
@@ -1034,13 +1035,21 @@ function PagosContent() {
         />
       )}
 
-      {/* Show onboarding if not all steps completed */}
-      {!loadingOnboarding && !onboardingState.primer_pago_realizado && (
-        <PagosOnboarding
-          state={onboardingState}
-          onStartCardSetup={() => setShowCardSetup(true)}
-          onStartDiscovery={() => setShowDiscovery(true)}
-        />
+      {/* Show onboarding banner (collapsible) if not all steps completed */}
+      {!loadingOnboarding && !onboardingState.primer_pago_realizado && !dismissedOnboarding && (
+        <div className="relative">
+          <button
+            onClick={() => setDismissedOnboarding(true)}
+            className="absolute top-2 right-2 z-10 text-zinc-400 hover:text-zinc-600 text-xs bg-white/80 rounded-full px-3 py-1 border border-zinc-200"
+          >
+            Omitir configuración
+          </button>
+          <PagosOnboarding
+            state={onboardingState}
+            onStartCardSetup={() => setShowCardSetup(true)}
+            onStartDiscovery={() => setShowDiscovery(true)}
+          />
+        </div>
       )}
 
       {/* Tabs */}
