@@ -7,7 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
 import {
   ArrowLeft, FileText, Calendar, Clock, Mail, Phone, MapPin,
-  Briefcase, Shield, DollarSign, Palmtree, Printer, Loader2, AlertCircle, User,
+  Briefcase, Shield, DollarSign, Palmtree, Printer, Loader2, AlertCircle, User, Download, Camera,
 } from 'lucide-react';
 
 type TabKey = 'resumen' | 'contrato' | 'liquidaciones' | 'asistencia';
@@ -19,18 +19,121 @@ const tabs: { key: TabKey; label: string }[] = [
   { key: 'asistencia', label: 'Asistencia' },
 ];
 
-function formatCLP(n: number): string {
-  return '$' + (n ?? 0).toLocaleString('es-CL');
-}
+function formatCLP(n: number): string { return '$' + (n ?? 0).toLocaleString('es-CL'); }
 
 function calcAntiguedad(fecha: string): string {
-  const start = new Date(fecha);
-  const now = new Date();
+  const start = new Date(fecha), now = new Date();
   const months = (now.getFullYear() - start.getFullYear()) * 12 + (now.getMonth() - start.getMonth());
-  const years = Math.floor(months / 12);
-  const rem = months % 12;
-  if (years === 0) return `${rem} meses`;
-  return `${years} año${years > 1 ? 's' : ''}${rem > 0 ? `, ${rem} mes${rem > 1 ? 'es' : ''}` : ''}`;
+  const y = Math.floor(months / 12), m = months % 12;
+  if (y === 0) return `${m} meses`;
+  return `${y} año${y > 1 ? 's' : ''}${m > 0 ? `, ${m} mes${m > 1 ? 'es' : ''}` : ''}`;
+}
+
+function openPrintWindow(html: string) {
+  const w = window.open('', '_blank');
+  if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400); }
+}
+
+// ── Contract PDF generator ──
+function generateContractHTML(worker: any, contrato: any, empleador: any) {
+  const fechaInicio = contrato.fecha_inicio ? new Date(contrato.fecha_inicio).toLocaleDateString('es-CL') : '';
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Contrato de Trabajo - ${worker.nombre}</title>
+<style>body{font-family:'Times New Roman',serif;max-width:700px;margin:40px auto;padding:40px;line-height:1.7;color:#1a1a1a;font-size:14px}
+h1{text-align:center;font-size:20px;margin-bottom:30px;letter-spacing:2px;text-transform:uppercase}
+h2{font-size:14px;margin-top:24px;margin-bottom:8px;text-transform:uppercase}
+.clause{margin-bottom:16px;text-align:justify}
+.signatures{margin-top:60px;display:flex;justify-content:space-between}
+.sig-block{text-align:center;width:45%}.sig-line{border-top:1px solid #333;margin-top:60px;padding-top:8px}
+@media print{body{margin:0;padding:20px}}</style></head><body>
+<h1>CONTRATO DE TRABAJO<br>TRABAJADOR(A) DE CASA PARTICULAR</h1>
+<p style="text-align:center;color:#2563eb;font-weight:bold">Ref: ${contrato.numero_contrato}</p>
+<p class="clause">En Santiago de Chile, a ${fechaInicio}, entre <strong>${empleador?.nombre || ''} ${empleador?.apellido || ''}</strong>, RUT <strong>${empleador?.rut || ''}</strong>, domiciliado en ${empleador?.direccion || ''}, ${empleador?.comuna || ''}, en adelante "el Empleador", y <strong>${worker.nombre} ${worker.apellido_paterno || ''}</strong>, RUT <strong>${worker.rut}</strong>, domiciliado(a) en ${worker.direccion || 'domicilio del trabajador'}, en adelante "el(la) Trabajador(a)", se ha convenido el siguiente contrato de trabajo:</p>
+<h2>PRIMERO: Naturaleza de los Servicios</h2>
+<p class="clause">El(la) Trabajador(a) se compromete a desempeñar el cargo de <strong>${contrato.cargo || worker.cargo || 'Asesora del Hogar'}</strong>, realizando labores de aseo, orden, preparación de alimentos, lavado y planchado de ropa, y demás tareas propias del hogar, conforme al artículo 146 del Código del Trabajo.</p>
+<h2>SEGUNDO: Lugar de Trabajo</h2>
+<p class="clause">Los servicios serán prestados en el domicilio del Empleador ubicado en ${empleador?.direccion || ''}, ${empleador?.comuna || ''}, Santiago, bajo la modalidad de <strong>Puertas Afuera</strong>.</p>
+<h2>TERCERO: Jornada de Trabajo</h2>
+<p class="clause">La jornada ordinaria será de <strong>${contrato.horas_semanales || 45} horas semanales</strong>, distribuidas de lunes a viernes, en horario de 08:00 a 17:00 horas, con 1 hora de colación. Se respetarán los límites de la Ley 21.561 (Ley 40 Horas).</p>
+<h2>CUARTO: Remuneración</h2>
+<p class="clause">El Empleador pagará una remuneración mensual de <strong>${formatCLP(contrato.sueldo_base)}</strong> (bruto), que incluye sueldo base. Adicionalmente se pagará gratificación legal conforme al ${contrato.tipo_gratificacion === 'art_50' ? 'artículo 50' : 'artículo 47'} del Código del Trabajo, colación de $30.000 y movilización de $20.000. La remuneración será pagada por transferencia bancaria dentro de los primeros 5 días hábiles del mes siguiente.</p>
+<h2>QUINTO: Duración del Contrato</h2>
+<p class="clause">El presente contrato es de carácter <strong>${contrato.tipo_contrato === 'indefinido' ? 'indefinido' : 'plazo fijo'}</strong>, con fecha de inicio el <strong>${fechaInicio}</strong>.</p>
+<h2>SEXTO: Cotizaciones Previsionales</h2>
+<p class="clause">El Empleador se obliga a efectuar las cotizaciones previsionales conforme a la ley: AFP, Salud (${worker.salud_tipo === 'fonasa' ? 'FONASA' : 'ISAPRE'}), Seguro de Cesantía (AFC), y Seguro de Invalidez y Sobrevivencia (SIS).</p>
+<h2>SÉPTIMO: Vacaciones</h2>
+<p class="clause">El(la) Trabajador(a) tendrá derecho a ${contrato.dias_vacaciones_anuales || 15} días hábiles de vacaciones anuales conforme al artículo 67 del Código del Trabajo, una vez cumplido un año de servicio.</p>
+<h2>OCTAVO: Obligaciones Especiales</h2>
+<p class="clause">Ambas partes se obligan a cumplir las disposiciones de la Ley 21.643 (Ley Karin) sobre prevención del acoso laboral, sexual y violencia en el trabajo.</p>
+<div class="signatures"><div class="sig-block"><div class="sig-line"><strong>${empleador?.nombre || ''} ${empleador?.apellido || ''}</strong><br>RUT: ${empleador?.rut || ''}<br>Empleador</div></div>
+<div class="sig-block"><div class="sig-line"><strong>${worker.nombre} ${worker.apellido_paterno || ''}</strong><br>RUT: ${worker.rut}<br>Trabajador(a)</div></div></div></body></html>`;
+}
+
+// ── Liquidación PDF generator ──
+function generateLiquidacionHTML(worker: any, liq: any, empleador: any) {
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Liquidación ${liq.periodo}</title>
+<style>body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;padding:30px;color:#1a1a1a;font-size:13px}
+h1{text-align:center;font-size:18px;margin-bottom:4px}.sub{text-align:center;color:#666;margin-bottom:24px;font-size:14px}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;padding:16px;background:#f9fafb;border-radius:8px}
+.info div{font-size:13px}.info strong{color:#333}
+table{width:100%;border-collapse:collapse;margin-bottom:20px}
+th{background:#f3f4f6;text-align:left;padding:8px 12px;font-size:12px;text-transform:uppercase;color:#666;border-bottom:2px solid #e5e7eb}
+td{padding:8px 12px;border-bottom:1px solid #e5e7eb}.amt{text-align:right;font-variant-numeric:tabular-nums}
+.tot{font-weight:bold;background:#f9fafb}.final{font-size:16px;font-weight:bold;background:#ecfdf5}
+.sec{font-weight:bold;font-size:14px;margin:20px 0 8px;color:#333}
+@media print{body{margin:0;padding:20px}}</style></head><body>
+<h1>LIQUIDACIÓN DE SUELDO</h1><p class="sub">${liq.periodo}</p>
+<div class="info"><div><strong>Empleador:</strong> ${empleador?.nombre || ''} ${empleador?.apellido || ''}</div>
+<div><strong>RUT Empleador:</strong> ${empleador?.rut || ''}</div>
+<div><strong>Trabajador(a):</strong> ${worker.nombre} ${worker.apellido_paterno || ''}</div>
+<div><strong>RUT:</strong> ${worker.rut}</div>
+<div><strong>Cargo:</strong> ${worker.cargo || 'Asesora del Hogar'}</div>
+<div><strong>Días trabajados:</strong> ${liq.dias_trabajados || 30}</div></div>
+<p class="sec">Haberes</p><table><thead><tr><th>Concepto</th><th class="amt">Monto</th></tr></thead><tbody>
+<tr><td>Sueldo Base</td><td class="amt">${formatCLP(liq.sueldo_base)}</td></tr>
+<tr><td>Gratificación Legal</td><td class="amt">${formatCLP(liq.gratificacion_legal)}</td></tr>
+<tr><td>Colación</td><td class="amt">${formatCLP(liq.colacion)}</td></tr>
+<tr><td>Movilización</td><td class="amt">${formatCLP(liq.movilizacion)}</td></tr>
+${liq.asignacion_familiar > 0 ? `<tr><td>Asignación Familiar</td><td class="amt">${formatCLP(liq.asignacion_familiar)}</td></tr>` : ''}
+<tr class="tot"><td>Total Haberes</td><td class="amt">${formatCLP(liq.total_haberes)}</td></tr></tbody></table>
+<p class="sec">Descuentos</p><table><thead><tr><th>Concepto</th><th class="amt">Monto</th></tr></thead><tbody>
+<tr><td>AFP</td><td class="amt">${formatCLP(liq.afp_trabajador)}</td></tr>
+<tr><td>Salud</td><td class="amt">${formatCLP(liq.salud_trabajador)}</td></tr>
+<tr><td>Seguro Cesantía (AFC)</td><td class="amt">${formatCLP(liq.afc_trabajador)}</td></tr>
+${liq.impuesto_unico > 0 ? `<tr><td>Impuesto Único</td><td class="amt">${formatCLP(liq.impuesto_unico)}</td></tr>` : ''}
+<tr class="tot"><td>Total Descuentos</td><td class="amt">${formatCLP(liq.total_descuentos)}</td></tr></tbody></table>
+<table><tbody><tr class="final"><td>SUELDO LÍQUIDO A PAGAR</td><td class="amt">${formatCLP(liq.liquido_pagar)}</td></tr></tbody></table>
+</body></html>`;
+}
+
+// ── Certificado Asistencia generator ──
+function generateAsistenciaHTML(worker: any, marcajes: any[], empleador: any) {
+  const hoy = new Date().toLocaleDateString('es-CL');
+  const totalHoras = marcajes.reduce((s: number, m: any) => s + (m.horas_trabajadas || 0), 0);
+  const diasTrabajados = marcajes.filter((m: any) => m.hora_entrada).length;
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Certificado de Asistencia</title>
+<style>body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;padding:30px;color:#1a1a1a;font-size:13px}
+h1{text-align:center;font-size:18px;margin-bottom:20px}
+.info{margin-bottom:20px;padding:16px;background:#f9fafb;border-radius:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.info strong{color:#333}
+table{width:100%;border-collapse:collapse;margin:20px 0}
+th{background:#f3f4f6;text-align:left;padding:8px 12px;font-size:12px;color:#666;border-bottom:2px solid #e5e7eb}
+td{padding:8px 12px;border-bottom:1px solid #e5e7eb}
+.summary{margin-top:20px;padding:16px;background:#ecfdf5;border-radius:8px;font-size:14px}
+.sig{margin-top:60px;display:flex;justify-content:space-between}
+.sig-block{text-align:center;width:40%;border-top:1px solid #333;padding-top:8px}
+@media print{body{margin:0;padding:20px}}</style></head><body>
+<h1>CERTIFICADO DE ASISTENCIA LABORAL</h1>
+<div class="info"><div><strong>Empleador:</strong> ${empleador?.nombre || ''} ${empleador?.apellido || ''}</div>
+<div><strong>Trabajador(a):</strong> ${worker.nombre} ${worker.apellido_paterno || ''}</div>
+<div><strong>RUT Trabajador:</strong> ${worker.rut}</div>
+<div><strong>Fecha emisión:</strong> ${hoy}</div></div>
+<p>Se certifica que el(la) trabajador(a) registra la siguiente asistencia:</p>
+<table><thead><tr><th>Fecha</th><th>Entrada</th><th>Salida Col.</th><th>Regreso Col.</th><th>Salida</th><th>Horas</th></tr></thead><tbody>
+${marcajes.map((m: any) => `<tr><td>${new Date(m.fecha).toLocaleDateString('es-CL')}</td><td>${m.hora_entrada || '-'}</td><td>${m.hora_salida_colacion || '-'}</td><td>${m.hora_regreso_colacion || '-'}</td><td>${m.hora_salida || '-'}</td><td>${m.horas_trabajadas ? m.horas_trabajadas.toFixed(1) + 'h' : '-'}</td></tr>`).join('')}
+</tbody></table>
+<div class="summary"><strong>Resumen:</strong> ${diasTrabajados} días trabajados · ${totalHoras.toFixed(1)} horas totales</div>
+<div class="sig"><div class="sig-block">${empleador?.nombre || ''} ${empleador?.apellido || ''}<br>Empleador</div>
+<div class="sig-block">${worker.nombre} ${worker.apellido_paterno || ''}<br>Trabajador(a)</div></div></body></html>`;
 }
 
 export default function EmpleadoDetallePage() {
@@ -40,6 +143,7 @@ export default function EmpleadoDetallePage() {
   const [activeTab, setActiveTab] = useState<TabKey>('resumen');
   const [worker, setWorker] = useState<any>(null);
   const [contrato, setContrato] = useState<any>(null);
+  const [empleador, setEmpleador] = useState<any>(null);
   const [liquidaciones, setLiquidaciones] = useState<any[]>([]);
   const [marcajes, setMarcajes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -47,95 +151,93 @@ export default function EmpleadoDetallePage() {
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
-
-    const [wRes, cRes, lRes, mRes] = await Promise.all([
+    const [wRes, cRes, lRes, mRes, eRes] = await Promise.all([
       supabase.from('trabajadores').select('*').eq('id', id).single(),
       supabase.from('contratos').select('*').eq('trabajador_id', id).eq('estado', 'activo').single(),
       supabase.from('liquidaciones').select('*').eq('trabajador_id', id).order('periodo', { ascending: false }).limit(6),
       supabase.from('marcajes_horario').select('*').eq('trabajador_id', id).order('fecha', { ascending: false }).limit(15),
+      profile?.empleador_id ? supabase.from('empleadores').select('*').eq('id', profile.empleador_id).single() : Promise.resolve({ data: null }),
     ]);
-
     setWorker(wRes.data);
     setContrato(cRes.data);
     setLiquidaciones(lRes.data || []);
     setMarcajes(mRes.data || []);
+    setEmpleador(eRes.data);
     setLoading(false);
-  }, [id]);
+  }, [id, profile?.empleador_id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  if (loading) {
-    return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>;
-  }
+  // Upload worker photo
+  const handlePhotoUpload = async (file: File) => {
+    const supabase = createClient();
+    const ext = file.name.split('.').pop();
+    const path = `trabajadores/${id}.${ext}`;
+    await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+    const foto_url = data.publicUrl + '?t=' + Date.now();
+    await supabase.from('trabajadores').update({ foto_url }).eq('id', id);
+    loadData();
+  };
 
-  if (!worker) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4">
-        <AlertCircle className="h-12 w-12 text-zinc-300" />
-        <p className="text-zinc-500">Empleado no encontrado</p>
-        <Link href="/empresa/empleados" className="text-sm text-violet-600 hover:underline">Volver a empleados</Link>
-      </div>
-    );
-  }
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>;
+  if (!worker) return (
+    <div className="flex flex-col items-center justify-center py-20 space-y-4">
+      <AlertCircle className="h-12 w-12 text-zinc-300" />
+      <p className="text-zinc-500">Empleado no encontrado</p>
+      <Link href="/empresa/empleados" className="text-sm text-violet-600 hover:underline">Volver</Link>
+    </div>
+  );
 
-  const nombre = `${worker.nombre} ${worker.apellido_paterno || ''} ${worker.apellido_materno || ''}`.trim();
+  const nombre = `${worker.nombre} ${worker.apellido_paterno || ''}`.trim();
   const iniciales = `${(worker.nombre || '')[0] || ''}${(worker.apellido_paterno || '')[0] || ''}`.toUpperCase();
-  const sueldo = contrato?.sueldo_base || 0;
 
   return (
     <div className="space-y-6">
-      {/* Back link */}
       <Link href="/empresa/empleados" className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition">
-        <ArrowLeft className="w-4 h-4" /> Volver a empleados
+        <ArrowLeft className="w-4 h-4" /> Volver
       </Link>
 
-      {/* Header Card */}
+      {/* Header */}
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
         <div className="bg-gradient-to-r from-rose-500 to-rose-600 px-6 py-5">
           <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-lg font-bold text-white">
-              {iniciales}
-            </div>
+            <label className="relative cursor-pointer group">
+              {worker.foto_url ? (
+                <img src={worker.foto_url} alt="" className="h-14 w-14 rounded-full object-cover border-2 border-white/30" />
+              ) : (
+                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-lg font-bold text-white">{iniciales}</div>
+              )}
+              <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                <Camera className="h-5 w-5 text-white" />
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handlePhotoUpload(f); }} />
+            </label>
             <div>
               <h1 className="text-xl font-bold text-white">{nombre}</h1>
               <p className="text-rose-100">{worker.cargo || 'Empleado'}</p>
             </div>
           </div>
         </div>
-
         <div className="px-6 py-4 flex flex-wrap gap-3">
-          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">
-            {contrato?.tipo_contrato === 'indefinido' ? 'Contrato Indefinido' : contrato?.tipo_contrato || 'Sin contrato'}
-          </span>
-          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">
-            {worker.estado === 'activo' ? 'Activa' : worker.estado || 'Activa'}
-          </span>
-          {contrato?.tipo_jornada && (
-            <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700">
-              Jornada {contrato.tipo_jornada === 'completa' ? 'Completa' : contrato.tipo_jornada}
-            </span>
-          )}
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700">{contrato?.tipo_contrato === 'indefinido' ? 'Indefinido' : contrato?.tipo_contrato || 'Sin contrato'}</span>
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700">Activa</span>
+          {contrato?.tipo_jornada && <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-medium text-violet-700">Jornada {contrato.tipo_jornada === 'completa' ? 'Completa' : contrato.tipo_jornada}</span>}
         </div>
       </div>
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-zinc-100 p-1 w-fit">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-              activeTab === tab.key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'
-            }`}
-          >
+        {tabs.map(tab => (
+          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+            className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}>
             {tab.label}
           </button>
         ))}
       </div>
 
-      {/* Tab Content */}
       <div className="rounded-xl border border-zinc-200 bg-white p-6">
-        {/* ── RESUMEN ── */}
+        {/* RESUMEN */}
         {activeTab === 'resumen' && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-4">
@@ -144,73 +246,71 @@ export default function EmpleadoDetallePage() {
               <InfoRow icon={Mail} label="Email" value={worker.email || 'No registrado'} />
               <InfoRow icon={Phone} label="Teléfono" value={worker.telefono || 'No registrado'} />
               <InfoRow icon={MapPin} label="Dirección" value={worker.direccion || 'No registrada'} />
-              <InfoRow icon={Calendar} label="Nacimiento" value={worker.fecha_nacimiento ? new Date(worker.fecha_nacimiento).toLocaleDateString('es-CL') : 'No registrado'} />
+              <InfoRow icon={Calendar} label="Nacimiento" value={worker.fecha_nacimiento ? new Date(worker.fecha_nacimiento).toLocaleDateString('es-CL') : '-'} />
             </div>
             <div className="space-y-4">
               <h3 className="text-sm font-semibold text-zinc-900 uppercase tracking-wide">Datos Laborales</h3>
-              <InfoRow icon={Briefcase} label="Cargo" value={worker.cargo || contrato?.cargo || 'No definido'} />
-              <InfoRow icon={DollarSign} label="Sueldo Base" value={formatCLP(sueldo)} />
-              <InfoRow icon={Clock} label="Horas Semanales" value={contrato?.horas_semanales ? `${contrato.horas_semanales}h` : '-'} />
-              <InfoRow icon={Calendar} label="Fecha Ingreso" value={contrato?.fecha_inicio ? new Date(contrato.fecha_inicio).toLocaleDateString('es-CL') : '-'} />
+              <InfoRow icon={Briefcase} label="Cargo" value={worker.cargo || contrato?.cargo || '-'} />
+              <InfoRow icon={DollarSign} label="Sueldo Base" value={formatCLP(contrato?.sueldo_base || 0)} />
+              <InfoRow icon={Clock} label="Horas/Sem" value={contrato?.horas_semanales ? `${contrato.horas_semanales}h` : '-'} />
+              <InfoRow icon={Calendar} label="Ingreso" value={contrato?.fecha_inicio ? new Date(contrato.fecha_inicio).toLocaleDateString('es-CL') : '-'} />
               <InfoRow icon={Palmtree} label="Antigüedad" value={contrato?.fecha_inicio ? calcAntiguedad(contrato.fecha_inicio) : '-'} />
-              <InfoRow icon={Shield} label="AFP" value={worker.afp_id ? `AFP ID ${worker.afp_id}` : 'No registrada'} />
-              <InfoRow icon={Shield} label="Salud" value={worker.salud_tipo === 'fonasa' ? 'FONASA' : worker.salud_tipo || 'No registrada'} />
+              <InfoRow icon={Shield} label="Salud" value={worker.salud_tipo === 'fonasa' ? 'FONASA' : worker.salud_tipo || '-'} />
             </div>
           </div>
         )}
 
-        {/* ── CONTRATO ── */}
+        {/* CONTRATO */}
         {activeTab === 'contrato' && contrato && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-semibold text-zinc-900">Contrato #{contrato.numero_contrato}</h3>
-              <button
-                onClick={() => window.print()}
-                className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition"
-              >
-                <Printer className="w-4 h-4" /> Imprimir
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => openPrintWindow(generateContractHTML(worker, contrato, empleador))}
+                  className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition">
+                  <Printer className="w-4 h-4" /> Imprimir
+                </button>
+                <button onClick={() => openPrintWindow(generateContractHTML(worker, contrato, empleador))}
+                  className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700 transition">
+                  <Download className="w-4 h-4" /> Descargar
+                </button>
+              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-              <ContractField label="Tipo Contrato" value={contrato.tipo_contrato === 'indefinido' ? 'Indefinido' : contrato.tipo_contrato} />
-              <ContractField label="Jornada" value={`${contrato.tipo_jornada} (${contrato.horas_semanales}h/sem)`} />
-              <ContractField label="Sueldo Base" value={formatCLP(contrato.sueldo_base)} />
-              <ContractField label="Fecha Inicio" value={new Date(contrato.fecha_inicio).toLocaleDateString('es-CL')} />
-              <ContractField label="Gratificación" value={contrato.tipo_gratificacion === 'art_50' ? 'Art. 50 (tope)' : 'Art. 47'} />
-              <ContractField label="Cargo" value={contrato.cargo || worker.cargo || '-'} />
-              <ContractField label="Vacaciones" value={`${contrato.dias_vacaciones_anuales || 15} días anuales`} />
-              <ContractField label="Estado" value={contrato.estado} />
+              <CField label="Tipo Contrato" value={contrato.tipo_contrato === 'indefinido' ? 'Indefinido' : contrato.tipo_contrato} />
+              <CField label="Jornada" value={`${contrato.tipo_jornada} (${contrato.horas_semanales}h/sem)`} />
+              <CField label="Sueldo Base" value={formatCLP(contrato.sueldo_base)} />
+              <CField label="Fecha Inicio" value={new Date(contrato.fecha_inicio).toLocaleDateString('es-CL')} />
+              <CField label="Gratificación" value={contrato.tipo_gratificacion === 'art_50' ? 'Art. 50 (tope)' : 'Art. 47'} />
+              <CField label="Cargo" value={contrato.cargo || worker.cargo || '-'} />
+              <CField label="Vacaciones" value={`${contrato.dias_vacaciones_anuales || 15} días anuales`} />
+              <CField label="Estado" value={contrato.estado} />
             </div>
           </div>
         )}
-        {activeTab === 'contrato' && !contrato && (
-          <p className="text-sm text-zinc-500 text-center py-8">No hay contrato activo registrado.</p>
-        )}
+        {activeTab === 'contrato' && !contrato && <p className="text-sm text-zinc-500 text-center py-8">Sin contrato activo.</p>}
 
-        {/* ── LIQUIDACIONES ── */}
+        {/* LIQUIDACIONES */}
         {activeTab === 'liquidaciones' && (
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-zinc-900 mb-4">Últimas Liquidaciones</h3>
-            {liquidaciones.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-8">No hay liquidaciones registradas.</p>
-            ) : (
-              liquidaciones.map((liq) => (
+            {liquidaciones.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin liquidaciones.</p> : (
+              liquidaciones.map(liq => (
                 <div key={liq.id} className="rounded-lg border border-zinc-200 overflow-hidden">
-                  <button
-                    onClick={() => setExpandedLiq(expandedLiq === liq.id ? null : liq.id)}
-                    className="w-full px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition"
-                  >
+                  <div className="px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition cursor-pointer" onClick={() => setExpandedLiq(expandedLiq === liq.id ? null : liq.id)}>
                     <div className="flex items-center gap-3">
                       <FileText className="w-4 h-4 text-zinc-400" />
                       <span className="text-sm font-medium text-zinc-900">{liq.periodo}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        liq.estado === 'pagada' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
-                      }`}>
-                        {liq.estado}
-                      </span>
+                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${liq.estado === 'pagada' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{liq.estado}</span>
                     </div>
-                    <span className="text-sm font-bold text-zinc-900">{formatCLP(liq.liquido_pagar)}</span>
-                  </button>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-bold text-zinc-900">{formatCLP(liq.liquido_pagar)}</span>
+                      <button onClick={(e) => { e.stopPropagation(); openPrintWindow(generateLiquidacionHTML(worker, liq, empleador)); }}
+                        className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition" title="Imprimir / Descargar">
+                        <Download className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                   {expandedLiq === liq.id && (
                     <div className="px-4 pb-4 border-t border-zinc-100 bg-zinc-50">
                       <div className="grid grid-cols-2 gap-x-8 gap-y-2 py-3 text-sm">
@@ -223,9 +323,6 @@ export default function EmpleadoDetallePage() {
                         <div className="flex justify-between"><span className="text-zinc-500">AFP</span><span>-{formatCLP(liq.afp_trabajador)}</span></div>
                         <div className="flex justify-between"><span className="text-zinc-500">Salud</span><span>-{formatCLP(liq.salud_trabajador)}</span></div>
                         <div className="flex justify-between"><span className="text-zinc-500">AFC</span><span>-{formatCLP(liq.afc_trabajador)}</span></div>
-                        {liq.asignacion_familiar > 0 && (
-                          <div className="flex justify-between"><span className="text-zinc-500">Asig. Familiar</span><span className="text-emerald-600">+{formatCLP(liq.asignacion_familiar)}</span></div>
-                        )}
                       </div>
                     </div>
                   )}
@@ -235,25 +332,29 @@ export default function EmpleadoDetallePage() {
           </div>
         )}
 
-        {/* ── ASISTENCIA ── */}
+        {/* ASISTENCIA */}
         {activeTab === 'asistencia' && (
           <div>
-            <h3 className="text-lg font-semibold text-zinc-900 mb-4">Registro de Asistencia</h3>
-            {marcajes.length === 0 ? (
-              <p className="text-sm text-zinc-500 text-center py-8">No hay marcajes registrados.</p>
-            ) : (
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-zinc-900">Registro de Asistencia</h3>
+              {marcajes.length > 0 && (
+                <button onClick={() => openPrintWindow(generateAsistenciaHTML(worker, marcajes, empleador))}
+                  className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700 transition">
+                  <Printer className="w-4 h-4" /> Certificado de Asistencia
+                </button>
+              )}
+            </div>
+            {marcajes.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin marcajes.</p> : (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-zinc-100 bg-zinc-50">
-                      <th className="px-4 py-2 text-left font-medium text-zinc-500">Fecha</th>
-                      <th className="px-4 py-2 text-left font-medium text-zinc-500">Entrada</th>
-                      <th className="px-4 py-2 text-left font-medium text-zinc-500">Salida</th>
-                      <th className="px-4 py-2 text-left font-medium text-zinc-500">Horas</th>
-                    </tr>
-                  </thead>
+                  <thead><tr className="border-b border-zinc-100 bg-zinc-50">
+                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Fecha</th>
+                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Entrada</th>
+                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Salida</th>
+                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Horas</th>
+                  </tr></thead>
                   <tbody className="divide-y divide-zinc-100">
-                    {marcajes.map((m) => (
+                    {marcajes.map(m => (
                       <tr key={m.id} className="hover:bg-zinc-50">
                         <td className="px-4 py-2">{new Date(m.fecha).toLocaleDateString('es-CL')}</td>
                         <td className="px-4 py-2">{m.hora_entrada || '-'}</td>
@@ -276,13 +377,13 @@ function InfoRow({ icon: Icon, label, value }: { icon: any; label: string; value
   return (
     <div className="flex items-center gap-3 text-sm">
       <Icon className="w-4 h-4 text-zinc-400 shrink-0" />
-      <span className="text-zinc-500 w-28 shrink-0">{label}</span>
+      <span className="text-zinc-500 w-24 shrink-0">{label}</span>
       <span className="text-zinc-900">{value}</span>
     </div>
   );
 }
 
-function ContractField({ label, value }: { label: string; value: string }) {
+function CField({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-lg bg-zinc-50 p-3">
       <p className="text-xs text-zinc-500 mb-1">{label}</p>
