@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { getTareasHoy, updateTareaEstado, createTarea } from '@/lib/supabase/employer-queries';
+import { createClient } from '@/lib/supabase/client';
 
 type TaskStatus = 'completada' | 'en_progreso' | 'pendiente';
 type FilterTab = 'all' | 'pendiente' | 'en_progreso' | 'completada';
@@ -17,6 +18,9 @@ interface Task {
   hora_inicio?: string;
   hora_fin?: string;
   estado: string;
+  aprobada_por_empleador?: boolean;
+  calificacion?: number;
+  nota_calificacion?: string;
   trabajadores?: { nombre: string; apellido_paterno: string } | null;
 }
 
@@ -92,10 +96,30 @@ export default function TareasPage() {
   const enProgreso = tasks.filter((t) => t.estado === 'en_progreso').length;
   const pendientes = tasks.filter((t) => t.estado === 'pendiente').length;
 
+  const [ratingTask, setRatingTask] = useState<string | null>(null);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingNota, setRatingNota] = useState('');
+
   async function toggleTask(id: string, currentEstado: string) {
     const nuevoEstado = currentEstado === 'completada' ? 'pendiente' : 'completada';
     setTasks((prev) => prev.map((t) => t.id === id ? { ...t, estado: nuevoEstado } : t));
     await updateTareaEstado(id, nuevoEstado);
+  }
+
+  async function aprobarTarea(id: string) {
+    const supabase = createClient();
+    await supabase.from('tareas').update({ aprobada_por_empleador: true, fecha_aprobacion: new Date().toISOString() }).eq('id', id);
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, aprobada_por_empleador: true } : t));
+    setRatingTask(id);
+  }
+
+  async function calificarTarea(id: string) {
+    const supabase = createClient();
+    await supabase.from('tareas').update({ calificacion: ratingValue, nota_calificacion: ratingNota || null }).eq('id', id);
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, calificacion: ratingValue, nota_calificacion: ratingNota } : t));
+    setRatingTask(null);
+    setRatingValue(5);
+    setRatingNota('');
   }
 
   async function handleCreateTarea(e: React.FormEvent) {
@@ -234,8 +258,8 @@ export default function TareasPage() {
             const timeRange = [task.hora_inicio, task.hora_fin].filter(Boolean).join(' - ');
 
             return (
+              <div key={task.id}>
               <div
-                key={task.id}
                 className={`rounded-xl border border-zinc-200 bg-white px-5 py-4 border-l-4 ${priorityBorderColor[task.prioridad || 'media']} flex items-start gap-4 transition-colors ${
                   task.estado === 'completada' ? 'opacity-75' : ''
                 }`}
@@ -279,6 +303,42 @@ export default function TareasPage() {
                     En Progreso
                   </span>
                 )}
+                {task.estado === 'completada' && !task.aprobada_por_empleador && (
+                  <button onClick={(e) => { e.stopPropagation(); aprobarTarea(task.id); }}
+                    className="rounded-lg bg-emerald-600 text-white px-3 py-1 text-xs font-medium hover:bg-emerald-700 transition whitespace-nowrap">
+                    Aprobar
+                  </button>
+                )}
+                {task.aprobada_por_empleador && !task.calificacion && (
+                  <button onClick={(e) => { e.stopPropagation(); setRatingTask(task.id); }}
+                    className="rounded-lg bg-amber-100 text-amber-700 px-3 py-1 text-xs font-medium hover:bg-amber-200 transition whitespace-nowrap">
+                    Calificar
+                  </button>
+                )}
+                {task.aprobada_por_empleador && task.calificacion && (
+                  <span className="flex items-center gap-1 text-xs text-amber-600">
+                    {'★'.repeat(task.calificacion)}{'☆'.repeat(5 - task.calificacion)}
+                  </span>
+                )}
+              </div>
+              {/* Rating modal inline */}
+              {ratingTask === task.id && (
+                <div className="mx-7 mb-3 p-3 rounded-lg bg-zinc-50 border border-zinc-200">
+                  <p className="text-xs font-medium text-zinc-700 mb-2">Calificar tarea (solo visible para el administrador de Poppins)</p>
+                  <div className="flex gap-1 mb-2">
+                    {[1,2,3,4,5].map(v => (
+                      <button key={v} onClick={() => setRatingValue(v)}
+                        className={`text-lg ${v <= ratingValue ? 'text-amber-500' : 'text-zinc-300'}`}>★</button>
+                    ))}
+                  </div>
+                  <input value={ratingNota} onChange={e => setRatingNota(e.target.value)} placeholder="Nota privada (opcional)"
+                    className="w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-xs mb-2" />
+                  <div className="flex gap-2">
+                    <button onClick={() => calificarTarea(task.id)} className="rounded-lg bg-zinc-900 text-white px-3 py-1 text-xs font-medium">Guardar</button>
+                    <button onClick={() => setRatingTask(null)} className="text-xs text-zinc-500">Cancelar</button>
+                  </div>
+                </div>
+              )}
               </div>
             );
           })}

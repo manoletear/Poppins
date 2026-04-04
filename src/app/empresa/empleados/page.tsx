@@ -94,6 +94,35 @@ export default function EmpleadosPage() {
   }
 
   const activos = empleados.filter((e) => e.estado !== 'inactivo');
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newEmp, setNewEmp] = useState({ nombre: '', apellido_paterno: '', rut: '', email: '', cargo: 'asesora_hogar', sueldo_base: '', tipo_jornada: 'completa' });
+  const [savingEmp, setSavingEmp] = useState(false);
+
+  const handleAddEmpleado = async () => {
+    if (!empleadorId || !newEmp.nombre || !newEmp.apellido_paterno || !newEmp.rut) return;
+    setSavingEmp(true);
+    const supabase = createClient();
+    const { data: trab } = await supabase.from('trabajadores').insert({
+      nombre: newEmp.nombre, apellido_paterno: newEmp.apellido_paterno,
+      rut: newEmp.rut, email: newEmp.email || null, cargo: newEmp.cargo, estado: 'activo',
+    }).select().single();
+    if (trab) {
+      const horasMap: Record<string, number> = { completa: 45, parcial: 30, art22: 45 };
+      await supabase.from('contratos').insert({
+        trabajador_id: trab.id, empleador_id: empleadorId,
+        numero_contrato: `PA-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+        sueldo_base: Number(newEmp.sueldo_base) || 500000,
+        tipo_contrato: 'indefinido', tipo_jornada: newEmp.tipo_jornada,
+        horas_semanales: horasMap[newEmp.tipo_jornada] || 45,
+        fecha_inicio: new Date().toISOString().split('T')[0],
+        cargo: newEmp.cargo, estado: 'activo',
+      });
+    }
+    setNewEmp({ nombre: '', apellido_paterno: '', rut: '', email: '', cargo: 'asesora_hogar', sueldo_base: '', tipo_jornada: 'completa' });
+    setShowAddForm(false);
+    setSavingEmp(false);
+    loadEmpleados();
+  };
 
   return (
     <div className="space-y-6">
@@ -103,11 +132,53 @@ export default function EmpleadosPage() {
           <h1 className="text-2xl font-bold text-zinc-900">Mis Colaboradores</h1>
           <p className="text-sm text-zinc-500 mt-1">{activos.length} empleado{activos.length !== 1 ? 's' : ''} activo{activos.length !== 1 ? 's' : ''}</p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 transition-colors">
+        <button onClick={() => setShowAddForm(!showAddForm)} className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 transition-colors">
           <Plus className="h-4 w-4" />
           Agregar Empleado
         </button>
       </div>
+
+      {/* Add employee form */}
+      {showAddForm && (
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-3">
+          <h3 className="text-sm font-semibold text-zinc-900">Nuevo Empleado</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input placeholder="Nombre *" value={newEmp.nombre} onChange={e => setNewEmp(p => ({ ...p, nombre: e.target.value }))}
+              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+            <input placeholder="Apellido Paterno *" value={newEmp.apellido_paterno} onChange={e => setNewEmp(p => ({ ...p, apellido_paterno: e.target.value }))}
+              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+            <input placeholder="RUT (12345678-9) *" value={newEmp.rut} onChange={e => setNewEmp(p => ({ ...p, rut: e.target.value }))}
+              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+            <input placeholder="Email (para invitar al portal)" type="email" value={newEmp.email} onChange={e => setNewEmp(p => ({ ...p, email: e.target.value }))}
+              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+            <select value={newEmp.cargo} onChange={e => setNewEmp(p => ({ ...p, cargo: e.target.value }))}
+              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+              <option value="asesora_hogar">Asesora del Hogar</option>
+              <option value="jardinero">Jardinero</option>
+              <option value="piscinero">Piscinero</option>
+              <option value="nana">Nana</option>
+              <option value="cocinera">Cocinera</option>
+              <option value="chofer">Chofer</option>
+              <option value="otro">Otro</option>
+            </select>
+            <input placeholder="Sueldo Base (CLP)" type="number" value={newEmp.sueldo_base} onChange={e => setNewEmp(p => ({ ...p, sueldo_base: e.target.value }))}
+              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+            <select value={newEmp.tipo_jornada} onChange={e => setNewEmp(p => ({ ...p, tipo_jornada: e.target.value }))}
+              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+              <option value="completa">Jornada Completa (45h)</option>
+              <option value="parcial">Jornada Parcial</option>
+              <option value="art22">Art. 22</option>
+            </select>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-sm text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50">Cancelar</button>
+            <button onClick={handleAddEmpleado} disabled={savingEmp || !newEmp.nombre || !newEmp.rut}
+              className="px-4 py-2 text-sm bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-50">
+              {savingEmp ? 'Guardando...' : 'Guardar Empleado'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {empleados.length === 0 ? (
         <div className="rounded-xl border border-zinc-200 bg-white p-8 text-center">
