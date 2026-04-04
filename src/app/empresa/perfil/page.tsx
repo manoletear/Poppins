@@ -20,6 +20,8 @@ import {
   Loader2,
   AlertCircle,
   Save,
+  Trash2,
+  Camera,
 } from 'lucide-react';
 
 const tabs = ['Familia', 'Mascotas', 'Preferencias'] as const;
@@ -518,6 +520,16 @@ function InfoField({
   );
 }
 
+// --- Photo upload helper ---
+async function uploadFamilyPhoto(bucket: string, folder: string, id: string, file: File): Promise<string> {
+  const supabase = createClient();
+  const ext = file.name.split('.').pop();
+  const path = `${folder}/${id}.${ext}`;
+  await supabase.storage.from(bucket).upload(path, file, { upsert: true });
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl + '?t=' + Date.now();
+}
+
 // --- Edit Familiar Modal ---
 function EditFamiliarModal({
   open,
@@ -528,7 +540,7 @@ function EditFamiliarModal({
 }: {
   open: boolean;
   onClose: () => void;
-  familiar: Familiar | null;
+  familiar: (Familiar & { foto_url?: string }) | null;
   tipo: string;
   onSaved: () => void;
 }) {
@@ -536,226 +548,262 @@ function EditFamiliarModal({
   const empleadorId = profile?.empleador_id || '';
   const isNew = !familiar;
   const [form, setForm] = useState({
-    nombre: '',
-    apellido: '',
-    fecha_nacimiento: '',
-    alergias: '',
-    condiciones_medicas: '',
-    telefono: '',
-    email: '',
-    notas: '',
+    nombre: '', apellido: '', fecha_nacimiento: '', alergias: '',
+    condiciones_medicas: '', telefono: '', email: '', notas: '',
   });
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (open) {
-      if (familiar) {
-        setForm({
-          nombre: familiar.nombre || '',
-          apellido: familiar.apellido || '',
-          fecha_nacimiento: familiar.fecha_nacimiento || '',
-          alergias: familiar.alergias || '',
-          condiciones_medicas: familiar.condiciones_medicas || '',
-          telefono: familiar.telefono || '',
-          email: familiar.email || '',
-          notas: familiar.notas || '',
-        });
-      } else {
-        setForm({
-          nombre: '',
-          apellido: '',
-          fecha_nacimiento: '',
-          alergias: '',
-          condiciones_medicas: '',
-          telefono: '',
-          email: '',
-          notas: '',
-        });
-      }
+      setConfirmDelete(false);
+      setFotoFile(null);
+      setFotoPreview(familiar?.foto_url || null);
+      setForm(familiar ? {
+        nombre: familiar.nombre || '', apellido: familiar.apellido || '',
+        fecha_nacimiento: familiar.fecha_nacimiento || '', alergias: familiar.alergias || '',
+        condiciones_medicas: familiar.condiciones_medicas || '', telefono: familiar.telefono || '',
+        email: familiar.email || '', notas: familiar.notas || '',
+      } : { nombre: '', apellido: '', fecha_nacimiento: '', alergias: '', condiciones_medicas: '', telefono: '', email: '', notas: '' });
     }
   }, [open, familiar]);
 
   const handleSave = async () => {
     setSaving(true);
     const supabase = createClient();
+    let foto_url = familiar?.foto_url || null;
+
     if (isNew) {
-      await supabase.from('familiares_empleador').insert({
-        empleador_id: empleadorId,
-        tipo,
-        ...form,
-      });
+      const { data } = await supabase.from('familiares_empleador').insert({ empleador_id: empleadorId, tipo, ...form }).select().single();
+      if (data && fotoFile) {
+        foto_url = await uploadFamilyPhoto('avatars', 'familiares', data.id, fotoFile);
+        await supabase.from('familiares_empleador').update({ foto_url }).eq('id', data.id);
+      }
     } else {
-      await supabase
-        .from('familiares_empleador')
-        .update(form)
-        .eq('id', familiar!.id);
+      if (fotoFile) {
+        foto_url = await uploadFamilyPhoto('avatars', 'familiares', familiar!.id, fotoFile);
+      }
+      await supabase.from('familiares_empleador').update({ ...form, foto_url }).eq('id', familiar!.id);
     }
     setSaving(false);
     onSaved();
     onClose();
   };
 
-  const set = (field: string) => (v: string) => setForm((prev) => ({ ...prev, [field]: v }));
+  const handleDelete = async () => {
+    const supabase = createClient();
+    await supabase.from('familiares_empleador').delete().eq('id', familiar!.id);
+    onSaved();
+    onClose();
+  };
 
-  const title = isNew
-    ? tipo === 'hijo' ? 'Agregar Hijo' : 'Agregar Cónyuge'
-    : tipo === 'hijo' ? 'Editar Hijo' : 'Editar Cónyuge';
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) { setFotoFile(file); setFotoPreview(URL.createObjectURL(file)); }
+  };
+
+  const set = (field: string) => (v: string) => setForm((prev) => ({ ...prev, [field]: v }));
+  const title = isNew ? (tipo === 'hijo' ? 'Agregar Hijo' : tipo === 'otro' ? 'Agregar Familiar' : 'Agregar Cónyuge') : (tipo === 'hijo' ? 'Editar Hijo' : tipo === 'otro' ? 'Editar Familiar' : 'Editar Cónyuge');
 
   return (
     <Modal open={open} onClose={onClose} title={title}>
-      <div className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Nombre" value={form.nombre} onChange={set('nombre')} />
-          <FormField label="Apellido" value={form.apellido} onChange={set('apellido')} />
+      {confirmDelete ? (
+        <div className="text-center py-4">
+          <p className="text-sm text-zinc-700 mb-4">¿Eliminar a <strong>{familiar?.nombre}</strong>? Esta acción no se puede deshacer.</p>
+          <div className="flex justify-center gap-3">
+            <button onClick={() => setConfirmDelete(false)} className="rounded-lg border px-4 py-2 text-sm">Cancelar</button>
+            <button onClick={handleDelete} className="rounded-lg bg-red-600 text-white px-4 py-2 text-sm">Eliminar</button>
+          </div>
         </div>
-        <FormField label="Fecha Nacimiento" value={form.fecha_nacimiento} onChange={set('fecha_nacimiento')} type="date" />
-        <FormField label="Alergias" value={form.alergias} onChange={set('alergias')} placeholder="Ninguna" />
-        <FormField label="Condiciones Médicas" value={form.condiciones_medicas} onChange={set('condiciones_medicas')} placeholder="Ninguna" />
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Teléfono" value={form.telefono} onChange={set('telefono')} />
-          <FormField label="Email" value={form.email} onChange={set('email')} type="email" />
-        </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-500">Notas</label>
-          <textarea
-            value={form.notas}
-            onChange={(e) => setForm((prev) => ({ ...prev, notas: e.target.value }))}
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            rows={2}
-          />
-        </div>
-      </div>
-      <div className="mt-5 flex justify-end gap-2">
-        <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
-          Cancelar
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          Guardar
-        </button>
-      </div>
+      ) : (
+        <>
+          {/* Photo */}
+          <div className="flex justify-center mb-4">
+            <label className="relative cursor-pointer group">
+              {fotoPreview ? (
+                <img src={fotoPreview} alt="" className="h-20 w-20 rounded-full object-cover border-2 border-zinc-200" />
+              ) : (
+                <div className="h-20 w-20 rounded-full bg-zinc-100 flex items-center justify-center"><Camera className="h-6 w-6 text-zinc-400" /></div>
+              )}
+              <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                <Camera className="h-5 w-5 text-white" />
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            </label>
+          </div>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Nombre" value={form.nombre} onChange={set('nombre')} />
+              <FormField label="Apellido" value={form.apellido} onChange={set('apellido')} />
+            </div>
+            <FormField label="Fecha Nacimiento" value={form.fecha_nacimiento} onChange={set('fecha_nacimiento')} type="date" />
+            <FormField label="Alergias" value={form.alergias} onChange={set('alergias')} placeholder="Ninguna" />
+            <FormField label="Condiciones Médicas" value={form.condiciones_medicas} onChange={set('condiciones_medicas')} placeholder="Ninguna" />
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Teléfono" value={form.telefono} onChange={set('telefono')} />
+              <FormField label="Email" value={form.email} onChange={set('email')} type="email" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">Notas</label>
+              <textarea value={form.notas} onChange={(e) => setForm((prev) => ({ ...prev, notas: e.target.value }))}
+                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400" rows={2} />
+            </div>
+          </div>
+          <div className="mt-5 flex justify-between">
+            {!isNew ? (
+              <button onClick={() => setConfirmDelete(true)} className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700">
+                <Trash2 className="h-4 w-4" /> Eliminar
+              </button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </Modal>
   );
 }
 
 // --- Edit Mascota Modal ---
+const TIPOS_MASCOTA = [
+  { value: 'perro', label: 'Perro' },
+  { value: 'gato', label: 'Gato' },
+  { value: 'ave', label: 'Ave' },
+  { value: 'pez', label: 'Pez' },
+  { value: 'otro', label: 'Otro' },
+];
+
 function EditMascotaModal({
-  open,
-  onClose,
-  mascota,
-  onSaved,
+  open, onClose, mascota, onSaved,
 }: {
-  open: boolean;
-  onClose: () => void;
-  mascota: Mascota | null;
-  onSaved: () => void;
+  open: boolean; onClose: () => void; mascota: (Mascota & { foto_url?: string }) | null; onSaved: () => void;
 }) {
   const { profile } = useAuth();
   const empleadorId = profile?.empleador_id || '';
   const isNew = !mascota;
-  const [form, setForm] = useState({
-    nombre: '',
-    tipo: '',
-    raza: '',
-    edad: 0,
-    instrucciones_cuidado: '',
-    veterinario_nombre: '',
-    veterinario_telefono: '',
-  });
+  const [form, setForm] = useState({ nombre: '', tipo: 'perro', raza: '', edad: 0, instrucciones_cuidado: '', veterinario_nombre: '', veterinario_telefono: '' });
+  const [fotoFile, setFotoFile] = useState<File | null>(null);
+  const [fotoPreview, setFotoPreview] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (open) {
-      if (mascota) {
-        setForm({
-          nombre: mascota.nombre || '',
-          tipo: mascota.tipo || '',
-          raza: mascota.raza || '',
-          edad: mascota.edad || 0,
-          instrucciones_cuidado: mascota.instrucciones_cuidado || '',
-          veterinario_nombre: mascota.veterinario_nombre || '',
-          veterinario_telefono: mascota.veterinario_telefono || '',
-        });
-      } else {
-        setForm({
-          nombre: '',
-          tipo: '',
-          raza: '',
-          edad: 0,
-          instrucciones_cuidado: '',
-          veterinario_nombre: '',
-          veterinario_telefono: '',
-        });
-      }
+      setConfirmDelete(false);
+      setFotoFile(null);
+      setFotoPreview(mascota?.foto_url || null);
+      setForm(mascota ? {
+        nombre: mascota.nombre || '', tipo: mascota.tipo || 'perro', raza: mascota.raza || '',
+        edad: mascota.edad || 0, instrucciones_cuidado: mascota.instrucciones_cuidado || '',
+        veterinario_nombre: mascota.veterinario_nombre || '', veterinario_telefono: mascota.veterinario_telefono || '',
+      } : { nombre: '', tipo: 'perro', raza: '', edad: 0, instrucciones_cuidado: '', veterinario_nombre: '', veterinario_telefono: '' });
     }
   }, [open, mascota]);
 
   const handleSave = async () => {
+    if (!form.nombre || !form.tipo) return;
     setSaving(true);
     const supabase = createClient();
+    let foto_url = mascota?.foto_url || null;
+
     if (isNew) {
-      await supabase.from('mascotas_empleador').insert({
-        empleador_id: empleadorId,
-        ...form,
-      });
+      const { data } = await supabase.from('mascotas_empleador').insert({ empleador_id: empleadorId, ...form }).select().single();
+      if (data && fotoFile) {
+        foto_url = await uploadFamilyPhoto('avatars', 'mascotas', data.id, fotoFile);
+        await supabase.from('mascotas_empleador').update({ foto_url }).eq('id', data.id);
+      }
     } else {
-      await supabase
-        .from('mascotas_empleador')
-        .update(form)
-        .eq('id', mascota!.id);
+      if (fotoFile) foto_url = await uploadFamilyPhoto('avatars', 'mascotas', mascota!.id, fotoFile);
+      await supabase.from('mascotas_empleador').update({ ...form, foto_url }).eq('id', mascota!.id);
     }
     setSaving(false);
     onSaved();
     onClose();
+  };
+
+  const handleDelete = async () => {
+    const supabase = createClient();
+    await supabase.from('mascotas_empleador').delete().eq('id', mascota!.id);
+    onSaved();
+    onClose();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) { setFotoFile(file); setFotoPreview(URL.createObjectURL(file)); }
   };
 
   const set = (field: string) => (v: string) => setForm((prev) => ({ ...prev, [field]: v }));
 
   return (
     <Modal open={open} onClose={onClose} title={isNew ? 'Agregar Mascota' : 'Editar Mascota'}>
-      <div className="space-y-3">
-        <FormField label="Nombre" value={form.nombre} onChange={set('nombre')} />
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Tipo" value={form.tipo} onChange={set('tipo')} placeholder="Perro, Gato..." />
-          <FormField label="Raza" value={form.raza} onChange={set('raza')} />
+      {confirmDelete ? (
+        <div className="text-center py-4">
+          <p className="text-sm text-zinc-700 mb-4">¿Eliminar a <strong>{mascota?.nombre}</strong>?</p>
+          <div className="flex justify-center gap-3">
+            <button onClick={() => setConfirmDelete(false)} className="rounded-lg border px-4 py-2 text-sm">Cancelar</button>
+            <button onClick={handleDelete} className="rounded-lg bg-red-600 text-white px-4 py-2 text-sm">Eliminar</button>
+          </div>
         </div>
-        <FormField
-          label="Edad (años)"
-          value={String(form.edad)}
-          onChange={(v) => setForm((prev) => ({ ...prev, edad: parseInt(v) || 0 }))}
-          type="number"
-        />
-        <div>
-          <label className="mb-1 block text-xs font-medium text-zinc-500">Instrucciones de Cuidado</label>
-          <textarea
-            value={form.instrucciones_cuidado}
-            onChange={(e) => setForm((prev) => ({ ...prev, instrucciones_cuidado: e.target.value }))}
-            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
-            rows={3}
-          />
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Veterinario" value={form.veterinario_nombre} onChange={set('veterinario_nombre')} />
-          <FormField label="Tel. Veterinario" value={form.veterinario_telefono} onChange={set('veterinario_telefono')} />
-        </div>
-      </div>
-      <div className="mt-5 flex justify-end gap-2">
-        <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
-          Cancelar
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-          Guardar
-        </button>
-      </div>
+      ) : (
+        <>
+          <div className="flex justify-center mb-4">
+            <label className="relative cursor-pointer group">
+              {fotoPreview ? (
+                <img src={fotoPreview} alt="" className="h-20 w-20 rounded-full object-cover border-2 border-zinc-200" />
+              ) : (
+                <div className="h-20 w-20 rounded-full bg-zinc-100 flex items-center justify-center"><Camera className="h-6 w-6 text-zinc-400" /></div>
+              )}
+              <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                <Camera className="h-5 w-5 text-white" />
+              </div>
+              <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+            </label>
+          </div>
+          <div className="space-y-3">
+            <FormField label="Nombre" value={form.nombre} onChange={set('nombre')} />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-zinc-500">Tipo</label>
+                <select value={form.tipo} onChange={e => setForm(prev => ({ ...prev, tipo: e.target.value }))}
+                  className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white">
+                  {TIPOS_MASCOTA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                </select>
+              </div>
+              <FormField label="Raza" value={form.raza} onChange={set('raza')} />
+            </div>
+            <FormField label="Edad (años)" value={String(form.edad)} onChange={(v) => setForm((prev) => ({ ...prev, edad: parseInt(v) || 0 }))} type="number" />
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-500">Instrucciones de Cuidado</label>
+              <textarea value={form.instrucciones_cuidado} onChange={(e) => setForm((prev) => ({ ...prev, instrucciones_cuidado: e.target.value }))}
+                className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400" rows={3} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <FormField label="Veterinario" value={form.veterinario_nombre} onChange={set('veterinario_nombre')} />
+              <FormField label="Tel. Veterinario" value={form.veterinario_telefono} onChange={set('veterinario_telefono')} />
+            </div>
+          </div>
+          <div className="mt-5 flex justify-between">
+            {!isNew ? (
+              <button onClick={() => setConfirmDelete(true)} className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700">
+                <Trash2 className="h-4 w-4" /> Eliminar
+              </button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancelar</button>
+              <button onClick={handleSave} disabled={saving} className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                {saving && <Loader2 className="h-4 w-4 animate-spin" />} Guardar
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </Modal>
   );
 }
@@ -796,9 +844,13 @@ function FamiliaTab({
         {conyuge ? (
           <div className="rounded-xl border border-zinc-200 bg-white p-5">
             <div className="flex items-start gap-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50">
-                <Heart className="h-5 w-5 text-rose-500" />
-              </div>
+              {(conyuge as any).foto_url ? (
+                <img src={(conyuge as any).foto_url} alt="" className="h-10 w-10 rounded-full object-cover shrink-0" />
+              ) : (
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-50">
+                  <Heart className="h-5 w-5 text-rose-500" />
+                </div>
+              )}
               <div className="flex-1">
                 <h4 className="font-bold text-zinc-900">
                   {conyuge.nombre} {conyuge.apellido}
@@ -829,7 +881,9 @@ function FamiliaTab({
             </div>
           </div>
         ) : (
-          <p className="text-sm text-zinc-400 italic">Sin cónyuge registrado.</p>
+          <button onClick={() => openEdit(null, 'conyuge')} className="flex items-center gap-2 text-sm text-violet-600 hover:underline">
+            <Plus className="h-4 w-4" /> Agregar cónyuge
+          </button>
         )}
       </div>
 
