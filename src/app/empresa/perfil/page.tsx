@@ -38,8 +38,12 @@ interface Empleador {
   comuna: string;
   ciudad: string;
   plan: string;
+  plan_tipo: string;
   max_cuentas: number;
+  foto_url: string | null;
 }
+
+interface RegionData { region: string; ciudad: string; comuna: string; }
 
 interface Familiar {
   id: string;
@@ -273,15 +277,36 @@ export default function PerfilEmpleadorPage() {
         <div className="w-full lg:w-80 shrink-0">
           <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 pt-8 pb-6 flex flex-col items-center text-center">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-2xl font-bold text-white mb-3">
-                {initials}
+              <div className="relative group">
+                {empleador.foto_url ? (
+                  <img src={empleador.foto_url} alt="Foto" className="h-20 w-20 rounded-full object-cover border-2 border-white shadow" />
+                ) : (
+                  <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-2xl font-bold text-white">
+                    {initials}
+                  </div>
+                )}
+                <label className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40 opacity-0 group-hover:opacity-100 cursor-pointer transition">
+                  <Pencil className="h-5 w-5 text-white" />
+                  <input type="file" accept="image/*" className="hidden" onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const supabase = createClient();
+                    const ext = file.name.split('.').pop();
+                    const path = `${empleador.id}/avatar.${ext}`;
+                    await supabase.storage.from('avatars').upload(path, file, { upsert: true });
+                    const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(path);
+                    const foto_url = urlData.publicUrl + '?t=' + Date.now();
+                    await supabase.from('empleadores').update({ foto_url }).eq('id', empleador.id);
+                    fetchData();
+                  }} />
+                </label>
               </div>
-              <h2 className="text-base font-bold text-zinc-900">
+              <h2 className="text-base font-bold text-zinc-900 mt-3">
                 {empleador.nombre} {empleador.apellido}
               </h2>
               <p className="text-sm text-zinc-500">Empleador</p>
               <span className="mt-2 rounded-full bg-blue-100 px-3 py-0.5 text-xs font-semibold text-blue-700">
-                Plan {empleador.plan}
+                Plan {empleador.plan_tipo || empleador.plan || 'starter'}
               </span>
             </div>
             <div className="px-5 py-4 space-y-3">
@@ -341,7 +366,7 @@ export default function PerfilEmpleadorPage() {
   );
 }
 
-// --- Edit Profile Modal ---
+// --- Edit Profile Modal with hierarchical region/city/comuna ---
 function EditPerfilModal({
   open,
   onClose,
@@ -361,10 +386,12 @@ function EditPerfilModal({
     telefono: empleador.telefono,
     fecha_nacimiento: empleador.fecha_nacimiento || '',
     direccion: empleador.direccion || '',
-    comuna: empleador.comuna || '',
+    region: '' as string,
     ciudad: empleador.ciudad || '',
+    comuna: empleador.comuna || '',
   });
   const [saving, setSaving] = useState(false);
+  const [regData, setRegData] = useState<RegionData[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -376,27 +403,46 @@ function EditPerfilModal({
         telefono: empleador.telefono,
         fecha_nacimiento: empleador.fecha_nacimiento || '',
         direccion: empleador.direccion || '',
-        comuna: empleador.comuna || '',
+        region: '',
         ciudad: empleador.ciudad || '',
+        comuna: empleador.comuna || '',
+      });
+      // Load regions data
+      const supabase = createClient();
+      supabase.from('regiones_chile').select('*').order('region').order('ciudad').order('comuna').then(({ data }: { data: any }) => {
+        const rows = (data || []) as RegionData[];
+        setRegData(rows);
+        // Auto-detect region from current city/comuna
+        const match = rows.find(r => r.comuna === empleador.comuna || r.ciudad === empleador.ciudad);
+        if (match) {
+          setForm(prev => ({ ...prev, region: match.region, ciudad: match.ciudad, comuna: match.comuna }));
+        }
       });
     }
   }, [open, empleador]);
 
+  const regiones = [...new Set(regData.map(r => r.region))];
+  const ciudades = [...new Set(regData.filter(r => r.region === form.region).map(r => r.ciudad))];
+  const comunas = regData.filter(r => r.region === form.region && r.ciudad === form.ciudad).map(r => r.comuna);
+
   const handleSave = async () => {
     setSaving(true);
     const supabase = createClient();
-    const { error } = await supabase
-      .from('empleadores')
-      .update(form)
-      .eq('id', empleador.id);
+    const { region: _, ...updateData } = form;
+    await supabase.from('empleadores').update(updateData).eq('id', empleador.id);
     setSaving(false);
-    if (!error) {
-      onSaved();
-      onClose();
-    }
+    onSaved();
+    onClose();
   };
 
-  const set = (field: string) => (v: string) => setForm((prev) => ({ ...prev, [field]: v }));
+  const set = (field: string) => (v: string) => {
+    setForm(prev => {
+      const next = { ...prev, [field]: v };
+      if (field === 'region') { next.ciudad = ''; next.comuna = ''; }
+      if (field === 'ciudad') { next.comuna = ''; }
+      return next;
+    });
+  };
 
   return (
     <Modal open={open} onClose={onClose} title="Editar Perfil">
@@ -410,23 +456,39 @@ function EditPerfilModal({
         <FormField label="Teléfono" value={form.telefono} onChange={set('telefono')} />
         <FormField label="Fecha Nacimiento" value={form.fecha_nacimiento} onChange={set('fecha_nacimiento')} type="date" />
         <FormField label="Dirección" value={form.direccion} onChange={set('direccion')} />
+
+        {/* Región → Ciudad → Comuna */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-zinc-500">Región</label>
+          <select value={form.region} onChange={e => set('region')(e.target.value)}
+            className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white">
+            <option value="">Seleccionar región...</option>
+            {regiones.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
         <div className="grid grid-cols-2 gap-3">
-          <FormField label="Comuna" value={form.comuna} onChange={set('comuna')} />
-          <FormField label="Ciudad" value={form.ciudad} onChange={set('ciudad')} />
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-500">Ciudad</label>
+            <select value={form.ciudad} onChange={e => set('ciudad')(e.target.value)} disabled={!form.region}
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white disabled:opacity-50">
+              <option value="">Seleccionar...</option>
+              {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-500">Comuna</label>
+            <select value={form.comuna} onChange={e => set('comuna')(e.target.value)} disabled={!form.ciudad}
+              className="w-full rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-900 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white disabled:opacity-50">
+              <option value="">Seleccionar...</option>
+              {comunas.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
       </div>
       <div className="mt-5 flex justify-end gap-2">
-        <button
-          onClick={onClose}
-          className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
+        <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancelar</button>
+        <button onClick={handleSave} disabled={saving}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
           {saving && <Loader2 className="h-4 w-4 animate-spin" />}
           Guardar
         </button>
