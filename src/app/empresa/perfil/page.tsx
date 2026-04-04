@@ -175,12 +175,13 @@ export default function PerfilEmpleadorPage() {
   const [editPerfilOpen, setEditPerfilOpen] = useState(false);
 
   const fetchData = useCallback(async () => {
+    if (!empleadorId) return;
     setLoading(true);
     setError(null);
     try {
       const supabase = createClient();
       const [empRes, famRes, mascRes, prefRes, cuentasRes] = await Promise.all([
-        supabase.from('empleadores').select('*').eq('id', empleadorId).single(),
+        supabase.from('empleadores').select('*').eq('id', empleadorId).maybeSingle(),
         supabase.from('familiares_empleador').select('*').eq('empleador_id', empleadorId),
         supabase.from('mascotas_empleador').select('*').eq('empleador_id', empleadorId),
         supabase.from('preferencias_trabajo').select('*').eq('empleador_id', empleadorId).maybeSingle(),
@@ -188,6 +189,7 @@ export default function PerfilEmpleadorPage() {
       ]);
 
       if (empRes.error) throw new Error('Error cargando perfil: ' + empRes.error.message);
+      if (!empRes.data) throw new Error('Perfil de empleador no encontrado');
       setEmpleador(empRes.data);
 
       if (famRes.error) throw new Error('Error cargando familiares: ' + famRes.error.message);
