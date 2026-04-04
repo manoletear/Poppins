@@ -18,7 +18,7 @@ import {
 import { useEmployees, useAbsences } from '@/hooks/useBuk';
 import { useAuth } from '@/lib/auth/context';
 import { createClient } from '@/lib/supabase/client';
-import { getTareasHoy, updateTareaEstado, getComprasActivas, getNoticiasLegales } from '@/lib/supabase/employer-queries';
+import { getTareasHoy, updateTareaEstado, getComprasActivas, getNoticiasLegales, updateSolicitudEstado, toggleItemComprado, getSolicitudes } from '@/lib/supabase/employer-queries';
 
 /* ------------------------------------------------------------------ */
 /*  Mock data (employer-specific features not in BUK)                  */
@@ -202,6 +202,7 @@ export default function EmpresaDashboard() {
         sub: loadingEmployees ? 'Cargando...' : employeeCountLabel || 'Sin colaboradores',
         icon: Users,
         color: 'bg-emerald-500',
+        href: '/empresa/empleados',
       },
       {
         label: 'Solicitudes Pendientes',
@@ -209,6 +210,7 @@ export default function EmpresaDashboard() {
         sub: loadingAbsences ? 'Cargando...' : pendingAbsences.length > 0 ? 'Requieren tu atención' : 'Todo al día',
         icon: MessageSquare,
         color: 'bg-amber-500',
+        href: '/empresa/solicitudes',
       },
       {
         label: 'Tareas Hoy',
@@ -216,6 +218,7 @@ export default function EmpresaDashboard() {
         sub: `${taskStats.pct}% completado`,
         icon: CheckSquare,
         color: 'bg-blue-500',
+        href: '/empresa/tareas',
       },
       {
         label: 'Puntos Acumulados',
@@ -223,17 +226,22 @@ export default function EmpresaDashboard() {
         sub: puntosAcumulados === null ? 'Cargando...' : 'Puntos en pagos realizados',
         icon: CreditCard,
         color: 'bg-violet-500',
+        href: '/empresa/pagos',
       },
     ],
     [loadingEmployees, loadingAbsences, activeEmployees, pendingAbsences, employeeCountLabel, taskStats, puntosAcumulados]
   );
 
-  const toggleShoppingItem = (id: string) => {
+  const toggleShoppingItem = async (id: string) => {
+    const item = shoppingItems.find(i => i.id === id);
+    if (!item) return;
     setShoppingItems((prev) => prev.map((i) => (i.id === id ? { ...i, checked: !i.checked } : i)));
+    await toggleItemComprado(id, !item.checked);
   };
 
-  const handleSolicitud = (id: string | number, action: 'aprobada' | 'rechazada') => {
+  const handleSolicitud = async (id: string | number, action: 'aprobada' | 'rechazada') => {
     setResolvedSolicitudes((prev) => ({ ...prev, [String(id)]: action }));
+    await updateSolicitudEstado(String(id), action);
   };
 
   const checkedCount = shoppingItems.filter((i) => i.checked).length;
@@ -294,9 +302,10 @@ export default function EmpresaDashboard() {
         {kpis.map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <div
+            <Link
               key={kpi.label}
-              className="rounded-xl border border-zinc-200 bg-white p-5 flex items-start gap-4"
+              href={kpi.href}
+              className="rounded-xl border border-zinc-200 bg-white p-5 flex items-start gap-4 hover:shadow-md hover:border-zinc-300 transition-all"
             >
               <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${kpi.color} text-white`}>
                 <Icon className="h-5 w-5" />
@@ -306,7 +315,7 @@ export default function EmpresaDashboard() {
                 <p className="text-sm font-medium text-zinc-700">{kpi.label}</p>
                 <p className="text-xs text-zinc-400 mt-0.5">{kpi.sub}</p>
               </div>
-            </div>
+            </Link>
           );
         })}
       </div>

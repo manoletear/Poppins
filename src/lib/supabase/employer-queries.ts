@@ -84,6 +84,39 @@ export async function getComprasActivas(empleadorId: string) {
   return data || [];
 }
 
+export async function createListaCompras(empleadorId: string, nombre: string) {
+  const supabase = createClient();
+  const { data } = await supabase.from('listas_compras').insert({ empleador_id: empleadorId, nombre, estado: 'abierta' }).select().single();
+  return data;
+}
+
+export async function createItemLista(listaId: string, nombre: string, cantidad?: string, unidad?: string) {
+  const supabase = createClient();
+  const { data } = await supabase.from('items_lista_compras').insert({ lista_id: listaId, nombre, cantidad, unidad }).select().single();
+  return data;
+}
+
+export async function deleteItemLista(itemId: string) {
+  const supabase = createClient();
+  await supabase.from('items_lista_compras').delete().eq('id', itemId);
+}
+
+export async function cerrarLista(listaId: string) {
+  const supabase = createClient();
+  const { data } = await supabase.from('listas_compras').update({ estado: 'cerrada', fecha_cierre: new Date().toISOString() }).eq('id', listaId).select().single();
+  return data;
+}
+
+export async function createListaFromPlantilla(empleadorId: string, plantilla: { nombre: string; items: string[] }) {
+  const supabase = createClient();
+  const { data: lista } = await supabase.from('listas_compras').insert({ empleador_id: empleadorId, nombre: plantilla.nombre, estado: 'abierta', plantilla: true }).select().single();
+  if (lista && plantilla.items.length > 0) {
+    const items = plantilla.items.map(nombre => ({ lista_id: lista.id, nombre, comprado: false }));
+    await supabase.from('items_lista_compras').insert(items);
+  }
+  return lista;
+}
+
 // Recordatorios
 export async function getRecordatorios(empleadorId: string) {
   const supabase = createClient();
