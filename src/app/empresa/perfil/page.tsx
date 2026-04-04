@@ -547,6 +547,8 @@ function EditFamiliarModal({
   const { profile } = useAuth();
   const empleadorId = profile?.empleador_id || '';
   const isNew = !familiar;
+  const familiarId = familiar?.id ?? '';
+  const familiarFoto = (familiar as any)?.foto_url ?? null;
   const [form, setForm] = useState({
     nombre: '', apellido: '', fecha_nacimiento: '', alergias: '',
     condiciones_medicas: '', telefono: '', email: '', notas: '',
@@ -560,7 +562,7 @@ function EditFamiliarModal({
     if (open) {
       setConfirmDelete(false);
       setFotoFile(null);
-      setFotoPreview(familiar?.foto_url || null);
+      setFotoPreview(familiarFoto);
       setForm(familiar ? {
         nombre: familiar.nombre || '', apellido: familiar.apellido || '',
         fecha_nacimiento: familiar.fecha_nacimiento || '', alergias: familiar.alergias || '',
@@ -568,12 +570,12 @@ function EditFamiliarModal({
         email: familiar.email || '', notas: familiar.notas || '',
       } : { nombre: '', apellido: '', fecha_nacimiento: '', alergias: '', condiciones_medicas: '', telefono: '', email: '', notas: '' });
     }
-  }, [open, familiar]);
+  }, [open, familiarId, familiarFoto]);
 
   const handleSave = async () => {
     setSaving(true);
     const supabase = createClient();
-    let foto_url = familiar?.foto_url || null;
+    let foto_url = familiarFoto;
 
     if (isNew) {
       const { data } = await supabase.from('familiares_empleador').insert({ empleador_id: empleadorId, tipo, ...form }).select().single();
@@ -581,11 +583,11 @@ function EditFamiliarModal({
         foto_url = await uploadFamilyPhoto('avatars', 'familiares', data.id, fotoFile);
         await supabase.from('familiares_empleador').update({ foto_url }).eq('id', data.id);
       }
-    } else {
+    } else if (familiarId) {
       if (fotoFile) {
-        foto_url = await uploadFamilyPhoto('avatars', 'familiares', familiar!.id, fotoFile);
+        foto_url = await uploadFamilyPhoto('avatars', 'familiares', familiarId, fotoFile);
       }
-      await supabase.from('familiares_empleador').update({ ...form, foto_url }).eq('id', familiar!.id);
+      await supabase.from('familiares_empleador').update({ ...form, foto_url }).eq('id', familiarId);
     }
     setSaving(false);
     onSaved();
@@ -593,8 +595,9 @@ function EditFamiliarModal({
   };
 
   const handleDelete = async () => {
+    if (!familiarId) return;
     const supabase = createClient();
-    await supabase.from('familiares_empleador').delete().eq('id', familiar!.id);
+    await supabase.from('familiares_empleador').delete().eq('id', familiarId);
     onSaved();
     onClose();
   };
@@ -687,6 +690,8 @@ function EditMascotaModal({
   const { profile } = useAuth();
   const empleadorId = profile?.empleador_id || '';
   const isNew = !mascota;
+  const mascotaId = mascota?.id ?? '';
+  const mascotaFoto = (mascota as any)?.foto_url ?? null;
   const [form, setForm] = useState({ nombre: '', tipo: 'perro', raza: '', edad: 0, instrucciones_cuidado: '', veterinario_nombre: '', veterinario_telefono: '' });
   const [fotoFile, setFotoFile] = useState<File | null>(null);
   const [fotoPreview, setFotoPreview] = useState<string | null>(null);
@@ -697,20 +702,20 @@ function EditMascotaModal({
     if (open) {
       setConfirmDelete(false);
       setFotoFile(null);
-      setFotoPreview(mascota?.foto_url || null);
+      setFotoPreview(mascotaFoto);
       setForm(mascota ? {
         nombre: mascota.nombre || '', tipo: mascota.tipo || 'perro', raza: mascota.raza || '',
         edad: mascota.edad || 0, instrucciones_cuidado: mascota.instrucciones_cuidado || '',
         veterinario_nombre: mascota.veterinario_nombre || '', veterinario_telefono: mascota.veterinario_telefono || '',
       } : { nombre: '', tipo: 'perro', raza: '', edad: 0, instrucciones_cuidado: '', veterinario_nombre: '', veterinario_telefono: '' });
     }
-  }, [open, mascota]);
+  }, [open, mascotaId, mascotaFoto]);
 
   const handleSave = async () => {
     if (!form.nombre || !form.tipo) return;
     setSaving(true);
     const supabase = createClient();
-    let foto_url = mascota?.foto_url || null;
+    let foto_url = mascotaFoto;
 
     if (isNew) {
       const { data } = await supabase.from('mascotas_empleador').insert({ empleador_id: empleadorId, ...form }).select().single();
@@ -718,9 +723,9 @@ function EditMascotaModal({
         foto_url = await uploadFamilyPhoto('avatars', 'mascotas', data.id, fotoFile);
         await supabase.from('mascotas_empleador').update({ foto_url }).eq('id', data.id);
       }
-    } else {
-      if (fotoFile) foto_url = await uploadFamilyPhoto('avatars', 'mascotas', mascota!.id, fotoFile);
-      await supabase.from('mascotas_empleador').update({ ...form, foto_url }).eq('id', mascota!.id);
+    } else if (mascotaId) {
+      if (fotoFile) foto_url = await uploadFamilyPhoto('avatars', 'mascotas', mascotaId, fotoFile);
+      await supabase.from('mascotas_empleador').update({ ...form, foto_url }).eq('id', mascotaId);
     }
     setSaving(false);
     onSaved();
@@ -729,7 +734,8 @@ function EditMascotaModal({
 
   const handleDelete = async () => {
     const supabase = createClient();
-    await supabase.from('mascotas_empleador').delete().eq('id', mascota!.id);
+    if (!mascotaId) return;
+    await supabase.from('mascotas_empleador').delete().eq('id', mascotaId);
     onSaved();
     onClose();
   };
