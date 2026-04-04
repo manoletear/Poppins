@@ -1086,6 +1086,15 @@ function MascotasTab({
 }
 
 // --- Preferencias Tab ---
+const DEFAULT_PRIORIDADES = [
+  { titulo: 'Aseo y orden del hogar' },
+  { titulo: 'Preparación de comidas' },
+  { titulo: 'Cuidado de niños' },
+  { titulo: 'Lavado y planchado' },
+  { titulo: 'Cuidado de mascotas' },
+  { titulo: 'Jardinería y exteriores' },
+];
+
 function PreferenciasTab({
   preferencias,
   onRefresh,
@@ -1096,129 +1105,69 @@ function PreferenciasTab({
   const { profile } = useAuth();
   const empleadorId = profile?.empleador_id || '';
   const [prioridades, setPrioridades] = useState<{ titulo: string }[]>(
-    preferencias?.prioridades || []
+    preferencias?.prioridades?.length ? preferencias.prioridades : DEFAULT_PRIORIDADES
   );
   const [notas, setNotas] = useState(preferencias?.notas_generales || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    setPrioridades(preferencias?.prioridades || []);
+    setPrioridades(preferencias?.prioridades?.length ? preferencias.prioridades : DEFAULT_PRIORIDADES);
     setNotas(preferencias?.notas_generales || '');
   }, [preferencias]);
 
-  const moveUp = (index: number) => {
-    if (index === 0) return;
-    const next = [...prioridades];
-    [next[index - 1], next[index]] = [next[index], next[index - 1]];
-    setPrioridades(next);
-  };
-
-  const moveDown = (index: number) => {
-    if (index === prioridades.length - 1) return;
-    const next = [...prioridades];
-    [next[index], next[index + 1]] = [next[index + 1], next[index]];
-    setPrioridades(next);
-  };
+  const moveUp = (i: number) => { if (i === 0) return; const n = [...prioridades]; [n[i-1], n[i]] = [n[i], n[i-1]]; setPrioridades(n); };
+  const moveDown = (i: number) => { if (i === prioridades.length - 1) return; const n = [...prioridades]; [n[i], n[i+1]] = [n[i+1], n[i]]; setPrioridades(n); };
 
   const handleSave = async () => {
     setSaving(true);
-    setSaved(false);
     const supabase = createClient();
     if (preferencias) {
-      await supabase
-        .from('preferencias_trabajo')
-        .update({ prioridades, notas_generales: notas })
-        .eq('id', preferencias.id);
+      await supabase.from('preferencias_trabajo').update({ prioridades, notas_generales: notas }).eq('id', preferencias.id);
     } else {
-      await supabase.from('preferencias_trabajo').insert({
-        empleador_id: empleadorId,
-        prioridades,
-        notas_generales: notas,
-      });
+      await supabase.from('preferencias_trabajo').insert({ empleador_id: empleadorId, prioridades, notas_generales: notas });
     }
-    setSaving(false);
-    setSaved(true);
-    onRefresh();
+    setSaving(false); setSaved(true); onRefresh();
     setTimeout(() => setSaved(false), 2000);
-  };
-
-  const getBadge = (index: number, total: number) => {
-    if (index === 0) return { text: 'Máxima', cls: 'bg-green-100 text-green-700' };
-    if (index === total - 1) return { text: 'Baja', cls: 'bg-zinc-100 text-zinc-500' };
-    return null;
   };
 
   return (
     <div className="space-y-6">
-      {/* Prioridades */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700">Prioridades de trabajo</h3>
+        <h3 className="mb-1 text-sm font-semibold text-zinc-700">Prioridades del Hogar</h3>
+        <p className="text-xs text-zinc-500 mb-3">Ordena las tareas según lo que más importa en tu casa. Tu trabajadora verá este orden como guía diaria.</p>
         <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-          {prioridades.map((item, index) => {
-            const badge = getBadge(index, prioridades.length);
-            return (
-              <div
-                key={index}
-                className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-b-0"
-              >
-                <div className="flex flex-col">
-                  <button
-                    onClick={() => moveUp(index)}
-                    disabled={index === 0}
-                    className="rounded p-0.5 hover:bg-zinc-100 disabled:opacity-20"
-                  >
-                    <ChevronUp className="h-3.5 w-3.5 text-zinc-500" />
-                  </button>
-                  <button
-                    onClick={() => moveDown(index)}
-                    disabled={index === prioridades.length - 1}
-                    className="rounded p-0.5 hover:bg-zinc-100 disabled:opacity-20"
-                  >
-                    <ChevronDown className="h-3.5 w-3.5 text-zinc-500" />
-                  </button>
-                </div>
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white">
-                  {index + 1}
-                </div>
-                <span className="flex-1 text-sm font-medium text-zinc-800">{item.titulo}</span>
-                {badge && (
-                  <span
-                    className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold ${badge.cls}`}
-                  >
-                    {badge.text}
-                  </span>
-                )}
+          {prioridades.map((item, i) => (
+            <div key={i} className="flex items-center gap-3 border-b border-zinc-100 px-4 py-3 last:border-b-0">
+              <div className="flex flex-col">
+                <button onClick={() => moveUp(i)} disabled={i === 0} className="rounded p-0.5 hover:bg-zinc-100 disabled:opacity-20"><ChevronUp className="h-3.5 w-3.5 text-zinc-500" /></button>
+                <button onClick={() => moveDown(i)} disabled={i === prioridades.length - 1} className="rounded p-0.5 hover:bg-zinc-100 disabled:opacity-20"><ChevronDown className="h-3.5 w-3.5 text-zinc-500" /></button>
               </div>
-            );
-          })}
+              <div className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white ${i === 0 ? 'bg-emerald-500' : i === 1 ? 'bg-blue-500' : 'bg-zinc-400'}`}>{i + 1}</div>
+              <span className="flex-1 text-sm font-medium text-zinc-800">{item.titulo}</span>
+              {i === 0 && <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700">Más importante</span>}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Notas generales */}
       <div>
-        <h3 className="mb-3 text-sm font-semibold text-zinc-700">Notas generales</h3>
+        <h3 className="mb-1 text-sm font-semibold text-zinc-700">Instrucciones Especiales</h3>
+        <p className="text-xs text-zinc-500 mb-3">Indicaciones importantes para tu trabajadora: horarios especiales, restricciones, preferencias de limpieza, etc.</p>
         <textarea
           value={notas}
           onChange={(e) => setNotas(e.target.value)}
+          placeholder="Ej: No usar cloro en pisos de madera. Los miércoles Martín sale a las 12:30 del colegio. Luna no puede salir al jardín sin supervisión."
           className="w-full rounded-xl border border-zinc-200 bg-zinc-50 p-4 text-sm text-zinc-700 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-400"
           rows={4}
         />
       </div>
 
-      {/* Save button */}
       <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {saving ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save className="h-4 w-4" />
-          )}
-          {saved ? 'Guardado' : 'Guardar Cambios'}
+        <button onClick={handleSave} disabled={saving}
+          className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saved ? 'Guardado ✓' : 'Guardar Preferencias'}
         </button>
       </div>
     </div>
