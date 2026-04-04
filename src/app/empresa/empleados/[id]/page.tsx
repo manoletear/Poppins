@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth/context';
 import {
   ArrowLeft, FileText, Calendar, Clock, Mail, Phone, MapPin,
   Briefcase, Shield, DollarSign, Palmtree, Printer, Loader2, AlertCircle, User, Download, Camera,
+  CheckCircle2, Bell, Send,
 } from 'lucide-react';
 
 type TabKey = 'resumen' | 'contrato' | 'liquidaciones' | 'asistencia';
@@ -148,25 +149,57 @@ export default function EmpleadoDetallePage() {
   const [marcajes, setMarcajes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedLiq, setExpandedLiq] = useState<string | null>(null);
+  const [asistenciaPeriodo, setAsistenciaPeriodo] = useState<'semana' | 'mes' | 'todo'>('mes');
+  const [allMarcajes, setAllMarcajes] = useState<any[]>([]);
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
     const [wRes, cRes, lRes, mRes, eRes] = await Promise.all([
       supabase.from('trabajadores').select('*').eq('id', id).single(),
       supabase.from('contratos').select('*').eq('trabajador_id', id).eq('estado', 'activo').single(),
-      supabase.from('liquidaciones').select('*').eq('trabajador_id', id).order('periodo', { ascending: false }).limit(6),
-      supabase.from('marcajes_horario').select('*').eq('trabajador_id', id).order('fecha', { ascending: false }).limit(15),
+      supabase.from('liquidaciones').select('*').eq('trabajador_id', id).order('periodo', { ascending: false }).limit(12),
+      supabase.from('marcajes_horario').select('*').eq('trabajador_id', id).order('fecha', { ascending: false }).limit(90),
       profile?.empleador_id ? supabase.from('empleadores').select('*').eq('id', profile.empleador_id).single() : Promise.resolve({ data: null }),
     ]);
     setWorker(wRes.data);
     setContrato(cRes.data);
     setLiquidaciones(lRes.data || []);
-    setMarcajes(mRes.data || []);
+    setAllMarcajes(mRes.data || []);
     setEmpleador(eRes.data);
     setLoading(false);
   }, [id, profile?.empleador_id]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Filter marcajes by period
+  const filteredMarcajes = allMarcajes.filter(m => {
+    if (asistenciaPeriodo === 'todo') return true;
+    const fecha = new Date(m.fecha);
+    const now = new Date();
+    if (asistenciaPeriodo === 'semana') return now.getTime() - fecha.getTime() < 7 * 86400000;
+    // mes: same month & year
+    return fecha.getMonth() === now.getMonth() && fecha.getFullYear() === now.getFullYear();
+  });
+
+  // Toggle firma liquidacion
+  const toggleFirma = async (liqId: string, firmada: boolean) => {
+    const supabase = createClient();
+    await supabase.from('liquidaciones').update({
+      firmada_por_empleado: firmada,
+      fecha_firma_empleado: firmada ? new Date().toISOString() : null,
+    }).eq('id', liqId);
+    setLiquidaciones(prev => prev.map(l => l.id === liqId ? { ...l, firmada_por_empleado: firmada, fecha_firma_empleado: firmada ? new Date().toISOString() : null } : l));
+  };
+
+  // Send toque (reminder to sign)
+  const enviarToque = async (liqId: string) => {
+    const supabase = createClient();
+    await supabase.from('liquidaciones').update({
+      toque_enviado: true,
+      toque_enviado_at: new Date().toISOString(),
+    }).eq('id', liqId);
+    setLiquidaciones(prev => prev.map(l => l.id === liqId ? { ...l, toque_enviado: true, toque_enviado_at: new Date().toISOString() } : l));
+  };
 
   // Upload worker photo
   const handlePhotoUpload = async (file: File) => {
@@ -293,7 +326,7 @@ export default function EmpleadoDetallePage() {
         {/* LIQUIDACIONES */}
         {activeTab === 'liquidaciones' && (
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold text-zinc-900 mb-4">Últimas Liquidaciones</h3>
+            <h3 className="text-lg font-semibold text-zinc-900 mb-4">Liquidaciones</h3>
             {liquidaciones.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin liquidaciones.</p> : (
               liquidaciones.map(liq => (
                 <div key={liq.id} className="rounded-lg border border-zinc-200 overflow-hidden">
@@ -302,11 +335,20 @@ export default function EmpleadoDetallePage() {
                       <FileText className="w-4 h-4 text-zinc-400" />
                       <span className="text-sm font-medium text-zinc-900">{liq.periodo}</span>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${liq.estado === 'pagada' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{liq.estado}</span>
+                      {liq.firmada_por_empleado ? (
+                        <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Firmada</span>
+                      ) : (
+                        <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">Sin firmar</span>
+                      )}
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                       <span className="text-sm font-bold text-zinc-900">{formatCLP(liq.liquido_pagar)}</span>
                       <button onClick={(e) => { e.stopPropagation(); openPrintWindow(generateLiquidacionHTML(worker, liq, empleador)); }}
-                        className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition" title="Imprimir / Descargar">
+                        className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition" title="Imprimir">
+                        <Printer className="w-4 h-4" />
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); openPrintWindow(generateLiquidacionHTML(worker, liq, empleador)); }}
+                        className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 transition" title="Descargar">
                         <Download className="w-4 h-4" />
                       </button>
                     </div>
@@ -324,6 +366,24 @@ export default function EmpleadoDetallePage() {
                         <div className="flex justify-between"><span className="text-zinc-500">Salud</span><span>-{formatCLP(liq.salud_trabajador)}</span></div>
                         <div className="flex justify-between"><span className="text-zinc-500">AFC</span><span>-{formatCLP(liq.afc_trabajador)}</span></div>
                       </div>
+                      {/* Firma actions */}
+                      <div className="mt-3 pt-3 border-t border-zinc-200 flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => toggleFirma(liq.id, !liq.firmada_por_empleado)}
+                            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition ${liq.firmada_por_empleado ? 'bg-blue-100 text-blue-700' : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200'}`}>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            {liq.firmada_por_empleado ? 'Firmada por empleado' : 'Marcar como firmada'}
+                          </button>
+                        </div>
+                        {!liq.firmada_por_empleado && (
+                          <button onClick={() => enviarToque(liq.id)}
+                            disabled={liq.toque_enviado}
+                            className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-amber-50 text-amber-700 hover:bg-amber-100 transition disabled:opacity-50">
+                            <Bell className="w-3.5 h-3.5" />
+                            {liq.toque_enviado ? 'Toque enviado' : 'Enviar toque para firmar'}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -335,36 +395,58 @@ export default function EmpleadoDetallePage() {
         {/* ASISTENCIA */}
         {activeTab === 'asistencia' && (
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
               <h3 className="text-lg font-semibold text-zinc-900">Registro de Asistencia</h3>
-              {marcajes.length > 0 && (
-                <button onClick={() => openPrintWindow(generateAsistenciaHTML(worker, marcajes, empleador))}
-                  className="inline-flex items-center gap-2 rounded-lg bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-700 transition">
-                  <Printer className="w-4 h-4" /> Certificado de Asistencia
-                </button>
-              )}
-            </div>
-            {marcajes.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin marcajes.</p> : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead><tr className="border-b border-zinc-100 bg-zinc-50">
-                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Fecha</th>
-                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Entrada</th>
-                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Salida</th>
-                    <th className="px-4 py-2 text-left font-medium text-zinc-500">Horas</th>
-                  </tr></thead>
-                  <tbody className="divide-y divide-zinc-100">
-                    {marcajes.map(m => (
-                      <tr key={m.id} className="hover:bg-zinc-50">
-                        <td className="px-4 py-2">{new Date(m.fecha).toLocaleDateString('es-CL')}</td>
-                        <td className="px-4 py-2">{m.hora_entrada || '-'}</td>
-                        <td className="px-4 py-2">{m.hora_salida || '-'}</td>
-                        <td className="px-4 py-2">{m.horas_trabajadas ? `${m.horas_trabajadas.toFixed(1)}h` : '-'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="flex items-center gap-2">
+                <div className="flex rounded-lg bg-zinc-100 p-0.5">
+                  {(['semana', 'mes', 'todo'] as const).map(p => (
+                    <button key={p} onClick={() => setAsistenciaPeriodo(p)}
+                      className={`px-3 py-1 rounded-md text-xs font-medium transition ${asistenciaPeriodo === p ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'}`}>
+                      {p === 'semana' ? 'Semana' : p === 'mes' ? 'Este mes' : 'Todo'}
+                    </button>
+                  ))}
+                </div>
+                {filteredMarcajes.length > 0 && (
+                  <div className="flex gap-1">
+                    <button onClick={() => openPrintWindow(generateAsistenciaHTML(worker, filteredMarcajes, empleador))}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition">
+                      <Printer className="w-3.5 h-3.5" /> Imprimir
+                    </button>
+                    <button onClick={() => openPrintWindow(generateAsistenciaHTML(worker, filteredMarcajes, empleador))}
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition">
+                      <Download className="w-3.5 h-3.5" /> Certificado
+                    </button>
+                  </div>
+                )}
               </div>
+            </div>
+            {filteredMarcajes.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin filteredMarcajes en este período.</p> : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead><tr className="border-b border-zinc-100 bg-zinc-50">
+                      <th className="px-4 py-2 text-left font-medium text-zinc-500">Fecha</th>
+                      <th className="px-4 py-2 text-left font-medium text-zinc-500">Entrada</th>
+                      <th className="px-4 py-2 text-left font-medium text-zinc-500">Salida</th>
+                      <th className="px-4 py-2 text-left font-medium text-zinc-500">Horas</th>
+                    </tr></thead>
+                    <tbody className="divide-y divide-zinc-100">
+                      {filteredMarcajes.map(m => (
+                        <tr key={m.id} className="hover:bg-zinc-50">
+                          <td className="px-4 py-2">{new Date(m.fecha).toLocaleDateString('es-CL')}</td>
+                          <td className="px-4 py-2">{m.hora_entrada || '-'}</td>
+                          <td className="px-4 py-2">{m.hora_salida || '-'}</td>
+                          <td className="px-4 py-2">{m.horas_trabajadas ? `${m.horas_trabajadas.toFixed(1)}h` : '-'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3 rounded-lg bg-zinc-50 px-4 py-2 flex gap-6 text-xs text-zinc-600">
+                  <span><strong>{filteredMarcajes.filter(m => m.hora_entrada).length}</strong> días</span>
+                  <span><strong>{filteredMarcajes.reduce((s: number, m: any) => s + (m.horas_trabajadas || 0), 0).toFixed(1)}</strong> horas totales</span>
+                </div>
+              </>
             )}
           </div>
         )}
