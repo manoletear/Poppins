@@ -258,8 +258,8 @@ function downloadComprobante(pago: Pago) {
 // ── Main Component ─────────────────────────────────────────────────────
 function PagosContent() {
   const supabase = createClient();
-  const { profile } = useAuth();
-  const empleadorId = profile?.empleador_id || '11111111-1111-1111-1111-111111111111';
+  const { profile, loading: authLoading } = useAuth();
+  const empleadorId = profile?.empleador_id || '';
   const searchParams = useSearchParams();
 
   // Tabs
@@ -356,6 +356,7 @@ function PagosContent() {
 
   // ── Fetch pagos for selected period ──
   const fetchPagos = useCallback(async () => {
+    if (!empleadorId) return;
     setLoading(true);
     setError(null);
     try {
@@ -1016,6 +1017,14 @@ function PagosContent() {
   // ══════════════════════════════════════════════════════════════════════
   //  RENDER
   // ══════════════════════════════════════════════════════════════════════
+  if (authLoading || !empleadorId) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="h-6 w-6 animate-spin rounded-full border-2 border-zinc-300 border-t-zinc-900" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -2201,10 +2210,14 @@ class PagosErrorBoundary extends React.Component<{ children: React.ReactNode }, 
           <div className="rounded-xl border border-red-200 bg-red-50 p-6">
             <h2 className="text-lg font-bold text-red-800 mb-2">Error en Pagos</h2>
             <p className="text-sm text-red-700 mb-4">{this.state.error.message}</p>
-            <pre className="text-xs text-red-600 bg-red-100 rounded p-3 overflow-auto max-h-40">{this.state.error.stack}</pre>
-            <button onClick={() => this.setState({ error: null })} className="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
-              Reintentar
-            </button>
+            <div className="flex gap-3 mt-4">
+              <button onClick={() => this.setState({ error: null })} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700">
+                Reintentar
+              </button>
+              <a href="/empresa" className="px-4 py-2 bg-zinc-200 text-zinc-700 rounded-lg text-sm hover:bg-zinc-300">
+                Volver al Dashboard
+              </a>
+            </div>
           </div>
         </div>
       );
