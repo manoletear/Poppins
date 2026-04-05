@@ -122,7 +122,7 @@ export default function PortalDashboard() {
     if (!trabajadorId) return;
     const supabase = createClient();
     supabase.from('contratos').select('empleador_id').eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).single()
-      .then(({ data }: any) => { if (data) setEmpleadorId(data.empleador_id); });
+      .then(({ data }: any) => { if (data) setEmpleadorId(data.empleador_id); }).catch(() => {});
   }, [trabajadorId]);
 
   // Update clock every minute

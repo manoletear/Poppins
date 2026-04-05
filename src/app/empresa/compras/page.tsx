@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, ShoppingCart, Check, Trash2, X, Share2, ChevronDown, Search, Archive, Loader2, AlertCircle, ClipboardList } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import {
-  getListasCompras, getItemsLista, toggleItemComprado,
+  getListasCompras, getListasConItems, getItemsLista, toggleItemComprado,
   createListaCompras, createItemLista, deleteItemLista, deleteLista, cerrarLista,
   getPlantillasCompras, createListaFromPlantilla,
 } from '@/lib/supabase/employer-queries';
@@ -34,15 +34,11 @@ export default function ComprasPage() {
   const loadData = useCallback(async () => {
     if (!empleadorId) return;
     const [abiertas, cerradas, pl] = await Promise.all([
-      getListasCompras(empleadorId, 'abierta'),
+      getListasConItems(empleadorId, 'abierta'),
       getListasCompras(empleadorId, 'cerrada'),
       getPlantillasCompras(empleadorId),
     ]);
-    // Load items for open lists
-    const listasConItems = await Promise.all(
-      (abiertas || []).map(async (l: any) => ({ ...l, items: await getItemsLista(l.id) }))
-    );
-    setListas(listasConItems);
+    setListas(abiertas);
     setClosedListas((cerradas || []).map((l: any) => ({ ...l, items: [] })));
     setPlantillas(pl || []);
     setLoading(false);

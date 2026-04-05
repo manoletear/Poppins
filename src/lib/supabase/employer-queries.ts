@@ -66,6 +66,15 @@ export async function getListasCompras(empleadorId: string, estado?: string) {
   return data || [];
 }
 
+// Single query with join — replaces N+1 pattern of getListasCompras + N×getItemsLista
+export async function getListasConItems(empleadorId: string, estado?: string) {
+  const supabase = createClient();
+  let query = supabase.from('listas_compras').select('*, items_lista_compras(*)').eq('empleador_id', empleadorId).order('created_at', { ascending: false });
+  if (estado) query = query.eq('estado', estado);
+  const { data } = await query;
+  return (data || []).map((l: any) => ({ ...l, items: l.items_lista_compras || [] }));
+}
+
 export async function getItemsLista(listaId: string) {
   const supabase = createClient();
   const { data } = await supabase.from('items_lista_compras').select('*').eq('lista_id', listaId).order('created_at');

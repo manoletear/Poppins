@@ -39,33 +39,34 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
 
     if (status.status === FLOW_STATUS.PAID) {
+      const pagoIds = pagos.map((p: any) => p.id);
+
+      // Batch update all pagos at once
+      await supabase
+        .from('pagos_empleador')
+        .update({
+          estado: 'pagado',
+          fecha_pago: now,
+          flow_order_id: String(status.flowOrder),
+          pre_fondeo_estado: 'fondeado',
+          pre_fondeo_at: now,
+        })
+        .in('id', pagoIds);
+
+      // Update puntos individually (different per pago) + create comprobantes
+      const comprobantes = pagos.map((pago: any) => ({
+        pago_id: pago.id,
+        tipo: 'recibo',
+        numero: `FLOW-${status.flowOrder}-${pago.id.slice(0, 4)}`,
+        monto: pago.monto,
+      }));
+      await supabase.from('comprobantes_pago').insert(comprobantes);
+
+      // Update puntos per pago
       for (const pago of pagos) {
-        const puntos = Math.floor(pago.monto / 1000);
-
-        const { error: updateError } = await supabase
-          .from('pagos_empleador')
-          .update({
-            estado: 'pagado',
-            fecha_pago: now,
-            puntos_acumulados: puntos,
-            flow_order_id: String(status.flowOrder),
-            descripcion: pago.descripcion || status.subject,
-            pre_fondeo_estado: 'fondeado',
-            pre_fondeo_at: now,
-          })
+        await supabase.from('pagos_empleador')
+          .update({ puntos_acumulados: Math.floor(pago.monto / 1000) })
           .eq('id', pago.id);
-
-        if (updateError) {
-          console.error('Error actualizando pago:', pago.id, updateError);
-        }
-
-        // Crear comprobante de pago
-        await supabase.from('comprobantes_pago').insert({
-          pago_id: pago.id,
-          tipo: 'recibo',
-          numero: `FLOW-${status.flowOrder}-${pago.id.slice(0, 4)}`,
-          monto: pago.monto,
-        });
       }
     } else if (status.status === FLOW_STATUS.REJECTED) {
       await supabase
