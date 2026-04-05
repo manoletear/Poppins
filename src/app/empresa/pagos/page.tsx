@@ -32,7 +32,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import PagosOnboarding from './components/PagosOnboarding';
+// PagosOnboarding replaced with inline banner
 import CardSetup from './components/CardSetup';
 import AccountDiscovery from './components/AccountDiscovery';
 import PointsDashboard from './components/PointsDashboard';
@@ -1035,22 +1035,18 @@ function PagosContent() {
         />
       )}
 
-      {/* Show onboarding banner (collapsible) if not all steps completed */}
-      {!loadingOnboarding && !onboardingState.primer_pago_realizado && !dismissedOnboarding && (
-        <div className="relative">
-          <button
-            onClick={() => setDismissedOnboarding(true)}
-            className="absolute top-2 right-2 z-10 text-zinc-400 hover:text-zinc-600 text-xs bg-white/80 rounded-full px-3 py-1 border border-zinc-200"
-          >
-            Omitir configuración
-          </button>
-          <PagosOnboarding
-            state={onboardingState}
-            onStartCardSetup={() => setShowCardSetup(true)}
-            onStartDiscovery={() => setShowDiscovery(true)}
-          />
-        </div>
-      )}
+      {/* Tabs — ALWAYS visible, no blocking */}
+      <div className="flex border-b border-zinc-200 overflow-x-auto">
+        {/* Onboarding hint */}
+        {!loadingOnboarding && !onboardingState.primer_pago_realizado && !dismissedOnboarding && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-violet-50 border-b border-violet-100 text-xs text-violet-700 w-full">
+            <span>Configura tu cuenta:</span>
+            {!onboardingState.tarjeta_registrada && <button onClick={() => setShowCardSetup(true)} className="underline font-medium">Agregar tarjeta</button>}
+            {!onboardingState.primera_cuenta_agregada && <button onClick={() => setShowDiscovery(true)} className="underline font-medium">Agregar cuentas</button>}
+            <button onClick={() => setDismissedOnboarding(true)} className="ml-auto text-zinc-400 hover:text-zinc-600">✕</button>
+          </div>
+        )}
+      </div>
 
       {/* Tabs */}
       <div className="flex border-b border-zinc-200 overflow-x-auto">
