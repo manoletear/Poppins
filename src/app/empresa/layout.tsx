@@ -262,7 +262,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
                 const Icon = item.icon;
                 const isActive = pathname === item.href;
                 return (
-                  <Link
+                  <a
                     key={item.href}
                     href={item.href}
                     onClick={onNavigate}
@@ -274,7 +274,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
                   >
                     <Icon className="h-4 w-4" />
                     {item.name}
-                  </Link>
+                  </a>
                 );
               })}
             </div>
