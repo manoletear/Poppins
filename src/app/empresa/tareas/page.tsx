@@ -18,6 +18,7 @@ interface Task {
   hora_inicio?: string;
   hora_fin?: string;
   estado: string;
+  fecha?: string;
   aprobada_por_empleador?: boolean;
   calificacion?: number;
   nota_calificacion?: string;
@@ -75,6 +76,10 @@ export default function TareasPage() {
   const [newCategoria, setNewCategoria] = useState('');
   const [newPrioridad, setNewPrioridad] = useState('media');
   const [saving, setSaving] = useState(false);
+  const [showHistorico, setShowHistorico] = useState(false);
+  const [historicoTareas, setHistoricoTareas] = useState<Task[]>([]);
+  const [historicoFilter, setHistoricoFilter] = useState('');
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
 
   const empleadorId = profile?.empleador_id;
 
@@ -138,6 +143,16 @@ export default function TareasPage() {
     setShowNewForm(false);
     setSaving(false);
     loadTareas();
+  }
+
+  async function loadHistorico() {
+    if (!empleadorId) return;
+    setLoadingHistorico(true);
+    const supabase = createClient();
+    const { data } = await supabase.from('tareas').select('*, trabajadores(nombre, apellido_paterno)')
+      .eq('empleador_id', empleadorId).order('fecha', { ascending: false }).limit(100);
+    setHistoricoTareas(data || []);
+    setLoadingHistorico(false);
   }
 
   function changeDate(delta: number) {
@@ -350,6 +365,39 @@ export default function TareasPage() {
           )}
         </div>
       )}
+
+      {/* Histórico */}
+      <div className="mt-8 border-t border-zinc-200 pt-6">
+        <button onClick={() => { setShowHistorico(!showHistorico); if (!showHistorico) loadHistorico(); }}
+          className="text-sm font-medium text-zinc-600 hover:text-zinc-900 transition">
+          {showHistorico ? '▼' : '▶'} Histórico de Tareas
+        </button>
+
+        {showHistorico && (
+          <div className="mt-4 space-y-3">
+            <input value={historicoFilter} onChange={e => setHistoricoFilter(e.target.value)} placeholder="Buscar tareas anteriores..."
+              className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+
+            {loadingHistorico ? <Loader2 className="w-5 h-5 animate-spin text-zinc-400 mx-auto" /> : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {historicoTareas
+                  .filter(t => !historicoFilter || t.titulo.toLowerCase().includes(historicoFilter.toLowerCase()) || (t.categoria || '').toLowerCase().includes(historicoFilter.toLowerCase()))
+                  .map(t => (
+                    <div key={t.id} className="flex items-center gap-3 rounded-lg border border-zinc-100 bg-white px-4 py-2.5 text-sm">
+                      <span className={`w-2 h-2 rounded-full shrink-0 ${t.estado === 'completada' ? 'bg-emerald-500' : t.estado === 'en_progreso' ? 'bg-blue-500' : 'bg-zinc-300'}`} />
+                      <span className={`flex-1 ${t.estado === 'completada' ? 'line-through text-zinc-400' : 'text-zinc-800'}`}>{t.titulo}</span>
+                      {t.categoria && <span className="text-xs text-zinc-400">{categoryLabels[t.categoria] || t.categoria}</span>}
+                      <span className="text-xs text-zinc-400">{t.fecha ? new Date(t.fecha + 'T12:00:00').toLocaleDateString('es-CL') : ''}</span>
+                      {t.calificacion && <span className="text-xs text-amber-500">{'★'.repeat(t.calificacion)}</span>}
+                    </div>
+                  ))
+                }
+                {historicoTareas.length === 0 && <p className="text-sm text-zinc-400 text-center">Sin historial</p>}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

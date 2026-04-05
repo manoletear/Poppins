@@ -5,7 +5,7 @@ import { Plus, ShoppingCart, Check, Trash2, X, Share2, ChevronDown, Search, Arch
 import { useAuth } from '@/lib/auth/context';
 import {
   getListasCompras, getItemsLista, toggleItemComprado,
-  createListaCompras, createItemLista, deleteItemLista, cerrarLista,
+  createListaCompras, createItemLista, deleteItemLista, deleteLista, cerrarLista,
   getPlantillasCompras, createListaFromPlantilla,
 } from '@/lib/supabase/employer-queries';
 
@@ -26,6 +26,7 @@ export default function ComprasPage() {
   const [newItemName, setNewItemName] = useState('');
   const [newItemQty, setNewItemQty] = useState('');
   const [confirmClose, setConfirmClose] = useState<string | null>(null);
+  const [confirmDeleteList, setConfirmDeleteList] = useState<string | null>(null);
   const [filterText, setFilterText] = useState('');
   const [sortBy, setSortBy] = useState<'nombre' | 'fecha'>('fecha');
   const [saving, setSaving] = useState(false);
@@ -105,6 +106,14 @@ export default function ComprasPage() {
     setSaving(true);
     await cerrarLista(listaId);
     setConfirmClose(null);
+    await loadData();
+    setSaving(false);
+  };
+
+  const handleDeleteList = async (listaId: string) => {
+    setSaving(true);
+    await deleteLista(listaId);
+    setConfirmDeleteList(null);
     await loadData();
     setSaving(false);
   };
@@ -213,8 +222,11 @@ export default function ComprasPage() {
                     <button onClick={() => handleShare(list, 'email')} className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-50">Email</button>
                   </div>
                 </div>
-                <button onClick={() => setConfirmClose(list.id)} className="p-2 rounded-lg hover:bg-red-50 text-zinc-500 hover:text-red-600 transition" title="Cerrar lista">
+                <button onClick={() => setConfirmClose(list.id)} className="p-2 rounded-lg hover:bg-zinc-100 text-zinc-500 transition" title="Archivar lista">
                   <Archive className="w-4 h-4" />
+                </button>
+                <button onClick={() => setConfirmDeleteList(list.id)} className="p-2 rounded-lg hover:bg-red-50 text-zinc-500 hover:text-red-600 transition" title="Eliminar lista">
+                  <Trash2 className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -226,6 +238,17 @@ export default function ComprasPage() {
                 <div className="flex gap-2">
                   <button onClick={() => handleCloseList(list.id)} disabled={saving} className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium">Sí, cerrar</button>
                   <button onClick={() => setConfirmClose(null)} className="text-zinc-500 px-3 py-1.5 rounded-lg text-xs border border-zinc-200">Cancelar</button>
+                </div>
+              </div>
+            )}
+
+            {/* Confirm delete list */}
+            {confirmDeleteList === list.id && (
+              <div className="px-5 py-3 bg-red-50 border-b border-red-100 flex items-center justify-between">
+                <p className="text-sm text-red-700">¿Eliminar esta lista y todos sus items? No se puede deshacer.</p>
+                <div className="flex gap-2">
+                  <button onClick={() => handleDeleteList(list.id)} disabled={saving} className="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium">Sí, eliminar</button>
+                  <button onClick={() => setConfirmDeleteList(null)} className="text-zinc-500 px-3 py-1.5 rounded-lg text-xs border border-zinc-200">Cancelar</button>
                 </div>
               </div>
             )}

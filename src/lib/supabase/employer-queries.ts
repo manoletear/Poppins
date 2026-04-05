@@ -96,6 +96,12 @@ export async function createItemLista(listaId: string, nombre: string, cantidad?
   return data;
 }
 
+export async function deleteLista(listaId: string) {
+  const supabase = createClient();
+  await supabase.from('items_lista_compras').delete().eq('lista_id', listaId);
+  await supabase.from('listas_compras').delete().eq('id', listaId);
+}
+
 export async function deleteItemLista(itemId: string) {
   const supabase = createClient();
   await supabase.from('items_lista_compras').delete().eq('id', itemId);

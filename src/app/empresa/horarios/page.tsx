@@ -34,7 +34,9 @@ export default function HorariosPage() {
   const [day, setDay] = useState(new Date());
   const [marcajes, setMarcajes] = useState<Marcaje[]>([]);
   const [loading, setLoading] = useState(true);
-  const [diasLibresLegales, setDiasLibresLegales] = useState({ tomados: 0, pendientes: 0 });
+  const [vacaciones, setVacaciones] = useState({ tomados: 0, pendientes: 15 });
+  const [libreDisposicion, setLibreDisposicion] = useState({ tomados: 0, pendientes: 2 });
+  const [salidaPendiente, setSalidaPendiente] = useState<any[]>([]);
 
   const loadMarcajes = useCallback(async () => {
     if (!empleadorId) return;
@@ -65,14 +67,24 @@ export default function HorariosPage() {
 
     setMarcajes(data || []);
 
-    // Días libres legales (domingos + feriados trabajados necesitan descanso compensatorio)
-    const { data: vacData } = await supabase
-      .from('solicitudes_empleado')
-      .select('dias')
-      .eq('empleador_id', empleadorId)
-      .eq('tipo', 'vacaciones').eq('estado', 'aprobada');
-    const tomados = (vacData || []).reduce((s: number, v: any) => s + (v.dias || 0), 0);
-    setDiasLibresLegales({ tomados, pendientes: Math.max(0, 15 - tomados) });
+    // Vacaciones (15 días/año)
+    const { data: vacData } = await supabase.from('solicitudes_empleado').select('dias')
+      .eq('empleador_id', empleadorId).eq('tipo', 'vacaciones').eq('estado', 'aprobada');
+    const vacTomados = (vacData || []).reduce((s: number, v: any) => s + (v.dias || 0), 0);
+    setVacaciones({ tomados: vacTomados, pendientes: Math.max(0, 15 - vacTomados) });
+
+    // Días libre disposición (2/mes - Ley 40h puertas adentro)
+    const mesActual = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+    const { data: ldData } = await supabase.from('dias_libre_disposicion').select('id')
+      .eq('empleador_id', empleadorId).eq('estado', 'tomado')
+      .gte('fecha', mesActual + '-01').lte('fecha', mesActual + '-31');
+    const ldTomados = ldData?.length || 0;
+    setLibreDisposicion({ tomados: ldTomados, pendientes: Math.max(0, 2 - ldTomados) });
+
+    // Salida pendiente (marcaron entrada pero no salida HOY)
+    const hoy = new Date().toISOString().split('T')[0];
+    const sinSalida = (data || []).filter((m: any) => m.fecha === hoy && m.hora_entrada && !m.hora_salida);
+    setSalidaPendiente(sinSalida);
 
     setLoading(false);
   }, [empleadorId, vista, year, month, weekStart, day]);
@@ -148,12 +160,51 @@ export default function HorariosPage() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <StatCard label="Días Trabajados" value={String(diasTrabajados)} color="bg-emerald-500" />
         <StatCard label="Horas Totales" value={`${totalHoras.toFixed(1)}h`} color="bg-blue-500" />
-        <StatCard label="Vacaciones Tomadas" value={`${diasLibresLegales.tomados} días`} color="bg-violet-500" />
-        <StatCard label="Vacaciones Pendientes" value={`${diasLibresLegales.pendientes} días`} color="bg-amber-500" />
+        <StatCard label="Vacaciones" value={`${vacaciones.tomados}/${vacaciones.tomados + vacaciones.pendientes}`} color="bg-violet-500" />
+        <StatCard label="Libre Disposición" value={`${libreDisposicion.tomados}/2 mes`} color="bg-cyan-500" />
+        <StatCard label="Salida Pendiente" value={String(salidaPendiente.length)} color={salidaPendiente.length > 0 ? 'bg-red-500' : 'bg-zinc-400'} />
       </div>
+
+      {/* Alerta salida pendiente */}
+      {salidaPendiente.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <p className="text-sm font-semibold text-red-800 mb-2">Salida pendiente de registrar</p>
+          {salidaPendiente.map((m: any) => {
+            const nombre = m.trabajadores ? `${m.trabajadores.nombre} ${m.trabajadores.apellido_paterno || ''}` : 'Empleado';
+            return (
+              <div key={m.id} className="flex items-center justify-between text-sm">
+                <span className="text-red-700">{nombre} — entrada {m.hora_entrada}, sin salida</span>
+                <button onClick={async () => {
+                  const supabase = createClient();
+                  // Notificar al empleador
+                  await supabase.from('notificaciones_push').insert({
+                    destinatario_id: profile?.auth_user_id || '',
+                    tipo: 'salida_pendiente',
+                    titulo: `${nombre} no ha registrado salida`,
+                    mensaje: `Entrada a las ${m.hora_entrada}. Recuérdale registrar su salida.`,
+                  });
+                  // Notificar al empleado
+                  const { data: workerProfile } = await supabase.from('user_profiles').select('auth_user_id').eq('trabajador_id', m.trabajador_id).maybeSingle();
+                  if (workerProfile?.auth_user_id) {
+                    await supabase.from('notificaciones_push').insert({
+                      destinatario_id: workerProfile.auth_user_id,
+                      tipo: 'salida_pendiente',
+                      titulo: 'Recuerda registrar tu salida',
+                      mensaje: 'Tu empleador te recuerda registrar la salida de hoy.',
+                    });
+                  }
+                  alert('Notificación enviada');
+                }} className="text-xs bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 transition">
+                  Notificar
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>
@@ -275,28 +326,37 @@ export default function HorariosPage() {
             </div>
           )}
 
-          {/* Días libres legales */}
-          <div className="rounded-xl border border-zinc-200 bg-white p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <Palmtree className="w-5 h-5 text-emerald-500" />
-              <h3 className="text-sm font-semibold text-zinc-900">Días Libres Legales</h3>
-            </div>
-            <div className="grid grid-cols-3 gap-4 text-sm">
-              <div>
-                <p className="text-zinc-500 text-xs">Derecho anual</p>
-                <p className="font-semibold text-zinc-900">15 días hábiles</p>
+          {/* Vacaciones legales */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-xl border border-zinc-200 bg-white p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <Palmtree className="w-5 h-5 text-emerald-500" />
+                <h3 className="text-sm font-semibold text-zinc-900">Vacaciones Legales</h3>
               </div>
-              <div>
-                <p className="text-zinc-500 text-xs">Tomados</p>
-                <p className="font-semibold text-emerald-600">{diasLibresLegales.tomados} días</p>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div><p className="text-zinc-500 text-xs">Derecho anual</p><p className="font-semibold text-zinc-900">15 días</p></div>
+                <div><p className="text-zinc-500 text-xs">Tomados</p><p className="font-semibold text-emerald-600">{vacaciones.tomados}</p></div>
+                <div><p className="text-zinc-500 text-xs">Pendientes</p><p className="font-semibold text-amber-600">{vacaciones.pendientes}</p></div>
               </div>
-              <div>
-                <p className="text-zinc-500 text-xs">Pendientes</p>
-                <p className="font-semibold text-amber-600">{diasLibresLegales.pendientes} días</p>
+              <div className="mt-3 h-2 rounded-full bg-zinc-100">
+                <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${(vacaciones.tomados / 15) * 100}%` }} />
               </div>
             </div>
-            <div className="mt-3 h-2 rounded-full bg-zinc-100">
-              <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${(diasLibresLegales.tomados / 15) * 100}%` }} />
+
+            <div className="rounded-xl border border-zinc-200 bg-white p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <Calendar className="w-5 h-5 text-cyan-500" />
+                <h3 className="text-sm font-semibold text-zinc-900">Días Libre Disposición</h3>
+              </div>
+              <p className="text-xs text-zinc-500 mb-3">Ley 40 Horas — 2 días remunerados por mes (puertas adentro)</p>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                <div><p className="text-zinc-500 text-xs">Este mes</p><p className="font-semibold text-zinc-900">2 días</p></div>
+                <div><p className="text-zinc-500 text-xs">Tomados</p><p className="font-semibold text-cyan-600">{libreDisposicion.tomados}</p></div>
+                <div><p className="text-zinc-500 text-xs">Pendientes</p><p className="font-semibold text-amber-600">{libreDisposicion.pendientes}</p></div>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-zinc-100">
+                <div className="h-2 rounded-full bg-cyan-500 transition-all" style={{ width: `${(libreDisposicion.tomados / 2) * 100}%` }} />
+              </div>
             </div>
           </div>
         </>
