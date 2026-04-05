@@ -45,13 +45,6 @@ export async function POST(request: NextRequest) {
   try {
     const flowAmount = Math.round(monto);
     const flowSubject = descripcion || `Pago consolidado Poppins (${pagoIds.length} cuentas)`;
-    console.log('[create-bulk] Creating Flow payment:', {
-      bulkId,
-      pagoIds,
-      amount: flowAmount,
-      subject: flowSubject,
-      pagoCount: pagoIds.length,
-    });
 
     const result = await createFlowPayment({
       commerceOrder: bulkId,
@@ -62,7 +55,7 @@ export async function POST(request: NextRequest) {
       urlReturn: `${siteUrl}/empresa/pagos?flow_status=completed`,
     });
 
-    console.log('[create-bulk] Flow response:', {
+    return NextResponse.json({
       url: result.url,
       token: result.token,
       flowOrder: result.flowOrder,

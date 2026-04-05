@@ -176,7 +176,6 @@ export default function Home() {
           formId: formId,
           target: "#hubspot-form-container",
           onFormReady: () => {
-            console.log("HubSpot Form Ready");
             setIsFormReady(true);
           },
         });

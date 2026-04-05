@@ -1030,7 +1030,7 @@ function PagosContent() {
           currentPlan={planTipo}
           cuentasCount={cuentas.length}
           onUpgrade={(plan) => {
-            console.log('Upgrade to', plan);
+            // TODO: implement plan upgrade
           }}
         />
       )}

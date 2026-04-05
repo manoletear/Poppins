@@ -1,15 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createFlowPayment } from '@/lib/flow';
+import { z } from 'zod';
 
 const FLOW_API_KEY = process.env.FLOW_API_KEY;
 
-export async function POST(request: NextRequest) {
-  const body = await request.json();
-  const { pagoId, monto, descripcion, email } = body;
+const CreatePaymentSchema = z.object({
+  pagoId: z.string().min(1),
+  monto: z.number().positive(),
+  descripcion: z.string().optional(),
+  email: z.string().email().optional(),
+});
 
-  if (!pagoId || !monto) {
-    return NextResponse.json({ error: 'pagoId y monto son requeridos' }, { status: 400 });
+export async function POST(request: NextRequest) {
+  let body;
+  try { body = await request.json(); } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }
+
+  const parsed = CreatePaymentSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Datos inválidos', details: parsed.error.flatten() }, { status: 400 });
   }
+  const { pagoId, monto, descripcion, email } = parsed.data;
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins-erp-2026.vercel.app';
 
