@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx vitest:*)",
+      "Bash(rm src/data/mockData.js src/lib/supabase-queries.ts)",
+      "Bash(rmdir src/data)"
+    ]
+  }
+}

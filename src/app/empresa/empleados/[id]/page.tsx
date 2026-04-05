@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
 import {
@@ -237,7 +238,7 @@ export default function EmpleadoDetallePage() {
           <div className="flex items-center gap-4">
             <label className="relative cursor-pointer group">
               {worker.foto_url ? (
-                <img src={worker.foto_url} alt="" className="h-14 w-14 rounded-full object-cover border-2 border-white/30" />
+                <Image src={worker.foto_url} alt="" width={56} height={56} className="h-14 w-14 rounded-full object-cover border-2 border-white/30" />
               ) : (
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/20 text-lg font-bold text-white">{iniciales}</div>
               )}
