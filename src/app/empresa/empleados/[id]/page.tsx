@@ -14,12 +14,23 @@ import {
 
 type TabKey = 'resumen' | 'contrato' | 'liquidaciones' | 'asistencia';
 
-const tabs: { key: TabKey; label: string }[] = [
-  { key: 'resumen', label: 'Resumen' },
-  { key: 'contrato', label: 'Contrato' },
-  { key: 'liquidaciones', label: 'Liquidaciones' },
-  { key: 'asistencia', label: 'Asistencia' },
-];
+function getTabsForCargo(cargo: string): { key: TabKey; label: string }[] {
+  const c = (cargo || '').toLowerCase();
+  if (c.includes('piscin') || c.includes('jardin')) {
+    return [
+      { key: 'resumen', label: 'Resumen' },
+      { key: 'contrato', label: 'Contrato de Servicios' },
+      { key: 'liquidaciones', label: 'Servicios' },
+      { key: 'asistencia', label: 'Asistencia' },
+    ];
+  }
+  return [
+    { key: 'resumen', label: 'Resumen' },
+    { key: 'contrato', label: 'Contrato' },
+    { key: 'liquidaciones', label: 'Liquidaciones' },
+    { key: 'asistencia', label: 'Asistencia' },
+  ];
+}
 
 function formatCLP(n: number): string { return '$' + (n ?? 0).toLocaleString('es-CL'); }
 
@@ -285,7 +296,7 @@ export default function EmpleadoDetallePage() {
 
       {/* Tabs */}
       <div className="flex gap-1 rounded-lg bg-zinc-100 p-1 w-fit">
-        {tabs.map(tab => (
+        {getTabsForCargo(worker?.cargo).map(tab => (
           <button key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`rounded-md px-4 py-2 text-sm font-medium transition-colors ${activeTab === tab.key ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-700'}`}>
             {tab.label}
@@ -387,8 +398,57 @@ export default function EmpleadoDetallePage() {
         )}
         {activeTab === 'contrato' && !contrato && <p className="text-sm text-zinc-500 text-center py-8">Sin contrato activo.</p>}
 
-        {/* LIQUIDACIONES */}
-        {activeTab === 'liquidaciones' && (
+        {/* LIQUIDACIONES / SERVICIOS */}
+        {activeTab === 'liquidaciones' && (() => {
+          const cargo = (worker?.cargo || '').toLowerCase();
+          const esPorVisitas = cargo.includes('piscin') || cargo.includes('jardin');
+
+          if (esPorVisitas) {
+            const aprobadas = visitas.filter(v => v.estado === 'aprobada');
+            const totalVisitas = aprobadas.reduce((s: number, v: any) => s + (v.costo_visita || 0), 0);
+            const totalMats = Object.values(materiales).flat().filter((m: any) => m.aprobado).reduce((s: number, m: any) => s + (m.costo * (m.cantidad || 1)), 0);
+            const porMes: Record<string, { visitas: number; monto: number; materiales: number }> = {};
+            aprobadas.forEach((v: any) => {
+              const mes = v.fecha?.substring(0, 7) || '';
+              if (!porMes[mes]) porMes[mes] = { visitas: 0, monto: 0, materiales: 0 };
+              porMes[mes].visitas++;
+              porMes[mes].monto += v.costo_visita || 0;
+              const mats = materiales[v.id] || [];
+              porMes[mes].materiales += mats.filter((m: any) => m.aprobado).reduce((s: number, m: any) => s + (m.costo * (m.cantidad || 1)), 0);
+            });
+
+            return (
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold text-zinc-900">Resumen de Servicios</h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="rounded-lg bg-emerald-50 p-4 text-center">
+                    <p className="text-2xl font-bold text-emerald-700">{aprobadas.length}</p>
+                    <p className="text-xs text-emerald-600">Visitas aprobadas</p>
+                  </div>
+                  <div className="rounded-lg bg-violet-50 p-4 text-center">
+                    <p className="text-2xl font-bold text-violet-700">{formatCLP(totalVisitas)}</p>
+                    <p className="text-xs text-violet-600">Total servicios</p>
+                  </div>
+                  <div className="rounded-lg bg-blue-50 p-4 text-center">
+                    <p className="text-2xl font-bold text-blue-700">{formatCLP(totalMats)}</p>
+                    <p className="text-xs text-blue-600">Materiales</p>
+                  </div>
+                </div>
+                <h4 className="text-sm font-semibold text-zinc-700 mt-4">Detalle por Mes</h4>
+                {Object.entries(porMes).sort(([a], [b]) => b.localeCompare(a)).map(([mes, data]) => (
+                  <div key={mes} className="rounded-lg border border-zinc-200 p-4 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-zinc-900">{mes}</p>
+                      <p className="text-xs text-zinc-500">{data.visitas} visitas · Materiales {formatCLP(data.materiales)}</p>
+                    </div>
+                    <p className="text-lg font-bold text-zinc-900">{formatCLP(data.monto + data.materiales)}</p>
+                  </div>
+                ))}
+              </div>
+            );
+          }
+
+          return (
           <div className="space-y-3">
             <h3 className="text-lg font-semibold text-zinc-900 mb-4">Liquidaciones</h3>
             {liquidaciones.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin liquidaciones.</p> : (
@@ -454,7 +514,8 @@ export default function EmpleadoDetallePage() {
               ))
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* ASISTENCIA / VISITAS */}
         {activeTab === 'asistencia' && (() => {
@@ -462,95 +523,60 @@ export default function EmpleadoDetallePage() {
           const esPorVisitas = cargo.includes('piscin') || cargo.includes('jardin');
 
           if (esPorVisitas && visitas.length > 0) {
-            const aprobadas = visitas.filter(v => v.estado === 'aprobada').length;
-            const completadas = visitas.filter(v => v.estado === 'completada').length;
-            const noRealizadas = visitas.filter(v => v.estado === 'no_realizada').length;
-            const programadas = visitas.filter(v => v.estado === 'programada').length;
-            const totalMonto = visitas.filter(v => v.estado === 'aprobada').reduce((s: number, v: any) => s + (v.costo_visita || 0), 0);
-            const totalMateriales = Object.values(materiales).flat().filter((m: any) => m.aprobado).reduce((s: number, m: any) => s + (m.costo || 0), 0);
-
+            const diaSemana = cargo.includes('piscin') ? 'Viernes' : 'Miércoles';
             return (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-zinc-900">Calendario de Visitas</h3>
-                  <span className="text-sm text-zinc-500">{formatCLP(visitas[0]?.costo_visita || 0)} por visita</span>
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-                  <div className="rounded-lg bg-emerald-50 p-3 text-center"><p className="text-lg font-bold text-emerald-700">{aprobadas}</p><p className="text-xs text-emerald-600">Aprobadas</p></div>
-                  <div className="rounded-lg bg-blue-50 p-3 text-center"><p className="text-lg font-bold text-blue-700">{completadas}</p><p className="text-xs text-blue-600">Por aprobar</p></div>
-                  <div className="rounded-lg bg-red-50 p-3 text-center"><p className="text-lg font-bold text-red-700">{noRealizadas}</p><p className="text-xs text-red-600">No realizadas</p></div>
-                  <div className="rounded-lg bg-zinc-50 p-3 text-center"><p className="text-lg font-bold text-zinc-700">{programadas}</p><p className="text-xs text-zinc-600">Programadas</p></div>
-                  <div className="rounded-lg bg-violet-50 p-3 text-center"><p className="text-lg font-bold text-violet-700">{formatCLP(totalMonto)}</p><p className="text-xs text-violet-600">Total aprobado</p></div>
+                  <h3 className="text-lg font-semibold text-zinc-900">Asistencia — {diaSemana}s</h3>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-emerald-500 inline-block" /> Realizada y aprobada</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-blue-500 inline-block" /> Completada (por aprobar)</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-full bg-red-500 inline-block" /> No realizada / Pendiente</span>
+                  </div>
                 </div>
 
                 {/* Calendar grid */}
-                <div className="space-y-2">
+                <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
                   {visitas.map(v => {
-                    const mats = materiales[v.id] || [];
-                    const costoMats = mats.reduce((s: number, m: any) => s + (m.costo * (m.cantidad || 1)), 0);
-                    const colorMap: Record<string, string> = {
-                      aprobada: 'border-l-emerald-500 bg-emerald-50/50',
-                      completada: 'border-l-blue-500 bg-blue-50/50',
-                      no_realizada: 'border-l-red-500 bg-red-50/50',
-                      programada: 'border-l-zinc-300 bg-white',
-                      rechazada: 'border-l-red-500 bg-red-50/50',
-                    };
+                    const bg = v.estado === 'aprobada' ? 'bg-emerald-500 text-white' :
+                               v.estado === 'completada' ? 'bg-blue-500 text-white' :
+                               v.estado === 'no_realizada' ? 'bg-red-500 text-white' :
+                               new Date(v.fecha) < new Date() ? 'bg-red-100 text-red-700 border border-red-300' :
+                               'bg-zinc-100 text-zinc-600';
                     return (
-                      <div key={v.id} className={`rounded-lg border border-zinc-200 border-l-4 ${colorMap[v.estado] || 'bg-white'} p-4`}>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-sm font-medium text-zinc-900">
-                              {new Date(v.fecha).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
-                            </p>
-                            <p className="text-xs text-zinc-500 mt-0.5">
-                              {v.estado === 'aprobada' ? '✅ Aprobada' : v.estado === 'completada' ? '🔵 Completada — pendiente aprobación' : v.estado === 'no_realizada' ? '❌ No realizada' : v.estado === 'programada' ? '📅 Programada' : v.estado}
-                              {v.notas_empleado && ` — "${v.notas_empleado}"`}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-semibold text-zinc-900">{formatCLP(v.costo_visita)}</span>
-                            {v.estado === 'completada' && !v.aprobada_por_empleador && (
-                              <button onClick={async () => {
-                                const supabase = createClient();
-                                await supabase.from('visitas_servicio').update({ estado: 'aprobada', aprobada_por_empleador: true, aprobada_at: new Date().toISOString() }).eq('id', v.id);
-                                loadData();
-                              }} className="rounded-lg bg-emerald-600 text-white px-3 py-1 text-xs font-medium hover:bg-emerald-700">
-                                Aprobar
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        {/* Materiales */}
-                        {mats.length > 0 && (
-                          <div className="mt-3 border-t border-zinc-100 pt-2">
-                            <p className="text-xs font-medium text-zinc-500 mb-1">Materiales ({formatCLP(costoMats)})</p>
-                            {mats.map((m: any) => (
-                              <div key={m.id} className="flex items-center justify-between text-xs text-zinc-600 py-0.5">
-                                <span>{m.nombre} ×{m.cantidad || 1}</span>
-                                <span className="font-medium">{formatCLP(m.costo)}{m.aprobado ? ' ✓' : ''}</span>
-                              </div>
-                            ))}
-                          </div>
-                        )}
+                      <div key={v.id} className={`rounded-lg p-2 text-center ${bg}`} title={v.estado}>
+                        <p className="text-[10px] opacity-80">{new Date(v.fecha).toLocaleDateString('es-CL', { month: 'short' })}</p>
+                        <p className="text-lg font-bold">{new Date(v.fecha).getDate()}</p>
+                        <p className="text-[10px]">{diaSemana.substring(0, 3)}</p>
                       </div>
                     );
                   })}
                 </div>
 
-                {/* Resumen liquidación */}
-                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
-                  <h4 className="text-sm font-semibold text-violet-900 mb-2">Resumen para Liquidación</h4>
-                  <div className="grid grid-cols-3 gap-4 text-sm">
-                    <div><p className="text-xs text-violet-600">Visitas aprobadas</p><p className="font-bold text-violet-900">{aprobadas} × {formatCLP(visitas[0]?.costo_visita || 0)}</p></div>
-                    <div><p className="text-xs text-violet-600">Subtotal visitas</p><p className="font-bold text-violet-900">{formatCLP(totalMonto)}</p></div>
-                    <div><p className="text-xs text-violet-600">Materiales aprobados</p><p className="font-bold text-violet-900">{formatCLP(totalMateriales)}</p></div>
+                {/* Pending approvals */}
+                {visitas.filter(v => v.estado === 'completada').length > 0 && (
+                  <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                    <p className="text-sm font-semibold text-blue-900 mb-2">Visitas pendientes de aprobación</p>
+                    {visitas.filter(v => v.estado === 'completada').map(v => (
+                      <div key={v.id} className="flex items-center justify-between py-1">
+                        <span className="text-sm text-blue-800">{new Date(v.fecha).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                        <button onClick={async () => {
+                          const supabase = createClient();
+                          await supabase.from('visitas_servicio').update({ estado: 'aprobada', aprobada_por_empleador: true, aprobada_at: new Date().toISOString() }).eq('id', v.id);
+                          loadData();
+                        }} className="rounded-lg bg-emerald-600 text-white px-3 py-1 text-xs font-medium hover:bg-emerald-700">
+                          Aprobar visita
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                  <div className="mt-2 pt-2 border-t border-violet-200 flex justify-between">
-                    <span className="text-sm font-semibold text-violet-900">Total a pagar</span>
-                    <span className="text-lg font-bold text-violet-900">{formatCLP(totalMonto + totalMateriales)}</span>
-                  </div>
+                )}
+
+                {/* Summary */}
+                <div className="rounded-lg bg-zinc-50 px-4 py-2 flex gap-6 text-xs text-zinc-600">
+                  <span><strong>{visitas.filter(v => v.estado === 'aprobada').length}</strong> aprobadas</span>
+                  <span><strong>{visitas.filter(v => v.estado === 'no_realizada' || (v.estado === 'programada' && new Date(v.fecha) < new Date())).length}</strong> faltó</span>
+                  <span><strong>{visitas.filter(v => v.estado === 'programada' && new Date(v.fecha) >= new Date()).length}</strong> próximas</span>
                 </div>
               </div>
             );
