@@ -15,6 +15,7 @@ import {
   Check,
   Loader2,
   Trash2,
+  CalendarDays,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { createClient } from '@/lib/supabase/client';
@@ -84,22 +85,48 @@ export default function EmpresaDashboard() {
   const [marcajesHoy, setMarcajesHoy] = useState<any[]>([]);
   const [solicitudesPendientes, setSolicitudesPendientes] = useState<any[]>([]);
   const [vacacionesInfo, setVacacionesInfo] = useState<{ tomados: number; pendientes: number }>({ tomados: 0, pendientes: 15 });
+  const [libreDisposicion, setLibreDisposicion] = useState<{ tomados: number; derecho: number }>({ tomados: 0, derecho: 0 });
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     if (!empleadorId) return;
     const supabase = createClient();
+    // Mes actual para libre disposición
+    const now = new Date();
+    const mesActual = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
     Promise.all([
       supabase.from('contratos').select('*, trabajadores(id, nombre, apellido_paterno, cargo)').eq('empleador_id', empleadorId).eq('estado', 'activo'),
       getMarcajesHoy(empleadorId),
       supabase.from('solicitudes_empleado').select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', empleadorId).eq('estado', 'pendiente').order('created_at', { ascending: false }).limit(5),
       supabase.from('solicitudes_empleado').select('dias').eq('empleador_id', empleadorId).eq('tipo', 'vacaciones').eq('estado', 'aprobada'),
-    ]).then(([contRes, marcajes, solRes, vacRes]) => {
+      supabase.from('dias_libre_disposicion').select('id').eq('empleador_id', empleadorId).eq('estado', 'tomado').gte('fecha', mesActual + '-01').lte('fecha', mesActual + '-31'),
+      // Contar meses trabajados para calcular derecho acumulado
+      supabase.from('contratos').select('fecha_inicio').eq('empleador_id', empleadorId).eq('estado', 'activo').limit(1),
+    ]).then(([contRes, marcajes, solRes, vacRes, ldRes, contFechaRes]) => {
       setTrabajadores((contRes.data || []).map((c: any) => c.trabajadores).filter(Boolean));
       setMarcajesHoy(marcajes || []);
       setSolicitudesPendientes(solRes.data || []);
       const diasTomados = (vacRes.data || []).reduce((s: number, v: any) => s + (v.dias || 0), 0);
       setVacacionesInfo({ tomados: diasTomados, pendientes: Math.max(0, 15 - diasTomados) });
+
+      // Ley 21.561: trabajadores puertas adentro tienen derecho a 2 días
+      // de libre disposición remunerados al mes. Para puertas afuera aplica
+      // la reducción gradual de jornada (44h→42h→40h).
+      // Calculamos: meses trabajados × 2 = derecho acumulado anual
+      const ldTomadosMes = ldRes.data?.length || 0;
+      const fechaInicio = contFechaRes.data?.[0]?.fecha_inicio;
+      let mesesTrabajados = 0;
+      if (fechaInicio) {
+        const inicio = new Date(fechaInicio);
+        mesesTrabajados = (now.getFullYear() - inicio.getFullYear()) * 12 + (now.getMonth() - inicio.getMonth());
+        if (mesesTrabajados < 0) mesesTrabajados = 0;
+      }
+      // Derecho: 2 días por cada mes del año en curso
+      const mesesEnAnio = now.getMonth() + 1; // Ene=1, Feb=2, etc.
+      const derechoAnual = mesesEnAnio * 2;
+      setLibreDisposicion({ tomados: ldTomadosMes, derecho: 2 }); // 2 por mes
+
       setLoadingData(false);
     });
   }, [empleadorId]);
@@ -219,8 +246,16 @@ export default function EmpresaDashboard() {
         color: 'bg-cyan-500',
         href: '/empresa/solicitudes',
       },
+      {
+        label: 'Libre Disposición',
+        value: `${libreDisposicion.tomados}/${libreDisposicion.derecho}`,
+        sub: `Ley 21.561 · ${libreDisposicion.derecho - libreDisposicion.tomados} días pendientes este mes`,
+        icon: CalendarDays,
+        color: 'bg-teal-500',
+        href: '/empresa/horarios',
+      },
     ],
-    [loadingData, trabajadores, solicitudesPendientes, taskStats, puntosAcumulados, vacacionesInfo]
+    [loadingData, trabajadores, solicitudesPendientes, taskStats, puntosAcumulados, vacacionesInfo, libreDisposicion]
   );
 
   const toggleShoppingItem = async (id: string) => {
