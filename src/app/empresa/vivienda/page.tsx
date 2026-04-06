@@ -37,6 +37,7 @@ export default function ViviendaPage() {
   const { profile, loading: authLoading } = useAuth();
   const empleadorId = profile?.empleador_id || '';
   const [vivienda, setVivienda] = useState<Vivienda | null>(null);
+  const [empleadosPorCargo, setEmpleadosPorCargo] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
@@ -57,6 +58,20 @@ export default function ViviendaPage() {
 
       if (fetchError) throw fetchError;
       setVivienda(data as Vivienda | null);
+
+      // Cargar empleados por cargo para tooltips
+      const { data: contratos } = await supabase.from('contratos')
+        .select('cargo, trabajadores(nombre, apellido_paterno)')
+        .eq('empleador_id', empleadorId).eq('estado', 'activo');
+      const porCargo: Record<string, string[]> = {};
+      (contratos || []).forEach((c: any) => {
+        const cargo = (c.cargo || '').toLowerCase();
+        const nombre = c.trabajadores ? `${c.trabajadores.nombre} ${c.trabajadores.apellido_paterno || ''}`.trim() : '';
+        if (!nombre) return;
+        const keys = cargo.includes('jardin') ? ['jardinero'] : cargo.includes('piscin') ? ['piscinero'] : ['empleada', 'asesora'];
+        keys.forEach(k => { if (!porCargo[k]) porCargo[k] = []; porCargo[k].push(nombre); });
+      });
+      setEmpleadosPorCargo(porCargo);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al cargar datos de vivienda';
       setError(message);
@@ -172,6 +187,7 @@ export default function ViviendaPage() {
     color: string;
     bgColor: string;
     lines: string[];
+    cargoKey: string;
   }[] = [
     {
       title: 'Empleada Doméstica',
@@ -183,6 +199,7 @@ export default function ViviendaPage() {
         `${vivienda.dormitorios ?? 0} dormitorios, ${vivienda.banos ?? 0} baños`,
         'Recomendado: Jornada completa',
       ],
+      cargoKey: 'asesora',
     },
   ];
 
@@ -199,6 +216,7 @@ export default function ViviendaPage() {
         'Mantención semanal recomendada',
         'Incluye poda y riego',
       ],
+      cargoKey: 'jardinero',
     });
   }
 
@@ -213,6 +231,7 @@ export default function ViviendaPage() {
         'Mantención 2 veces por semana',
         'Control pH, cloro, limpieza filtros',
       ],
+      cargoKey: 'piscinero',
     });
   }
 
@@ -291,7 +310,7 @@ export default function ViviendaPage() {
               return (
                 <div
                   key={service.title}
-                  className="rounded-xl border border-dashed p-4"
+                  className="rounded-xl border border-dashed p-4 relative group cursor-pointer hover:border-zinc-400 transition"
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div className={`rounded-lg ${service.bgColor} p-2`}>
@@ -306,6 +325,20 @@ export default function ViviendaPage() {
                       </li>
                     ))}
                   </ul>
+                  {/* Tooltip con empleados asignados */}
+                  {empleadosPorCargo[service.cargoKey] && empleadosPorCargo[service.cargoKey].length > 0 && (
+                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-20">
+                      <div className="bg-zinc-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg whitespace-nowrap">
+                        {empleadosPorCargo[service.cargoKey].map((n, i) => (
+                          <div key={i}>{n}</div>
+                        ))}
+                        <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-zinc-900 rotate-45 -mt-1" />
+                      </div>
+                    </div>
+                  )}
+                  {empleadosPorCargo[service.cargoKey] && (
+                    <p className="text-[10px] text-violet-600 mt-2 font-medium">{empleadosPorCargo[service.cargoKey].length} asignado{empleadosPorCargo[service.cargoKey].length > 1 ? 's' : ''}</p>
+                  )}
                 </div>
               );
             })}

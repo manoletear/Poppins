@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Clock, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, Palmtree, Download, FileText } from 'lucide-react';
+import { Clock, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, Palmtree, Download, FileText, Printer, Share2 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { createClient } from '@/lib/supabase/client';
 
@@ -109,6 +109,8 @@ export default function HorariosPage() {
   const [vacHistorico, setVacHistorico] = useState<any[]>([]);
   const [showLdHistorico, setShowLdHistorico] = useState(false);
   const [showVacHistorico, setShowVacHistorico] = useState(false);
+  const [ldFilterMes, setLdFilterMes] = useState('todos');
+  const [vacFilterMes, setVacFilterMes] = useState('todos');
   const [empleadorData, setEmpleadorData] = useState<any>(null);
   const [trabajadorData, setTrabajadorData] = useState<any>(null);
 
@@ -429,10 +431,10 @@ export default function HorariosPage() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <Palmtree className="w-5 h-5 text-emerald-500" />
-                  <h3 className="text-sm font-semibold text-zinc-900">Vacaciones Legales (Art. 67 Código del Trabajo)</h3>
+                  <h3 className="text-sm font-semibold text-zinc-900">Vacaciones Legales (Art. 67)</h3>
                 </div>
                 <button onClick={() => setShowVacHistorico(!showVacHistorico)} className="text-xs text-violet-600 hover:underline">
-                  {showVacHistorico ? 'Ocultar historial' : 'Ver historial'}
+                  {showVacHistorico ? 'Ocultar' : 'Ver historial'}
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-4 text-sm mb-3">
@@ -440,52 +442,52 @@ export default function HorariosPage() {
                 <div><p className="text-zinc-500 text-xs">Tomados</p><p className="font-semibold text-emerald-600">{vacaciones.tomados}</p></div>
                 <div><p className="text-zinc-500 text-xs">Pendientes</p><p className="font-semibold text-amber-600">{vacaciones.pendientes}</p></div>
               </div>
-              <div className="h-2 rounded-full bg-zinc-100">
+              <div className="h-2 rounded-full bg-zinc-100 mb-1">
                 <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${(vacaciones.tomados / 15) * 100}%` }} />
               </div>
+              <p className="text-[10px] text-zinc-400">Solicitud del empleado + aprobación del empleador = registro válido</p>
 
-              {showVacHistorico && (
-                <div className="mt-4 border-t border-zinc-100 pt-4">
-                  <p className="text-xs font-medium text-zinc-500 mb-2">Historial de Vacaciones</p>
-                  {vacHistorico.length === 0 ? (
-                    <p className="text-xs text-zinc-400">Sin vacaciones registradas</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {vacHistorico.map((v: any) => {
-                        const nombre = v.trabajadores ? `${v.trabajadores.nombre} ${v.trabajadores.apellido_paterno || ''}` : '';
-                        return (
+              {showVacHistorico && (() => {
+                const mesesDisponibles = [...new Set(vacHistorico.map((v: any) => v.fecha_inicio?.substring(0, 7)))].filter(Boolean);
+                const filtered = vacFilterMes === 'todos' ? vacHistorico : vacHistorico.filter((v: any) => v.fecha_inicio?.startsWith(vacFilterMes));
+                const totalDiasFiltrado = filtered.reduce((s: number, v: any) => s + (v.dias || 0), 0);
+                return (
+                  <div className="mt-4 border-t border-zinc-100 pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <select value={vacFilterMes} onChange={e => setVacFilterMes(e.target.value)} className="text-xs border border-zinc-200 rounded-lg px-2 py-1 bg-white">
+                        <option value="todos">Todos los períodos</option>
+                        {mesesDisponibles.map((m: string) => <option key={m} value={m}>{MESES[parseInt(m.split('-')[1]) - 1]} {m.split('-')[0]}</option>)}
+                      </select>
+                      <ReportButtons data={filtered} tipo="vacaciones" empleador={empleadorData} trabajador={trabajadorData} totalDias={totalDiasFiltrado} />
+                    </div>
+                    {filtered.length === 0 ? <p className="text-xs text-zinc-400">Sin registros en este período</p> : (
+                      <div className="space-y-2">
+                        {filtered.map((v: any) => (
                           <div key={v.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
                             <div>
-                              <p className="text-sm text-zinc-800">{nombre} — {v.dias} días</p>
+                              <p className="text-sm text-zinc-800">{v.trabajadores ? `${v.trabajadores.nombre} ${v.trabajadores.apellido_paterno || ''}` : ''} — {v.dias} días</p>
                               <p className="text-xs text-zinc-500">{new Date(v.fecha_inicio).toLocaleDateString('es-CL')} al {new Date(v.fecha_fin).toLocaleDateString('es-CL')}</p>
                             </div>
-                            <button onClick={() => {
-                              const html = generateVacacionesDoc(empleadorData, trabajadorData, v);
-                              const w = window.open('', '_blank');
-                              if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400); }
-                            }} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline">
-                              <Download className="w-3 h-3" /> Comprobante
-                            </button>
                           </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             <div className="rounded-xl border border-zinc-200 bg-white p-5">
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-3">
                   <Calendar className="w-5 h-5 text-cyan-500" />
-                  <h3 className="text-sm font-semibold text-zinc-900">Días Libre Disposición (Ley 21.561)</h3>
+                  <h3 className="text-sm font-semibold text-zinc-900">Libre Disposición (Ley 21.561)</h3>
                 </div>
                 <button onClick={() => setShowLdHistorico(!showLdHistorico)} className="text-xs text-violet-600 hover:underline">
-                  {showLdHistorico ? 'Ocultar historial' : 'Ver historial'}
+                  {showLdHistorico ? 'Ocultar' : 'Ver historial'}
                 </button>
               </div>
-              <p className="text-xs text-zinc-500 mb-3">Trabajadores puertas adentro: 2 días remunerados por mes de libre disposición. No requiere justificación. El empleador debe registrar los días.</p>
+              <p className="text-xs text-zinc-500 mb-3">2 días remunerados/mes · Solicitud + aceptación = registro válido</p>
               <div className="grid grid-cols-3 gap-4 text-sm mb-3">
                 <div><p className="text-zinc-500 text-xs">Este mes</p><p className="font-semibold text-zinc-900">2 días</p></div>
                 <div><p className="text-zinc-500 text-xs">Tomados</p><p className="font-semibold text-cyan-600">{libreDisposicion.tomados}</p></div>
@@ -495,36 +497,82 @@ export default function HorariosPage() {
                 <div className="h-2 rounded-full bg-cyan-500 transition-all" style={{ width: `${(libreDisposicion.tomados / 2) * 100}%` }} />
               </div>
 
-              {showLdHistorico && (
-                <div className="mt-4 border-t border-zinc-100 pt-4">
-                  <p className="text-xs font-medium text-zinc-500 mb-2">Historial por Mes</p>
-                  {ldHistorico.length === 0 ? (
-                    <p className="text-xs text-zinc-400">Sin días registrados</p>
-                  ) : (
-                    <div className="space-y-2">
-                      {ldHistorico.map((d: any) => (
-                        <div key={d.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
-                          <div>
-                            <p className="text-sm text-zinc-800">{new Date(d.fecha).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                            <p className="text-xs text-zinc-500">{d.estado === 'tomado' ? 'Día tomado' : d.estado} {d.notas ? `— ${d.notas}` : ''}</p>
-                          </div>
-                          <button onClick={() => {
-                            const html = generateLdDoc(empleadorData, trabajadorData, d);
-                            const w = window.open('', '_blank');
-                            if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400); }
-                          }} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline">
-                            <Download className="w-3 h-3" /> Constancia
-                          </button>
-                        </div>
-                      ))}
+              {showLdHistorico && (() => {
+                const mesesDisponibles = [...new Set(ldHistorico.map((d: any) => d.fecha?.substring(0, 7)))].filter(Boolean);
+                const filtered = ldFilterMes === 'todos' ? ldHistorico : ldHistorico.filter((d: any) => d.fecha?.startsWith(ldFilterMes));
+                return (
+                  <div className="mt-4 border-t border-zinc-100 pt-4">
+                    <div className="flex items-center justify-between mb-3">
+                      <select value={ldFilterMes} onChange={e => setLdFilterMes(e.target.value)} className="text-xs border border-zinc-200 rounded-lg px-2 py-1 bg-white">
+                        <option value="todos">Todos los meses</option>
+                        {mesesDisponibles.map((m: string) => <option key={m} value={m}>{MESES[parseInt(m.split('-')[1]) - 1]} {m.split('-')[0]}</option>)}
+                      </select>
+                      <ReportButtons data={filtered} tipo="libre_disposicion" empleador={empleadorData} trabajador={trabajadorData} totalDias={filtered.length} />
                     </div>
-                  )}
-                </div>
-              )}
+                    {filtered.length === 0 ? <p className="text-xs text-zinc-400">Sin registros</p> : (
+                      <div className="space-y-2">
+                        {filtered.map((d: any) => (
+                          <div key={d.id} className="rounded-lg bg-zinc-50 px-3 py-2">
+                            <p className="text-sm text-zinc-800">{new Date(d.fecha).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            <p className="text-xs text-zinc-500">{d.notas || 'Día de libre disposición'}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function ReportButtons({ data, tipo, empleador, trabajador, totalDias }: { data: any[]; tipo: string; empleador: any; trabajador: any; totalDias: number }) {
+  const generateReport = () => {
+    const hoy = new Date().toLocaleDateString('es-CL');
+    const titulo = tipo === 'vacaciones' ? 'REPORTE DE VACACIONES LEGALES' : 'REPORTE DÍAS LIBRE DISPOSICIÓN';
+    const ley = tipo === 'vacaciones' ? 'Art. 67-76 Código del Trabajo' : 'Ley 21.561';
+    const rows = data.map((d: any) => {
+      if (tipo === 'vacaciones') {
+        const nombre = d.trabajadores ? `${d.trabajadores.nombre} ${d.trabajadores.apellido_paterno || ''}` : '';
+        return `<tr><td>${nombre}</td><td>${new Date(d.fecha_inicio).toLocaleDateString('es-CL')}</td><td>${new Date(d.fecha_fin).toLocaleDateString('es-CL')}</td><td>${d.dias}</td></tr>`;
+      }
+      return `<tr><td>${new Date(d.fecha).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}</td><td>${d.estado}</td><td>${d.notas || '-'}</td></tr>`;
+    }).join('');
+    const cols = tipo === 'vacaciones' ? '<th>Empleado</th><th>Desde</th><th>Hasta</th><th>Días</th>' : '<th>Fecha</th><th>Estado</th><th>Notas</th>';
+    return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>${titulo}</title>
+<style>body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;padding:30px;font-size:13px}h1{text-align:center;font-size:18px}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:20px 0;padding:16px;background:#f9fafb;border-radius:8px}
+table{width:100%;border-collapse:collapse;margin:20px 0}th{background:#f3f4f6;text-align:left;padding:8px;font-size:12px;border-bottom:2px solid #e5e7eb}
+td{padding:8px;border-bottom:1px solid #e5e7eb}.total{font-weight:bold;background:#ecfdf5;font-size:14px}
+@media print{body{margin:0;padding:20px}}</style></head><body>
+<h1>${titulo}</h1><p style="text-align:center;color:#666;font-size:12px">${ley} · Emitido ${hoy}</p>
+<div class="info"><div><strong>Empleador:</strong> ${empleador?.nombre || ''} ${empleador?.apellido || ''}</div>
+<div><strong>RUT:</strong> ${empleador?.rut || ''}</div>
+<div><strong>Trabajador:</strong> ${trabajador?.nombre || ''} ${trabajador?.apellido_paterno || ''}</div>
+<div><strong>RUT:</strong> ${trabajador?.rut || ''}</div></div>
+<table><thead><tr>${cols}</tr></thead><tbody>${rows}</tbody>
+<tfoot><tr class="total"><td colspan="${tipo === 'vacaciones' ? 3 : 2}">Total</td><td>${totalDias} días</td></tr></tfoot></table>
+<p style="text-align:center;font-size:11px;color:#999;margin-top:40px">Generado por Poppins · Registro basado en solicitud del empleado y aprobación del empleador</p></body></html>`;
+  };
+
+  const handlePrint = () => { const w = window.open('', '_blank'); if (w) { w.document.write(generateReport()); w.document.close(); setTimeout(() => w.print(), 400); } };
+
+  const handleShare = () => {
+    const text = `${tipo === 'vacaciones' ? 'Reporte Vacaciones' : 'Reporte Libre Disposición'}\n${totalDias} días registrados\nEmpleador: ${empleador?.nombre || ''}\nTrabajador: ${trabajador?.nombre || ''}\n\nGenerado por Poppins`;
+    if (navigator.share) { navigator.share({ title: 'Reporte Poppins', text }).catch(() => {}); }
+    else { window.open(`mailto:?subject=Reporte Poppins&body=${encodeURIComponent(text)}`, '_blank'); }
+  };
+
+  if (data.length === 0) return null;
+  return (
+    <div className="flex gap-1">
+      <button onClick={handlePrint} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 transition" title="Imprimir"><Printer className="w-3.5 h-3.5" /></button>
+      <button onClick={handlePrint} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 transition" title="Descargar"><Download className="w-3.5 h-3.5" /></button>
+      <button onClick={handleShare} className="p-1.5 rounded-lg hover:bg-zinc-100 text-zinc-500 transition" title="Compartir"><Share2 className="w-3.5 h-3.5" /></button>
     </div>
   );
 }
