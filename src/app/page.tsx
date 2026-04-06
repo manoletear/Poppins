@@ -266,63 +266,137 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Benefits Content */}
-      <section id="features" className="py-24 bg-white relative">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-black text-poppins-navy mb-4">
-              Una plataforma, infinitas soluciones
-            </h2>
+      {/* Todo lo que necesitas */}
+      <section className="py-20 bg-[#f7f8fc]">
+        <div className="max-w-6xl mx-auto px-6">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-black text-poppins-navy mb-3">Todo lo que necesitas, en un solo lugar</h2>
             <p className="text-poppins-navy/60 max-w-2xl mx-auto">
-              Diseñada para dueños de casa que valoran su tiempo y buscan profesionalizar su hogar.
+              Evita multas, atrasos y problemas judiciales. Con Poppins cumples la ley, te organizas y das seguridad a quienes trabajan en tu hogar.
             </p>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            <FeatureCard 
-              icon={<Zap className="text-poppins-pink" />}
-              title="Automatización Total"
-              description="Establece pagos recurrentes y Poppins los ejecuta por ti. Nunca más un pago atrasado."
-            />
-            <FeatureCard 
-              icon={<LineChart className="text-poppins-pink" />}
-              title="Reportes Consolidados"
-              description="Visualiza el flujo financiero de tu hogar con presupuestos claros y reportes por categoría."
-            />
-            <FeatureCard 
-              icon={<ShieldCheck className="text-poppins-pink" />}
-              title="Seguridad Legal"
-              description="Cumple con todas las normativas laborales de forma automática, sin enredos legales."
-            />
+          <div className="grid md:grid-cols-4 gap-6">
+            {[
+              { icon: '📝', title: 'Contratos y Documentos', resuelve: 'Contratos digitales en minutos, anexos, finiquitos con firma válida y almacenamiento en la nube.', evita: 'Contratos informales, demandas laborales y pérdida de documentos.' },
+              { icon: '💰', title: 'Pago de Imposiciones', resuelve: 'Nos integramos con la DT y Previred, calcula y paga automático de AFP, Salud y AFC.', evita: 'Multas, recargos y juicios por cotizaciones impagas.' },
+              { icon: '🔔', title: 'Recordatorios y Alertas', resuelve: 'Notificaciones previas a vencimientos y confirmación de pagos exitosos.', evita: 'Atrasos en sueldos e imposiciones, intereses y sanciones.' },
+              { icon: '📊', title: 'Asistencia y Jornadas', resuelve: 'Control digital de asistencia, horarios, permisos, vacaciones y licencias.', evita: 'Inconsistencias en horas, conflictos por vacaciones y sanciones legales.' },
+            ].map((item, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition">
+                <div className="text-3xl mb-4">{item.icon}</div>
+                <h3 className="font-bold text-poppins-navy mb-3">{item.title}</h3>
+                <p className="text-xs text-poppins-navy/70 mb-2"><strong className="text-poppins-pink">Resuelve:</strong> {item.resuelve}</p>
+                <p className="text-xs text-poppins-navy/70"><strong className="text-red-500">Evita:</strong> {item.evita}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Interactive Detail Section */}
-      <section className="py-24 bg-poppins-navy text-white overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-2 gap-16 items-center">
-          <motion.div {...fadeInUp}>
-            <span className="text-poppins-pink font-bold tracking-widest text-sm mb-4 block uppercase">Magia en tus manos</span>
-            <h2 className="text-4xl md:text-5xl font-black mb-8 leading-tight">
-              AVI: Tu Asistente Virtual Inteligente
-            </h2>
-            <div className="space-y-6">
-              <div className="bg-white/5 border border-white/10 p-6 rounded-2xl backdrop-blur-sm">
-                <p className="text-lg text-white/80 leading-relaxed italic">
-                  "AVI me recomienda cuándo cargar mis tarjetas para maximizar millas y me avisa si un gasto sale de lo habitual en mi presupuesto mensual."
-                </p>
-                <p className="mt-4 font-bold text-poppins-pink">— María José, Fundadora Poppins</p>
+      {/* Empezar es así de fácil */}
+      <section className="py-20 bg-white">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <h2 className="text-3xl md:text-4xl font-black text-poppins-navy mb-12">Empezar es así de fácil</h2>
+          <div className="grid md:grid-cols-3 gap-8">
+            {[
+              { step: '1', title: 'Ingresa los datos', desc: 'Completa la información del sueldo en nuestro calculador y déjanos tu email.' },
+              { step: '2', title: 'Recibe el cálculo', desc: 'Obtén al instante el desglose del sueldo líquido y el costo total como empleador.' },
+              { step: '3', title: 'Regístrate y gestiona', desc: 'Crea tu cuenta para generar contratos, liquidaciones y centralizar todos tus pagos.' },
+            ].map((item, i) => (
+              <div key={i} className="flex flex-col items-center">
+                <div className="w-12 h-12 rounded-full bg-poppins-pink text-white flex items-center justify-center text-lg font-bold mb-4">{item.step}</div>
+                <h3 className="font-bold text-poppins-navy mb-2">{item.title}</h3>
+                <p className="text-sm text-poppins-navy/60">{item.desc}</p>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Calcula el costo total mensual — usa formulario HubSpot existente */}
+      <section id="contact" className="py-20 bg-[#f7f8fc]">
+        <div className="max-w-xl mx-auto px-6">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-black text-poppins-navy mb-3">Calcula el costo total mensual</h2>
+            <p className="text-poppins-navy/60 text-sm">
+              Descubre cuánto te costará realmente formalizar a tu trabajador/a. Es menos de lo que piensas.
+            </p>
+          </div>
+          <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
+            {!isFormReady && (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="w-10 h-10 border-3 border-poppins-pink border-t-transparent rounded-full animate-spin mb-3" />
+                <p className="text-poppins-navy/50 text-sm">Cargando calculador...</p>
+              </div>
+            )}
+            <div id="hubspot-form-container" className="min-h-[300px]" />
+          </div>
+        </div>
+      </section>
+
+      {/* Tu tranquilidad es nuestra prioridad */}
+      <section className="py-16 bg-white">
+        <div className="max-w-3xl mx-auto px-6 text-center">
+          <h2 className="text-2xl font-black text-poppins-navy mb-6">Tu tranquilidad es nuestra prioridad</h2>
+          <div className="flex flex-col md:flex-row justify-center gap-6 mb-8">
+            {[
+              'Cumplimiento con Dirección del Trabajo y Previred.',
+              'Pagos y datos personales 100% seguros.',
+              'Soporte experto para resolver tus dudas.',
+            ].map((t, i) => (
+              <div key={i} className="flex items-center gap-2 text-sm text-poppins-navy/70">
+                <CheckCircle2 className="w-5 h-5 text-poppins-pink shrink-0" />
+                <span>{t}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA final */}
+      <section className="py-16 bg-[#f7f8fc]">
+        <div className="max-w-4xl mx-auto px-6 text-center">
+          <p className="text-lg text-poppins-navy/80 italic mb-4">
+            "Agenda una llamada y experimenta desde el comienzo la tranquilidad de usar Poppins."
+          </p>
+          <p className="text-xl font-black text-poppins-navy mb-6">¡Nos pondremos en contacto contigo muy pronto!</p>
+          <LinkButton href="#contact" variant="primary">
+            Quiero la magia en mi casa <ArrowRight className="w-5 h-5" />
+          </LinkButton>
+        </div>
+      </section>
+
+      {/* Plan Poppins */}
+      <section className="py-20 bg-white">
+        <div className="max-w-3xl mx-auto px-6">
+          <div className="bg-gradient-to-br from-[#f7f8fc] to-white rounded-3xl border border-gray-100 shadow-xl p-8 md:p-12 flex flex-col md:flex-row items-center gap-8">
+            <div className="text-center md:text-left shrink-0">
+              <div className="flex items-center gap-2 mb-3 justify-center md:justify-start">
+                <Umbrella className="w-6 h-6 text-poppins-pink" />
+                <span className="font-bold text-poppins-navy text-lg">Plan Poppins</span>
+              </div>
+              <p className="text-4xl font-black text-poppins-navy">$24.770<span className="text-lg font-normal text-poppins-navy/50">/mes</span></p>
+              <p className="text-xs text-poppins-navy/50 mt-1 max-w-[200px]">Todo lo indispensable para formalizar, pagar y administrar tu servicio doméstico con tranquilidad y en regla.</p>
+              <LinkButton href="#contact" variant="primary">
+                Elegir Plan
+              </LinkButton>
             </div>
-          </motion.div>
-          
-          <div className="relative flex justify-center">
-             <div className="absolute inset-0 bg-poppins-pink/20 blur-[120px] rounded-full" />
-             <div className="relative w-64 h-64 bg-gradient-to-br from-poppins-pink to-poppins-navy rounded-full flex items-center justify-center p-1 shadow-2xl">
-                <div className="w-full h-full bg-poppins-navy rounded-full flex flex-center items-center justify-center overflow-hidden">
-                   <div className="text-6xl animate-pulse">🪄</div>
-                </div>
-             </div>
+            <div className="flex-1">
+              <ul className="space-y-3">
+                {[
+                  'Contrato digital y firma electrónica.',
+                  'Gestión automática de sueldos e imposiciones.',
+                  'Registro de asistencia y licencias.',
+                  'Emisión de finiquitos y documentos legales.',
+                  'Soporte experto (virtual y humano).',
+                ].map((f, i) => (
+                  <li key={i} className="flex items-center gap-2 text-sm text-poppins-navy/70">
+                    <CheckCircle2 className="w-4 h-4 text-poppins-pink shrink-0" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -345,25 +419,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Contact Section */}
-      <section id="contact" className="py-24 bg-poppins-light">
-        <div className="max-w-4xl mx-auto px-6">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-black text-poppins-navy mb-4">Empieza la magia hoy</h2>
-            <p className="text-poppins-navy/60">Registra tus datos y un ejecutivo te contactará en minutos.</p>
-          </div>
-          
-          <div className="relative bg-white p-8 rounded-[2rem] shadow-2xl border border-poppins-navy/5">
-            {!isFormReady && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-white rounded-[2rem] z-10 transition-opacity duration-500">
-                <div className="w-12 h-12 border-4 border-poppins-pink border-t-transparent rounded-full animate-spin mb-4" />
-                <p className="text-poppins-navy/60 font-medium tracking-wide">Inspirando magia...</p>
-              </div>
-            )}
-            <div id="hubspot-form-container" className="min-h-[400px]" />
-          </div>
-        </div>
-      </section>
+      {/* Contact section moved to "Calcula el costo" above */}
 
       {/* Footer */}
       <footer className="py-12 bg-poppins-navy text-white/40 border-t border-white/5">
