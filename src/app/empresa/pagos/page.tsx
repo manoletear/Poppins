@@ -32,7 +32,7 @@ import {
   Clock,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-// PagosOnboarding replaced with inline banner
+import AgentePoppins from './components/AgentePoppins';
 import CardSetup from './components/CardSetup';
 import AccountDiscovery from './components/AccountDiscovery';
 import PointsDashboard from './components/PointsDashboard';
@@ -341,6 +341,7 @@ function PagosContent() {
   const [planTipo, setPlanTipo] = useState<PlanTipo>('starter');
   const [loadingOnboarding, setLoadingOnboarding] = useState(true);
   const [dismissedOnboarding, setDismissedOnboarding] = useState(false);
+  const [showPoppinsAgent, setShowPoppinsAgent] = useState(false);
 
   // ── Check flow_status on mount ──
   useEffect(() => {
@@ -1029,9 +1030,26 @@ function PagosContent() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-zinc-900">Pagos y Puntos</h1>
-        <p className="text-sm text-zinc-500 mt-1">Gestiona tus pagos y acumula puntos Poppins</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900">Pagos y Puntos</h1>
+            <p className="text-sm text-zinc-500 mt-1">Gestiona tus pagos y acumula puntos Poppins</p>
+          </div>
+          <button onClick={() => setShowPoppinsAgent(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-violet-600 text-white px-4 py-2.5 text-sm font-medium hover:bg-violet-700 transition">
+            <Sparkles className="w-4 h-4" /> Agregar Cuenta
+          </button>
+        </div>
       </div>
+
+      {/* Agente Poppins */}
+      {showPoppinsAgent && (
+        <AgentePoppins
+          empleadorId={empleadorId}
+          onClose={() => setShowPoppinsAgent(false)}
+          onSaved={() => { fetchCuentas(); fetchPagos(); }}
+        />
+      )}
 
       {/* Plan Banner */}
       {!loadingOnboarding && (
