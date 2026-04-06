@@ -106,9 +106,13 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
           onClick={() => setOpen(!open)}
           className="flex w-full items-center gap-3 rounded-lg p-2 hover:bg-zinc-100 transition-colors text-left"
         >
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-semibold text-white shrink-0">
-            {displayInitials}
-          </div>
+          {profile?.avatar_url ? (
+            <img src={profile.avatar_url} alt="" className="h-9 w-9 rounded-full object-cover shrink-0" />
+          ) : (
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-700 text-sm font-semibold text-white shrink-0">
+              {displayInitials}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-zinc-900 truncate">{displayShortName}</p>
             <p className="text-[11px] text-zinc-500">Plan Casa</p>

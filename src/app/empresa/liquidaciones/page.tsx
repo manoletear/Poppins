@@ -6,6 +6,7 @@ import {
   Search,
   Eye,
   Download,
+  Printer,
   X,
   Loader2,
   AlertCircle,
@@ -89,9 +90,15 @@ function nombreCompleto(t: Trabajador) {
 // PDF Download
 // ---------------------------------------------------------------------------
 
-function downloadLiquidacionPDF(liq: Liquidacion, trabajador: Trabajador) {
-  const w = window.open('', '_blank');
-  if (!w) return;
+function downloadLiquidacionPDF(liq: Liquidacion, trabajador: Trabajador, returnHtml?: boolean): any {
+  if (!returnHtml) {
+    const w = window.open('', '_blank');
+    if (!w) return;
+    const html = downloadLiquidacionPDF(liq, trabajador, true);
+    w.document.write(html);
+    w.document.close();
+    return;
+  }
 
   const row = (label: string, value: number) =>
     `<tr><td style="padding:6px 12px;border-bottom:1px solid #e4e4e7">${label}</td><td style="padding:6px 12px;border-bottom:1px solid #e4e4e7;text-align:right">${fmt(value)}</td></tr>`;
@@ -174,8 +181,7 @@ function downloadLiquidacionPDF(liq: Liquidacion, trabajador: Trabajador) {
 <script>window.onload=function(){window.print()}</script>
 </body></html>`;
 
-  w.document.write(html);
-  w.document.close();
+  return html;
 }
 
 // ---------------------------------------------------------------------------
@@ -496,6 +502,13 @@ export default function LiquidacionesEmpresaPage() {
                         className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
                       >
                         <Download className="h-4 w-4" />
+                      </button>
+                      <button
+                        onClick={() => { const w = window.open('', '_blank'); if (w) { w.document.write(downloadLiquidacionPDF(l, l.trabajadores, true)); w.document.close(); setTimeout(() => w.print(), 400); } }}
+                        title="Imprimir"
+                        className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700 transition-colors"
+                      >
+                        <Printer className="h-4 w-4" />
                       </button>
                     </div>
                   </td>
