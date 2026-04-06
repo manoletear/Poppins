@@ -119,13 +119,32 @@ export default function MiFichaPage() {
     { id: 'prevision', label: 'Prevision' },
   ];
 
-  const handleSolicitud = () => {
-    setSolicitudSent(true);
-    setTimeout(() => {
-      setShowSolicitud(false);
-      setSolicitudSent(false);
-      setSolicitudMsg('');
-    }, 2000);
+  const handleSolicitud = async () => {
+    try {
+      const supabase = createClient();
+      const { data: contratoData } = await supabase
+        .from('contratos')
+        .select('empleador_id')
+        .eq('trabajador_id', WORKER_ID)
+        .eq('estado', 'activo')
+        .limit(1)
+        .maybeSingle();
+      await supabase.from('solicitudes_empleado').insert({
+        trabajador_id: WORKER_ID,
+        empleador_id: contratoData?.empleador_id,
+        tipo: 'correccion_datos',
+        descripcion: solicitudMsg,
+        estado: 'pendiente',
+      });
+      setSolicitudSent(true);
+      setTimeout(() => {
+        setShowSolicitud(false);
+        setSolicitudSent(false);
+        setSolicitudMsg('');
+      }, 2000);
+    } catch (error) {
+      console.error('Error enviando solicitud:', error);
+    }
   };
 
   const handleDescargarContrato = () => {

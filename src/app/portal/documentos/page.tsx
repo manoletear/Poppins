@@ -74,10 +74,29 @@ export default function MisDocumentosPage() {
     ? documents
     : documents.filter(d => d.tipo.toLowerCase() === activeFilter);
 
-  const handleSolicitarCertificado = (tipo: string) => {
-    setSolicitudEnviada(tipo);
+  const handleSolicitarCertificado = async (selectedCert: string) => {
     setShowCertDropdown(false);
-    setTimeout(() => setSolicitudEnviada(null), 3000);
+    try {
+      const supabase = createClient();
+      const { data: contrato } = await supabase
+        .from('contratos')
+        .select('empleador_id')
+        .eq('trabajador_id', trabajadorId)
+        .eq('estado', 'activo')
+        .limit(1)
+        .maybeSingle();
+      await supabase.from('solicitudes_empleado').insert({
+        trabajador_id: trabajadorId,
+        empleador_id: contrato?.empleador_id,
+        tipo: 'certificado',
+        descripcion: `Solicitud de ${selectedCert}`,
+        estado: 'pendiente',
+      });
+      setSolicitudEnviada(selectedCert);
+      setTimeout(() => setSolicitudEnviada(null), 3000);
+    } catch (error) {
+      console.error('Error solicitando certificado:', error);
+    }
   };
 
   const handleDescargar = (doc: DocType) => {

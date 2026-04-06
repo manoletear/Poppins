@@ -98,8 +98,16 @@ export default function VacacionesPage() {
   const [fechaFin, setFechaFin] = useState('');
   const [dias, setDias] = useState(1);
   const [descripcion, setDescripcion] = useState('');
+  const [empleadorId, setEmpleadorId] = useState('');
 
   const supabase = useMemo(() => createClient(), []);
+
+  // Derive empleadorId from active contract
+  useEffect(() => {
+    if (!trabajadorId) return;
+    supabase.from('contratos').select('empleador_id').eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).maybeSingle()
+      .then(({ data }: any) => { if (data) setEmpleadorId(data.empleador_id); }).catch(() => {});
+  }, [trabajadorId, supabase]);
 
   useEffect(() => {
     if (trabajadorId) loadVacaciones();
@@ -216,6 +224,7 @@ export default function VacacionesPage() {
 
     const { error } = await supabase.from('solicitudes_empleado').insert({
       trabajador_id: trabajadorId,
+      empleador_id: empleadorId,
       tipo,
       descripcion,
       fecha_inicio: fechaInicio,

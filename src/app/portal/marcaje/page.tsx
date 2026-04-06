@@ -237,6 +237,7 @@ export default function MarcajePage() {
   }, []);
 
   const handleMarcaje = async (step: Step) => {
+    if (!empleadorId) { alert('Cargando datos, intenta en un momento'); return; }
     setActionLoading(true);
     const hora = getCurrentHHMMSS();
 

@@ -110,19 +110,31 @@ export default function PortalDashboard() {
   const [tareas, setTareas] = useState<Tarea[]>([]);
   const [solicitudes, setSolicitudes] = useState<Solicitud[]>([]);
   const [recordatorios, setRecordatorios] = useState<Recordatorio[]>([]);
-  const [vacacionesDias, setVacacionesDias] = useState<number>(8.5);
-  const [sueldoLiquido, setSueldoLiquido] = useState<number>(576750);
+  const [vacacionesDias, setVacacionesDias] = useState<number>(0);
+  const [sueldoLiquido, setSueldoLiquido] = useState<number>(0);
   const [horasTrabajadas, setHorasTrabajadas] = useState<string>('0h 00m');
   const [numeroContrato, setNumeroContrato] = useState<string | null>(null);
   const [empleadorNombre, setEmpleadorNombre] = useState<string | null>(null);
   const [lugarTrabajo, setLugarTrabajo] = useState<string | null>(null);
 
-  // Derive empleadorId from active contract
+  // Derive empleadorId + employer info from active contract
   useEffect(() => {
     if (!trabajadorId) return;
     const supabase = createClient();
     supabase.from('contratos').select('empleador_id').eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).single()
-      .then(({ data }: any) => { if (data) setEmpleadorId(data.empleador_id); }).catch(() => {});
+      .then(async ({ data }: any) => {
+        if (!data) return;
+        setEmpleadorId(data.empleador_id);
+        const { data: emp } = await supabase
+          .from('empleadores')
+          .select('nombre, apellido, direccion')
+          .eq('id', data.empleador_id)
+          .maybeSingle();
+        if (emp) {
+          setEmpleadorNombre(`${emp.nombre || ''} ${emp.apellido || ''}`.trim() || null);
+          setLugarTrabajo(emp.direccion || null);
+        }
+      }).catch(() => {});
   }, [trabajadorId]);
 
   // Update clock every minute

@@ -22,6 +22,7 @@ interface Tarea {
   prioridad: 'alta' | 'media' | 'baja';
   categoria: string;
   estado: 'pendiente' | 'en_progreso' | 'completada';
+  aprobada_por_empleador?: boolean;
   trabajador_id: string;
   fecha: string;
 }
@@ -278,6 +279,11 @@ function TaskCard({
           <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${categoryStyle}`}>
             {tarea.categoria}
           </span>
+          {tarea.aprobada_por_empleador && (
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+              ✓ Aprobada
+            </span>
+          )}
         </div>
       </div>
     </div>

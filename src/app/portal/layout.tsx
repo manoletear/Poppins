@@ -23,6 +23,8 @@ import {
   LogOut,
   ChevronUp,
   Crown,
+  Bell,
+  CalendarCheck,
 } from 'lucide-react';
 
 const navSections = [
@@ -32,6 +34,8 @@ const navSections = [
       { name: 'Dashboard', href: '/portal', icon: LayoutDashboard },
       { name: 'Mis Tareas', href: '/portal/tareas', icon: ClipboardCheck },
       { name: 'Marcaje Horario', href: '/portal/marcaje', icon: Clock },
+      { name: 'Recordatorios', href: '/portal/recordatorios', icon: Bell },
+      { name: 'Mis Visitas', href: '/portal/visitas', icon: CalendarCheck },
     ],
   },
   {
