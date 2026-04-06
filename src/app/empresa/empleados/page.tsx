@@ -66,38 +66,45 @@ function calcAntiguedad(fechaInicio: string): string {
 }
 
 export default function EmpleadosPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const empleadorId = profile?.empleador_id || '';
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const loadEmpleados = useCallback(async () => {
-    if (!empleadorId) return;
-    const supabase = createClient();
-    const { data } = await supabase
-      .from('trabajadores')
-      .select('*, contratos(*)')
-      .order('nombre');
-
-    setEmpleados(data || []);
-    setLoading(false);
-  }, [empleadorId]);
-
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEmp, setNewEmp] = useState({ nombre: '', apellido_paterno: '', rut: '', email: '', cargo: 'asesora_hogar', sueldo_base: '', tipo_jornada: 'completa' });
   const [savingEmp, setSavingEmp] = useState(false);
 
-  useEffect(() => { loadEmpleados(); }, [loadEmpleados]);
+  const loadEmpleados = useCallback(async () => {
+    if (!empleadorId) { setLoading(false); return; }
+    setLoading(true);
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('contratos')
+      .select('trabajador_id, trabajadores(*)')
+      .eq('empleador_id', empleadorId)
+      .eq('estado', 'activo');
 
-  if (loading) {
-    return (
-      <div className="flex justify-center py-16">
-        <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
-      </div>
-    );
-  }
+    const trabs = (data || []).map((c: any) => c.trabajadores).filter(Boolean);
+    // Load contratos for each
+    const supabase2 = createClient();
+    const trabIds = trabs.map((t: any) => t.id);
+    const { data: contData } = await supabase2.from('contratos')
+      .select('*').in('trabajador_id', trabIds.length > 0 ? trabIds : ['none']).eq('estado', 'activo');
 
-  const activos = empleados.filter((e) => e.estado !== 'inactivo');
+    const withContratos = trabs.map((t: any) => ({
+      ...t,
+      contratos: (contData || []).filter((c: any) => c.trabajador_id === t.id),
+    }));
+
+    setEmpleados(withContratos);
+    setLoading(false);
+  }, [empleadorId]);
+
+  useEffect(() => {
+    if (!authLoading) loadEmpleados();
+  }, [loadEmpleados, authLoading]);
+
+  const activos = empleados.filter((e: any) => e.estado !== 'inactivo');
 
   const handleAddEmpleado = async () => {
     if (!empleadorId || !newEmp.nombre || !newEmp.apellido_paterno || !newEmp.rut) return;
@@ -124,6 +131,10 @@ export default function EmpleadosPage() {
     setSavingEmp(false);
     loadEmpleados();
   };
+
+  if (loading) {
+    return <div className="flex justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>;
+  }
 
   return (
     <div className="space-y-6">
