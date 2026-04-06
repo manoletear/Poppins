@@ -83,6 +83,10 @@ export default function EmpleadosPage() {
     setLoading(false);
   }, [empleadorId]);
 
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newEmp, setNewEmp] = useState({ nombre: '', apellido_paterno: '', rut: '', email: '', cargo: 'asesora_hogar', sueldo_base: '', tipo_jornada: 'completa' });
+  const [savingEmp, setSavingEmp] = useState(false);
+
   useEffect(() => { loadEmpleados(); }, [loadEmpleados]);
 
   if (loading) {
@@ -94,9 +98,6 @@ export default function EmpleadosPage() {
   }
 
   const activos = empleados.filter((e) => e.estado !== 'inactivo');
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newEmp, setNewEmp] = useState({ nombre: '', apellido_paterno: '', rut: '', email: '', cargo: 'asesora_hogar', sueldo_base: '', tipo_jornada: 'completa' });
-  const [savingEmp, setSavingEmp] = useState(false);
 
   const handleAddEmpleado = async () => {
     if (!empleadorId || !newEmp.nombre || !newEmp.apellido_paterno || !newEmp.rut) return;
