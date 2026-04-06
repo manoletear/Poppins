@@ -147,6 +147,8 @@ export default function EmpleadoDetallePage() {
   const [contrato, setContrato] = useState<any>(null);
   const [empleador, setEmpleador] = useState<any>(null);
   const [liquidaciones, setLiquidaciones] = useState<any[]>([]);
+  const [visitas, setVisitas] = useState<any[]>([]);
+  const [materiales, setMateriales] = useState<Record<string, any[]>>({});
   const [marcajes, setMarcajes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedLiq, setExpandedLiq] = useState<string | null>(null);
@@ -167,6 +169,27 @@ export default function EmpleadoDetallePage() {
     setLiquidaciones(lRes.data || []);
     setAllMarcajes(mRes.data || []);
     setEmpleador(eRes.data);
+
+    // Cargar visitas si es trabajador por visitas (piscinero, jardinero, etc.)
+    const cargo = (wRes.data?.cargo || '').toLowerCase();
+    if (cargo.includes('piscin') || cargo.includes('jardin') || cargo === 'otro') {
+      const { data: visitasData } = await supabase.from('visitas_servicio')
+        .select('*').eq('trabajador_id', id).order('fecha', { ascending: false });
+      setVisitas(visitasData || []);
+
+      // Cargar materiales
+      const visitaIds = (visitasData || []).map((v: any) => v.id);
+      if (visitaIds.length > 0) {
+        const { data: matData } = await supabase.from('materiales_visita')
+          .select('*').in('visita_id', visitaIds);
+        const byVisita: Record<string, any[]> = {};
+        (matData || []).forEach((m: any) => {
+          if (!byVisita[m.visita_id]) byVisita[m.visita_id] = [];
+          byVisita[m.visita_id].push(m);
+        });
+        setMateriales(byVisita);
+      }
+    }
     setLoading(false);
   }, [id, profile?.empleador_id]);
 
@@ -433,37 +456,130 @@ export default function EmpleadoDetallePage() {
           </div>
         )}
 
-        {/* ASISTENCIA */}
-        {activeTab === 'asistencia' && (
-          <div>
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
-              <h3 className="text-lg font-semibold text-zinc-900">Registro de Asistencia</h3>
-              <div className="flex items-center gap-2">
-                <div className="flex rounded-lg bg-zinc-100 p-0.5">
-                  {(['semana', 'mes', 'todo'] as const).map(p => (
-                    <button key={p} onClick={() => setAsistenciaPeriodo(p)}
-                      className={`px-3 py-1 rounded-md text-xs font-medium transition ${asistenciaPeriodo === p ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'}`}>
-                      {p === 'semana' ? 'Semana' : p === 'mes' ? 'Este mes' : 'Todo'}
-                    </button>
-                  ))}
+        {/* ASISTENCIA / VISITAS */}
+        {activeTab === 'asistencia' && (() => {
+          const cargo = (worker?.cargo || '').toLowerCase();
+          const esPorVisitas = cargo.includes('piscin') || cargo.includes('jardin');
+
+          if (esPorVisitas && visitas.length > 0) {
+            const aprobadas = visitas.filter(v => v.estado === 'aprobada').length;
+            const completadas = visitas.filter(v => v.estado === 'completada').length;
+            const noRealizadas = visitas.filter(v => v.estado === 'no_realizada').length;
+            const programadas = visitas.filter(v => v.estado === 'programada').length;
+            const totalMonto = visitas.filter(v => v.estado === 'aprobada').reduce((s: number, v: any) => s + (v.costo_visita || 0), 0);
+            const totalMateriales = Object.values(materiales).flat().filter((m: any) => m.aprobado).reduce((s: number, m: any) => s + (m.costo || 0), 0);
+
+            return (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold text-zinc-900">Calendario de Visitas</h3>
+                  <span className="text-sm text-zinc-500">{formatCLP(visitas[0]?.costo_visita || 0)} por visita</span>
                 </div>
-                {filteredMarcajes.length > 0 && (
-                  <div className="flex gap-1">
-                    <button onClick={() => openPrintWindow(generateAsistenciaHTML(worker, filteredMarcajes, empleador))}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition">
-                      <Printer className="w-3.5 h-3.5" /> Imprimir
-                    </button>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <div className="rounded-lg bg-emerald-50 p-3 text-center"><p className="text-lg font-bold text-emerald-700">{aprobadas}</p><p className="text-xs text-emerald-600">Aprobadas</p></div>
+                  <div className="rounded-lg bg-blue-50 p-3 text-center"><p className="text-lg font-bold text-blue-700">{completadas}</p><p className="text-xs text-blue-600">Por aprobar</p></div>
+                  <div className="rounded-lg bg-red-50 p-3 text-center"><p className="text-lg font-bold text-red-700">{noRealizadas}</p><p className="text-xs text-red-600">No realizadas</p></div>
+                  <div className="rounded-lg bg-zinc-50 p-3 text-center"><p className="text-lg font-bold text-zinc-700">{programadas}</p><p className="text-xs text-zinc-600">Programadas</p></div>
+                  <div className="rounded-lg bg-violet-50 p-3 text-center"><p className="text-lg font-bold text-violet-700">{formatCLP(totalMonto)}</p><p className="text-xs text-violet-600">Total aprobado</p></div>
+                </div>
+
+                {/* Calendar grid */}
+                <div className="space-y-2">
+                  {visitas.map(v => {
+                    const mats = materiales[v.id] || [];
+                    const costoMats = mats.reduce((s: number, m: any) => s + (m.costo * (m.cantidad || 1)), 0);
+                    const colorMap: Record<string, string> = {
+                      aprobada: 'border-l-emerald-500 bg-emerald-50/50',
+                      completada: 'border-l-blue-500 bg-blue-50/50',
+                      no_realizada: 'border-l-red-500 bg-red-50/50',
+                      programada: 'border-l-zinc-300 bg-white',
+                      rechazada: 'border-l-red-500 bg-red-50/50',
+                    };
+                    return (
+                      <div key={v.id} className={`rounded-lg border border-zinc-200 border-l-4 ${colorMap[v.estado] || 'bg-white'} p-4`}>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-sm font-medium text-zinc-900">
+                              {new Date(v.fecha).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
+                            </p>
+                            <p className="text-xs text-zinc-500 mt-0.5">
+                              {v.estado === 'aprobada' ? '✅ Aprobada' : v.estado === 'completada' ? '🔵 Completada — pendiente aprobación' : v.estado === 'no_realizada' ? '❌ No realizada' : v.estado === 'programada' ? '📅 Programada' : v.estado}
+                              {v.notas_empleado && ` — "${v.notas_empleado}"`}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-zinc-900">{formatCLP(v.costo_visita)}</span>
+                            {v.estado === 'completada' && !v.aprobada_por_empleador && (
+                              <button onClick={async () => {
+                                const supabase = createClient();
+                                await supabase.from('visitas_servicio').update({ estado: 'aprobada', aprobada_por_empleador: true, aprobada_at: new Date().toISOString() }).eq('id', v.id);
+                                loadData();
+                              }} className="rounded-lg bg-emerald-600 text-white px-3 py-1 text-xs font-medium hover:bg-emerald-700">
+                                Aprobar
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        {/* Materiales */}
+                        {mats.length > 0 && (
+                          <div className="mt-3 border-t border-zinc-100 pt-2">
+                            <p className="text-xs font-medium text-zinc-500 mb-1">Materiales ({formatCLP(costoMats)})</p>
+                            {mats.map((m: any) => (
+                              <div key={m.id} className="flex items-center justify-between text-xs text-zinc-600 py-0.5">
+                                <span>{m.nombre} ×{m.cantidad || 1}</span>
+                                <span className="font-medium">{formatCLP(m.costo)}{m.aprobado ? ' ✓' : ''}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Resumen liquidación */}
+                <div className="rounded-xl border border-violet-200 bg-violet-50 p-4">
+                  <h4 className="text-sm font-semibold text-violet-900 mb-2">Resumen para Liquidación</h4>
+                  <div className="grid grid-cols-3 gap-4 text-sm">
+                    <div><p className="text-xs text-violet-600">Visitas aprobadas</p><p className="font-bold text-violet-900">{aprobadas} × {formatCLP(visitas[0]?.costo_visita || 0)}</p></div>
+                    <div><p className="text-xs text-violet-600">Subtotal visitas</p><p className="font-bold text-violet-900">{formatCLP(totalMonto)}</p></div>
+                    <div><p className="text-xs text-violet-600">Materiales aprobados</p><p className="font-bold text-violet-900">{formatCLP(totalMateriales)}</p></div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-violet-200 flex justify-between">
+                    <span className="text-sm font-semibold text-violet-900">Total a pagar</span>
+                    <span className="text-lg font-bold text-violet-900">{formatCLP(totalMonto + totalMateriales)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+
+          // Normal attendance (asesora, etc.)
+          return (
+            <div>
+              <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+                <h3 className="text-lg font-semibold text-zinc-900">Registro de Asistencia</h3>
+                <div className="flex items-center gap-2">
+                  <div className="flex rounded-lg bg-zinc-100 p-0.5">
+                    {(['semana', 'mes', 'todo'] as const).map(p => (
+                      <button key={p} onClick={() => setAsistenciaPeriodo(p)}
+                        className={`px-3 py-1 rounded-md text-xs font-medium transition ${asistenciaPeriodo === p ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500'}`}>
+                        {p === 'semana' ? 'Semana' : p === 'mes' ? 'Este mes' : 'Todo'}
+                      </button>
+                    ))}
+                  </div>
+                  {filteredMarcajes.length > 0 && (
                     <button onClick={() => openPrintWindow(generateAsistenciaHTML(worker, filteredMarcajes, empleador))}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition">
-                      <Download className="w-3.5 h-3.5" /> Certificado
+                      <Printer className="w-3.5 h-3.5" /> Certificado
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-            {filteredMarcajes.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin marcajes en este período.</p> : (
-              <>
-                <div className="overflow-x-auto">
+              {filteredMarcajes.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin marcajes en este período.</p> : (
+                <>
                   <table className="w-full text-sm">
                     <thead><tr className="border-b border-zinc-100 bg-zinc-50">
                       <th className="px-4 py-2 text-left font-medium text-zinc-500">Fecha</th>
@@ -482,15 +598,15 @@ export default function EmpleadoDetallePage() {
                       ))}
                     </tbody>
                   </table>
-                </div>
-                <div className="mt-3 rounded-lg bg-zinc-50 px-4 py-2 flex gap-6 text-xs text-zinc-600">
-                  <span><strong>{filteredMarcajes.filter(m => m.hora_entrada).length}</strong> días</span>
-                  <span><strong>{filteredMarcajes.reduce((s: number, m: any) => s + (m.horas_trabajadas || 0), 0).toFixed(1)}</strong> horas totales</span>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+                  <div className="mt-3 rounded-lg bg-zinc-50 px-4 py-2 flex gap-6 text-xs text-zinc-600">
+                    <span><strong>{filteredMarcajes.filter(m => m.hora_entrada).length}</strong> días</span>
+                    <span><strong>{filteredMarcajes.reduce((s: number, m: any) => s + (m.horas_trabajadas || 0), 0).toFixed(1)}</strong> horas totales</span>
+                  </div>
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
