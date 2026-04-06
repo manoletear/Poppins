@@ -93,20 +93,24 @@ export default function TareasPage() {
 
   useEffect(() => { loadTareas(); }, [loadTareas]);
 
-  const filteredTasks = activeFilter === 'all'
-    ? tasks
-    : tasks.filter((t) => t.estado === activeFilter);
-
-  // Resumen: contar desde histórico si hay datos, sino del día
-  const allLoaded = historicoTareas.length > 0 ? historicoTareas : tasks;
-  const completadas = allLoaded.filter((t) => t.estado === 'completada').length;
-  const enProgreso = allLoaded.filter((t) => t.estado === 'en_progreso').length;
-  const pendientes = allLoaded.filter((t) => t.estado === 'pendiente').length;
-
-  // Auto-load histórico para que resumen siempre tenga datos
+  // Auto-load histórico para resumen global
   useEffect(() => {
     if (empleadorId && historicoTareas.length === 0) loadHistorico();
   }, [empleadorId]);
+
+  // Fuente: tareas del día + histórico combinadas (sin duplicados)
+  const allTareas = historicoTareas.length > 0
+    ? historicoTareas
+    : tasks;
+
+  // Filtro: cuando es 'all' muestra tareas del día; cuando es un estado, muestra TODAS con ese estado
+  const filteredTasks = activeFilter === 'all'
+    ? tasks
+    : allTareas.filter((t) => t.estado === activeFilter);
+
+  const completadas = allTareas.filter((t) => t.estado === 'completada').length;
+  const enProgreso = allTareas.filter((t) => t.estado === 'en_progreso').length;
+  const pendientes = allTareas.filter((t) => t.estado === 'pendiente').length;
 
   const [ratingTask, setRatingTask] = useState<string | null>(null);
   const [ratingValue, setRatingValue] = useState(5);
