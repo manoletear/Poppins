@@ -357,7 +357,7 @@ function PagosContent() {
 
   // ── Fetch pagos for selected period ──
   const fetchPagos = useCallback(async () => {
-    if (!empleadorId) return;
+    if (!empleadorId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
@@ -576,10 +576,8 @@ function PagosContent() {
     setOnboardingState(prev => ({ ...prev, tarjeta_registrada: true }));
   }
 
-  // Run auto-sync once on mount
-  useEffect(() => {
-    autoSyncPagos();
-  }, [autoSyncPagos]);
+  // Auto-sync disabled — pagos se crean manualmente
+  // useEffect(() => { autoSyncPagos(); }, [autoSyncPagos]);
 
   useEffect(() => {
     if (activeTab === 'cuentas') {

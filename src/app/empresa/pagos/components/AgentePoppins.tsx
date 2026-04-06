@@ -32,10 +32,13 @@ export default function AgentePoppins({ empleadorId, onClose, onSaved }: Props) 
   const [montoEstimado, setMontoEstimado] = useState('');
   const [saving, setSaving] = useState(false);
 
+  const [loadingEmpresas, setLoadingEmpresas] = useState(true);
+
   useEffect(() => {
     const supabase = createClient();
     supabase.from('empresas_servicios').select('*').eq('activa', true).order('categoria').order('nombre')
-      .then(({ data }: any) => setEmpresas(data || []));
+      .then(({ data }: any) => { setEmpresas(data || []); setLoadingEmpresas(false); })
+      .catch(() => setLoadingEmpresas(false));
   }, []);
 
   const empresasFiltradas = empresas.filter(e => e.categoria === selectedCat);
@@ -126,6 +129,8 @@ export default function AgentePoppins({ empleadorId, onClose, onSaved }: Props) 
                 <p className="text-sm font-medium text-zinc-900">¿Cuál es tu empresa de {CATEGORIAS.find(c => c.value === selectedCat)?.label.toLowerCase()}?</p>
               </div>
               <div className="space-y-2">
+                {loadingEmpresas && <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 animate-spin text-zinc-400" /></div>}
+                {!loadingEmpresas && empresasFiltradas.length === 0 && <p className="text-sm text-zinc-400 text-center py-4">No hay empresas disponibles</p>}
                 {empresasFiltradas.map(emp => (
                   <button key={emp.id} onClick={() => { setSelectedEmpresa(emp); setStep('datos'); }}
                     className="w-full rounded-lg border border-zinc-200 p-3 text-left hover:bg-zinc-50 transition flex items-center gap-3">
