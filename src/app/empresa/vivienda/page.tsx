@@ -34,7 +34,7 @@ const tipoLabels: Record<string, string> = {
 };
 
 export default function ViviendaPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const empleadorId = profile?.empleador_id || '';
   const [vivienda, setVivienda] = useState<Vivienda | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +44,7 @@ export default function ViviendaPage() {
   const [form, setForm] = useState<Partial<Vivienda>>({});
 
   const fetchVivienda = useCallback(async () => {
+    if (!empleadorId) return;
     setLoading(true);
     setError(null);
     try {
@@ -52,10 +53,10 @@ export default function ViviendaPage() {
         .from('viviendas_empleador')
         .select('*')
         .eq('empleador_id', empleadorId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) throw fetchError;
-      setVivienda(data as Vivienda);
+      setVivienda(data as Vivienda | null);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al cargar datos de vivienda';
       setError(message);
@@ -65,8 +66,10 @@ export default function ViviendaPage() {
   }, [empleadorId]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!empleadorId) { setLoading(false); return; }
     fetchVivienda();
-  }, [fetchVivienda]);
+  }, [fetchVivienda, authLoading, empleadorId]);
 
   const openModal = () => {
     if (vivienda) {

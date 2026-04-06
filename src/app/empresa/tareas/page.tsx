@@ -93,17 +93,15 @@ export default function TareasPage() {
 
   useEffect(() => { loadTareas(); }, [loadTareas]);
 
-  // Auto-load histórico para resumen global
+  // Auto-load histórico para resumen y filtros globales
   useEffect(() => {
     if (empleadorId && historicoTareas.length === 0) loadHistorico();
   }, [empleadorId]);
 
-  // Fuente: tareas del día + histórico combinadas (sin duplicados)
-  const allTareas = historicoTareas.length > 0
-    ? historicoTareas
-    : tasks;
+  // Combinar: histórico tiene todas las tareas incluyendo las de hoy
+  const allTareas = historicoTareas.length > 0 ? historicoTareas : tasks;
 
-  // Filtro: cuando es 'all' muestra tareas del día; cuando es un estado, muestra TODAS con ese estado
+  // Filtro: 'all' muestra tareas del día; otros estados filtran desde TODAS
   const filteredTasks = activeFilter === 'all'
     ? tasks
     : allTareas.filter((t) => t.estado === activeFilter);
@@ -112,27 +110,33 @@ export default function TareasPage() {
   const enProgreso = allTareas.filter((t) => t.estado === 'en_progreso').length;
   const pendientes = allTareas.filter((t) => t.estado === 'pendiente').length;
 
+  // Sincronizar toggles: actualizar ambos arrays
+  function syncTaskUpdate(id: string, updates: Partial<Task>) {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+    setHistoricoTareas(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
+  }
+
   const [ratingTask, setRatingTask] = useState<string | null>(null);
   const [ratingValue, setRatingValue] = useState(5);
   const [ratingNota, setRatingNota] = useState('');
 
   async function toggleTask(id: string, currentEstado: string) {
     const nuevoEstado = currentEstado === 'completada' ? 'pendiente' : 'completada';
-    setTasks((prev) => prev.map((t) => t.id === id ? { ...t, estado: nuevoEstado } : t));
+    syncTaskUpdate(id, { estado: nuevoEstado });
     await updateTareaEstado(id, nuevoEstado);
   }
 
   async function aprobarTarea(id: string) {
     const supabase = createClient();
     await supabase.from('tareas').update({ aprobada_por_empleador: true, fecha_aprobacion: new Date().toISOString() }).eq('id', id);
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, aprobada_por_empleador: true } : t));
+    syncTaskUpdate(id, { aprobada_por_empleador: true });
     setRatingTask(id);
   }
 
   async function calificarTarea(id: string) {
     const supabase = createClient();
     await supabase.from('tareas').update({ calificacion: ratingValue, nota_calificacion: ratingNota || null }).eq('id', id);
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, calificacion: ratingValue, nota_calificacion: ratingNota } : t));
+    syncTaskUpdate(id, { calificacion: ratingValue, nota_calificacion: ratingNota });
     setRatingTask(null);
     setRatingValue(5);
     setRatingNota('');

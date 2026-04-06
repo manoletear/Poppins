@@ -90,7 +90,7 @@ function getMascotaIcon(tipo: string) {
 }
 
 export default function FamiliaPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
   const empleadorId = profile?.empleador_id || '';
   const [familiares, setFamiliares] = useState<Familiar[]>([]);
   const [mascotas, setMascotas] = useState<Mascota[]>([]);
@@ -114,6 +114,7 @@ export default function FamiliaPage() {
   const [deletingMascotaId, setDeletingMascotaId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
+    if (!empleadorId) return;
     setLoading(true);
     setError(null);
     try {
@@ -135,6 +136,8 @@ export default function FamiliaPage() {
   }, [empleadorId]);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!empleadorId) { setLoading(false); return; }
     fetchData();
   }, [fetchData]);
 

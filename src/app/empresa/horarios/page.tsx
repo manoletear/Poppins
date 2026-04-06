@@ -81,9 +81,14 @@ export default function HorariosPage() {
     const ldTomados = ldData?.length || 0;
     setLibreDisposicion({ tomados: ldTomados, pendientes: Math.max(0, 2 - ldTomados) });
 
-    // Salida pendiente (marcaron entrada pero no salida HOY)
-    const hoy = new Date().toISOString().split('T')[0];
-    const sinSalida = (data || []).filter((m: any) => m.fecha === hoy && m.hora_entrada && !m.hora_salida);
+    // Salida pendiente — query INDEPENDIENTE del rango de vista, siempre para HOY
+    const hoy = new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD en hora local
+    const { data: hoyData } = await supabase
+      .from('marcajes_horario')
+      .select('*, trabajadores(nombre, apellido_paterno)')
+      .eq('empleador_id', empleadorId)
+      .eq('fecha', hoy);
+    const sinSalida = (hoyData || []).filter((m: any) => m.hora_entrada && !m.hora_salida);
     setSalidaPendiente(sinSalida);
 
     setLoading(false);
