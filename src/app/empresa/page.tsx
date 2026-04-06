@@ -86,6 +86,8 @@ export default function EmpresaDashboard() {
   const [solicitudesPendientes, setSolicitudesPendientes] = useState<any[]>([]);
   const [vacacionesInfo, setVacacionesInfo] = useState<{ tomados: number; pendientes: number }>({ tomados: 0, pendientes: 15 });
   const [libreDisposicion, setLibreDisposicion] = useState<{ tomados: number; derecho: number }>({ tomados: 0, derecho: 0 });
+  const [cuentasMes, setCuentasMes] = useState<any[]>([]);
+  const [totalMes, setTotalMes] = useState(0);
   const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
@@ -101,9 +103,10 @@ export default function EmpresaDashboard() {
       supabase.from('solicitudes_empleado').select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', empleadorId).eq('estado', 'pendiente').order('created_at', { ascending: false }).limit(5),
       supabase.from('solicitudes_empleado').select('dias').eq('empleador_id', empleadorId).eq('tipo', 'vacaciones').eq('estado', 'aprobada'),
       supabase.from('dias_libre_disposicion').select('id').eq('empleador_id', empleadorId).eq('estado', 'tomado').gte('fecha', mesActual + '-01').lte('fecha', mesActual + '-31'),
+      supabase.from('cuentas_pago').select('*').eq('empleador_id', empleadorId).eq('activa', true).order('tipo'),
       // Contar meses trabajados para calcular derecho acumulado
       supabase.from('contratos').select('fecha_inicio').eq('empleador_id', empleadorId).eq('estado', 'activo').limit(1),
-    ]).then(([contRes, marcajes, solRes, vacRes, ldRes, contFechaRes]) => {
+    ]).then(([contRes, marcajes, solRes, vacRes, ldRes, cuentasRes, contFechaRes]) => {
       setTrabajadores((contRes.data || []).map((c: any) => c.trabajadores).filter(Boolean));
       setMarcajesHoy(marcajes || []);
       setSolicitudesPendientes(solRes.data || []);
@@ -125,7 +128,12 @@ export default function EmpresaDashboard() {
       // Derecho: 2 días por cada mes del año en curso
       const mesesEnAnio = now.getMonth() + 1; // Ene=1, Feb=2, etc.
       const derechoAnual = mesesEnAnio * 2;
-      setLibreDisposicion({ tomados: ldTomadosMes, derecho: 2 }); // 2 por mes
+      setLibreDisposicion({ tomados: ldTomadosMes, derecho: 2 });
+
+      // Cuentas del mes
+      const cuentas = cuentasRes.data || [];
+      setCuentasMes(cuentas);
+      setTotalMes(cuentas.reduce((s: number, c: any) => s + (c.monto_fijo || 0), 0));
 
       setLoadingData(false);
     });
@@ -350,6 +358,42 @@ export default function EmpresaDashboard() {
           );
         })}
       </div>
+
+      {/* ── Pagar Cuentas del Mes ─────────────────────────────── */}
+      {!loadingData && (
+        <Link href="/empresa/pagos" className="block rounded-xl border border-zinc-200 bg-gradient-to-r from-violet-50 to-indigo-50 p-5 hover:shadow-lg transition-all group">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 bg-violet-600 rounded-xl flex items-center justify-center group-hover:scale-105 transition-transform">
+                <CreditCard className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg font-bold text-zinc-900">Pagar Cuentas del Mes</h2>
+                  {profile?.rol === 'empleador' && cuentasMes.some((c: any) => c.fuente === 'poppins_agent') && (
+                    <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold text-violet-700">PAT</span>
+                  )}
+                </div>
+                <p className="text-sm text-zinc-500">{cuentasMes.length} cuenta{cuentasMes.length !== 1 ? 's' : ''} activa{cuentasMes.length !== 1 ? 's' : ''}</p>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold text-violet-700">${totalMes.toLocaleString('es-CL')}</p>
+              <p className="text-xs text-zinc-500">Total estimado</p>
+            </div>
+          </div>
+          {cuentasMes.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {cuentasMes.slice(0, 5).map((c: any) => (
+                <span key={c.id} className="rounded-full bg-white border border-zinc-200 px-2.5 py-0.5 text-xs text-zinc-600">
+                  {c.alias || c.proveedor || c.tipo}
+                </span>
+              ))}
+              {cuentasMes.length > 5 && <span className="text-xs text-zinc-400">+{cuentasMes.length - 5} más</span>}
+            </div>
+          )}
+        </Link>
+      )}
 
       {/* ── Quick Actions ──────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
