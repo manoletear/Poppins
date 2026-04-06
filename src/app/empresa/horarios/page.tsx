@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Clock, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, Palmtree } from 'lucide-react';
+import { Clock, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, Palmtree, Download, FileText } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { createClient } from '@/lib/supabase/client';
 
@@ -22,6 +22,74 @@ interface Marcaje {
   trabajadores?: { nombre: string; apellido_paterno: string } | null;
 }
 
+function generateVacacionesDoc(emp: any, trab: any, vac: any) {
+  const hoy = new Date().toLocaleDateString('es-CL');
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Comprobante de Feriado Legal</title>
+<style>body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;padding:30px;color:#1a1a1a;font-size:13px}
+h1{text-align:center;font-size:18px;margin-bottom:20px}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:20px 0;padding:16px;background:#f9fafb;border-radius:8px}
+.clause{margin:16px 0;text-align:justify;line-height:1.6}
+.sig{margin-top:60px;display:flex;justify-content:space-between}
+.sig-block{text-align:center;width:40%;border-top:1px solid #333;padding-top:8px;font-size:12px}
+@media print{body{margin:0;padding:20px}}</style></head><body>
+<h1>COMPROBANTE DE FERIADO LEGAL ANUAL</h1>
+<p style="text-align:center;color:#666;font-size:12px">Artículos 67 al 76, Código del Trabajo</p>
+<div class="info">
+<div><strong>Empleador:</strong> ${emp?.nombre || ''} ${emp?.apellido || ''}</div>
+<div><strong>RUT Empleador:</strong> ${emp?.rut || ''}</div>
+<div><strong>Trabajador(a):</strong> ${trab?.nombre || ''} ${trab?.apellido_paterno || ''}</div>
+<div><strong>RUT Trabajador:</strong> ${trab?.rut || ''}</div>
+</div>
+<p class="clause">Por medio del presente, se deja constancia que el(la) trabajador(a) hará uso de su feriado legal anual conforme al artículo 67 del Código del Trabajo, en las siguientes condiciones:</p>
+<div class="info">
+<div><strong>Fecha inicio:</strong> ${vac.fecha_inicio ? new Date(vac.fecha_inicio).toLocaleDateString('es-CL') : ''}</div>
+<div><strong>Fecha término:</strong> ${vac.fecha_fin ? new Date(vac.fecha_fin).toLocaleDateString('es-CL') : ''}</div>
+<div><strong>Total días hábiles:</strong> ${vac.dias || 0}</div>
+<div><strong>Fecha emisión:</strong> ${hoy}</div>
+</div>
+<p class="clause">El trabajador declara que este feriado corresponde al período anual en curso y que las fechas fueron acordadas con el empleador conforme a la normativa vigente. Durante el feriado, el trabajador percibirá la remuneración íntegra establecida en su contrato.</p>
+<p class="clause">Ambas partes firman el presente comprobante en señal de conformidad.</p>
+<div class="sig">
+<div class="sig-block"><strong>${emp?.nombre || ''} ${emp?.apellido || ''}</strong><br>Empleador</div>
+<div class="sig-block"><strong>${trab?.nombre || ''} ${trab?.apellido_paterno || ''}</strong><br>Trabajador(a)<br><em style="color:#666;font-size:10px">Firma digital registrada en Poppins</em></div>
+</div></body></html>`;
+}
+
+function generateLdDoc(emp: any, trab: any, dia: any) {
+  const hoy = new Date().toLocaleDateString('es-CL');
+  const fechaDia = dia.fecha ? new Date(dia.fecha).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Constancia Día Libre Disposición</title>
+<style>body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;padding:30px;color:#1a1a1a;font-size:13px}
+h1{text-align:center;font-size:18px;margin-bottom:20px}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:20px 0;padding:16px;background:#f9fafb;border-radius:8px}
+.clause{margin:16px 0;text-align:justify;line-height:1.6}
+.legal{background:#eff6ff;border-left:4px solid #3b82f6;padding:12px 16px;margin:20px 0;border-radius:0 8px 8px 0;font-size:12px}
+.sig{margin-top:60px;display:flex;justify-content:space-between}
+.sig-block{text-align:center;width:40%;border-top:1px solid #333;padding-top:8px;font-size:12px}
+@media print{body{margin:0;padding:20px}}</style></head><body>
+<h1>CONSTANCIA DE DÍA DE LIBRE DISPOSICIÓN</h1>
+<p style="text-align:center;color:#666;font-size:12px">Ley 21.561 — Reducción de Jornada Laboral</p>
+<div class="info">
+<div><strong>Empleador:</strong> ${emp?.nombre || ''} ${emp?.apellido || ''}</div>
+<div><strong>RUT Empleador:</strong> ${emp?.rut || ''}</div>
+<div><strong>Trabajador(a):</strong> ${trab?.nombre || ''} ${trab?.apellido_paterno || ''}</div>
+<div><strong>RUT Trabajador:</strong> ${trab?.rut || ''}</div>
+</div>
+<p class="clause">Se deja constancia que el(la) trabajador(a) hizo uso de un día de libre disposición en la fecha:</p>
+<div class="info">
+<div><strong>Fecha:</strong> ${fechaDia}</div>
+<div><strong>Fecha emisión:</strong> ${hoy}</div>
+</div>
+<div class="legal">
+<strong>Marco Legal:</strong> Conforme a la Ley 21.561 que modifica el Código del Trabajo en materia de reducción de jornada laboral, los trabajadores de casa particular bajo modalidad "puertas adentro" tienen derecho a dos días de libre disposición remunerados al mes. Estos días no requieren justificación y son adicionales al feriado legal anual (Art. 67). El empleador está obligado a llevar registro de estos días.
+</div>
+<p class="clause">${dia.notas ? `Observaciones: ${dia.notas}` : ''}</p>
+<div class="sig">
+<div class="sig-block"><strong>${emp?.nombre || ''} ${emp?.apellido || ''}</strong><br>Empleador</div>
+<div class="sig-block"><strong>${trab?.nombre || ''} ${trab?.apellido_paterno || ''}</strong><br>Trabajador(a)<br><em style="color:#666;font-size:10px">Firma digital registrada en Poppins</em></div>
+</div></body></html>`;
+}
+
 export default function HorariosPage() {
   const { profile } = useAuth();
   const empleadorId = profile?.empleador_id;
@@ -37,6 +105,12 @@ export default function HorariosPage() {
   const [vacaciones, setVacaciones] = useState({ tomados: 0, pendientes: 15 });
   const [libreDisposicion, setLibreDisposicion] = useState({ tomados: 0, pendientes: 2 });
   const [salidaPendiente, setSalidaPendiente] = useState<any[]>([]);
+  const [ldHistorico, setLdHistorico] = useState<any[]>([]);
+  const [vacHistorico, setVacHistorico] = useState<any[]>([]);
+  const [showLdHistorico, setShowLdHistorico] = useState(false);
+  const [showVacHistorico, setShowVacHistorico] = useState(false);
+  const [empleadorData, setEmpleadorData] = useState<any>(null);
+  const [trabajadorData, setTrabajadorData] = useState<any>(null);
 
   const loadMarcajes = useCallback(async () => {
     if (!empleadorId) return;
@@ -90,6 +164,24 @@ export default function HorariosPage() {
       .eq('fecha', hoy);
     const sinSalida = (hoyData || []).filter((m: any) => m.hora_entrada && !m.hora_salida);
     setSalidaPendiente(sinSalida);
+
+    // Histórico libre disposición (todos los meses)
+    const { data: ldAll } = await supabase.from('dias_libre_disposicion')
+      .select('*').eq('empleador_id', empleadorId).order('fecha', { ascending: false });
+    setLdHistorico(ldAll || []);
+
+    // Histórico vacaciones aprobadas
+    const { data: vacAll } = await supabase.from('solicitudes_empleado')
+      .select('*, trabajadores(nombre, apellido_paterno)').eq('empleador_id', empleadorId)
+      .eq('tipo', 'vacaciones').eq('estado', 'aprobada').order('fecha_inicio', { ascending: false });
+    setVacHistorico(vacAll || []);
+
+    // Datos para documentos
+    const { data: empData } = await supabase.from('empleadores').select('*').eq('id', empleadorId).maybeSingle();
+    setEmpleadorData(empData);
+    const { data: contData } = await supabase.from('contratos')
+      .select('trabajadores(*)').eq('empleador_id', empleadorId).eq('estado', 'activo').limit(1);
+    if (contData?.[0]?.trabajadores) setTrabajadorData(contData[0].trabajadores);
 
     setLoading(false);
   }, [empleadorId, vista, year, month, weekStart, day]);
@@ -332,36 +424,103 @@ export default function HorariosPage() {
           )}
 
           {/* Vacaciones legales */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-4">
             <div className="rounded-xl border border-zinc-200 bg-white p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <Palmtree className="w-5 h-5 text-emerald-500" />
-                <h3 className="text-sm font-semibold text-zinc-900">Vacaciones Legales</h3>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Palmtree className="w-5 h-5 text-emerald-500" />
+                  <h3 className="text-sm font-semibold text-zinc-900">Vacaciones Legales (Art. 67 Código del Trabajo)</h3>
+                </div>
+                <button onClick={() => setShowVacHistorico(!showVacHistorico)} className="text-xs text-violet-600 hover:underline">
+                  {showVacHistorico ? 'Ocultar historial' : 'Ver historial'}
+                </button>
               </div>
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <div className="grid grid-cols-3 gap-4 text-sm mb-3">
                 <div><p className="text-zinc-500 text-xs">Derecho anual</p><p className="font-semibold text-zinc-900">15 días</p></div>
                 <div><p className="text-zinc-500 text-xs">Tomados</p><p className="font-semibold text-emerald-600">{vacaciones.tomados}</p></div>
                 <div><p className="text-zinc-500 text-xs">Pendientes</p><p className="font-semibold text-amber-600">{vacaciones.pendientes}</p></div>
               </div>
-              <div className="mt-3 h-2 rounded-full bg-zinc-100">
+              <div className="h-2 rounded-full bg-zinc-100">
                 <div className="h-2 rounded-full bg-emerald-500 transition-all" style={{ width: `${(vacaciones.tomados / 15) * 100}%` }} />
               </div>
+
+              {showVacHistorico && (
+                <div className="mt-4 border-t border-zinc-100 pt-4">
+                  <p className="text-xs font-medium text-zinc-500 mb-2">Historial de Vacaciones</p>
+                  {vacHistorico.length === 0 ? (
+                    <p className="text-xs text-zinc-400">Sin vacaciones registradas</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {vacHistorico.map((v: any) => {
+                        const nombre = v.trabajadores ? `${v.trabajadores.nombre} ${v.trabajadores.apellido_paterno || ''}` : '';
+                        return (
+                          <div key={v.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
+                            <div>
+                              <p className="text-sm text-zinc-800">{nombre} — {v.dias} días</p>
+                              <p className="text-xs text-zinc-500">{new Date(v.fecha_inicio).toLocaleDateString('es-CL')} al {new Date(v.fecha_fin).toLocaleDateString('es-CL')}</p>
+                            </div>
+                            <button onClick={() => {
+                              const html = generateVacacionesDoc(empleadorData, trabajadorData, v);
+                              const w = window.open('', '_blank');
+                              if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400); }
+                            }} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline">
+                              <Download className="w-3 h-3" /> Comprobante
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="rounded-xl border border-zinc-200 bg-white p-5">
-              <div className="flex items-center gap-3 mb-3">
-                <Calendar className="w-5 h-5 text-cyan-500" />
-                <h3 className="text-sm font-semibold text-zinc-900">Días Libre Disposición</h3>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-5 h-5 text-cyan-500" />
+                  <h3 className="text-sm font-semibold text-zinc-900">Días Libre Disposición (Ley 21.561)</h3>
+                </div>
+                <button onClick={() => setShowLdHistorico(!showLdHistorico)} className="text-xs text-violet-600 hover:underline">
+                  {showLdHistorico ? 'Ocultar historial' : 'Ver historial'}
+                </button>
               </div>
-              <p className="text-xs text-zinc-500 mb-3">Ley 40 Horas — 2 días remunerados por mes (puertas adentro)</p>
-              <div className="grid grid-cols-3 gap-4 text-sm">
+              <p className="text-xs text-zinc-500 mb-3">Trabajadores puertas adentro: 2 días remunerados por mes de libre disposición. No requiere justificación. El empleador debe registrar los días.</p>
+              <div className="grid grid-cols-3 gap-4 text-sm mb-3">
                 <div><p className="text-zinc-500 text-xs">Este mes</p><p className="font-semibold text-zinc-900">2 días</p></div>
                 <div><p className="text-zinc-500 text-xs">Tomados</p><p className="font-semibold text-cyan-600">{libreDisposicion.tomados}</p></div>
                 <div><p className="text-zinc-500 text-xs">Pendientes</p><p className="font-semibold text-amber-600">{libreDisposicion.pendientes}</p></div>
               </div>
-              <div className="mt-3 h-2 rounded-full bg-zinc-100">
+              <div className="h-2 rounded-full bg-zinc-100">
                 <div className="h-2 rounded-full bg-cyan-500 transition-all" style={{ width: `${(libreDisposicion.tomados / 2) * 100}%` }} />
               </div>
+
+              {showLdHistorico && (
+                <div className="mt-4 border-t border-zinc-100 pt-4">
+                  <p className="text-xs font-medium text-zinc-500 mb-2">Historial por Mes</p>
+                  {ldHistorico.length === 0 ? (
+                    <p className="text-xs text-zinc-400">Sin días registrados</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {ldHistorico.map((d: any) => (
+                        <div key={d.id} className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2">
+                          <div>
+                            <p className="text-sm text-zinc-800">{new Date(d.fecha).toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                            <p className="text-xs text-zinc-500">{d.estado === 'tomado' ? 'Día tomado' : d.estado} {d.notas ? `— ${d.notas}` : ''}</p>
+                          </div>
+                          <button onClick={() => {
+                            const html = generateLdDoc(empleadorData, trabajadorData, d);
+                            const w = window.open('', '_blank');
+                            if (w) { w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400); }
+                          }} className="inline-flex items-center gap-1 text-xs text-violet-600 hover:underline">
+                            <Download className="w-3 h-3" /> Constancia
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </>
