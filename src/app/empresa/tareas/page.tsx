@@ -97,9 +97,16 @@ export default function TareasPage() {
     ? tasks
     : tasks.filter((t) => t.estado === activeFilter);
 
-  const completadas = tasks.filter((t) => t.estado === 'completada').length;
-  const enProgreso = tasks.filter((t) => t.estado === 'en_progreso').length;
-  const pendientes = tasks.filter((t) => t.estado === 'pendiente').length;
+  // Resumen: contar desde histórico si hay datos, sino del día
+  const allLoaded = historicoTareas.length > 0 ? historicoTareas : tasks;
+  const completadas = allLoaded.filter((t) => t.estado === 'completada').length;
+  const enProgreso = allLoaded.filter((t) => t.estado === 'en_progreso').length;
+  const pendientes = allLoaded.filter((t) => t.estado === 'pendiente').length;
+
+  // Auto-load histórico para que resumen siempre tenga datos
+  useEffect(() => {
+    if (empleadorId && historicoTareas.length === 0) loadHistorico();
+  }, [empleadorId]);
 
   const [ratingTask, setRatingTask] = useState<string | null>(null);
   const [ratingValue, setRatingValue] = useState(5);
