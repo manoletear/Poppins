@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth/context';
 import { getInitials, getRolLabel } from '@/lib/auth/helpers';
+import { NotificacionesDropdown } from '@/components/NotificacionesDropdown';
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -270,8 +271,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="ml-3 text-sm font-semibold text-zinc-900">Poppins</span>
-          <span className="ml-2 text-xs text-emerald-600">Portal Empleado</span>
+          <span className="ml-3 text-sm font-semibold text-zinc-900 flex-1">Poppins</span>
+          <NotificacionesDropdown />
         </header>
 
         <main id="main-content" className="flex-1 overflow-y-auto bg-white p-4 sm:p-6 lg:p-8">

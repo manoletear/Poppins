@@ -31,6 +31,7 @@ interface Solicitud {
   trabajador_nombre: string;
   trabajador_apellido: string;
   numero_contrato: string | null;
+  trabajadores?: { nombre: string; apellido_paterno: string; email?: string };
 }
 
 const tabs: { key: TabKey; label: string }[] = [
@@ -87,7 +88,7 @@ export default function SolicitudesPage() {
       const supabase = createClient();
       const { data, error: err } = await supabase
         .from('solicitudes_empleado')
-        .select('*, trabajadores!inner(nombre, apellido_paterno), contratos(numero_contrato)')
+        .select('*, trabajadores!inner(nombre, apellido_paterno, email), contratos(numero_contrato)')
         .eq('empleador_id', empleadorId)
         .order('created_at', { ascending: false });
 
@@ -132,6 +133,12 @@ export default function SolicitudesPage() {
         .from('solicitudes_empleado')
         .update({ estado: 'aprobada', fecha_respuesta: new Date().toISOString() })
         .eq('id', id);
+      // Email al empleado
+      const sol = solicitudes.find(s => s.id === id);
+      if (sol?.trabajadores?.email) {
+        fetch('/api/email/solicitud-resuelta', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: sol.trabajadores.email, nombre: sol.trabajadores.nombre, tipo: sol.tipo, estado: 'aprobada' }) }).catch(() => {});
+      }
       await loadSolicitudes();
     } finally {
       setProcessingId(null);
@@ -146,6 +153,11 @@ export default function SolicitudesPage() {
         .from('solicitudes_empleado')
         .update({ estado: 'rechazada', fecha_respuesta: new Date().toISOString() })
         .eq('id', id);
+      const sol = solicitudes.find(s => s.id === id);
+      if (sol?.trabajadores?.email) {
+        fetch('/api/email/solicitud-resuelta', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: sol.trabajadores.email, nombre: sol.trabajadores.nombre, tipo: sol.tipo, estado: 'rechazada' }) }).catch(() => {});
+      }
       await loadSolicitudes();
     } finally {
       setProcessingId(null);
