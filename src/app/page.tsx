@@ -213,7 +213,6 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <input type="email" placeholder="Tu correo electrónico" className="flex-1 border border-zinc-200 rounded-full px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-poppins-pink/40" />
               <LinkButton href="#contact" variant="primary">
                 Quiero la magia en mi casa <ArrowRight className="w-5 h-5" />
               </LinkButton>

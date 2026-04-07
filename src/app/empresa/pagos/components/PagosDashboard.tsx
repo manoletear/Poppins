@@ -80,6 +80,7 @@ export default function PagosDashboard({ empleadorId, onOpenAgent }: Props) {
 
   const handlePagar = async () => {
     if (selectedCuentas.length === 0) return;
+    if (totalSelected <= 0) { setPayError('El monto total debe ser mayor a $0. Verifica los montos de tus cuentas.'); return; }
     setPaying(true);
     setPayError(null);
     const supabase = createClient();
