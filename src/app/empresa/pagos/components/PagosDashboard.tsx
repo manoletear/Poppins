@@ -92,7 +92,7 @@ export default function PagosDashboard({ empleadorId, onOpenAgent }: Props) {
   return (
     <div className="space-y-6">
       {/* Resumen */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 p-5 text-white">
           <p className="text-sm text-white/70">Total del mes</p>
           <p className="text-3xl font-bold mt-1">{formatCLP(totalSelected)}</p>
@@ -111,6 +111,15 @@ export default function PagosDashboard({ empleadorId, onOpenAgent }: Props) {
           <p className="text-3xl font-bold text-zinc-900 mt-1">{puntosEstimados.toLocaleString('es-CL')}</p>
           <p className="text-xs text-zinc-400 mt-2">1 punto por cada $1.000</p>
         </div>
+        <button onClick={handlePagar} disabled={paying || selectedCuentas.length === 0 || paySuccess}
+          className={`rounded-xl p-5 flex flex-col items-center justify-center transition ${
+            paySuccess ? 'bg-emerald-600 text-white' : 'bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50'
+          }`}>
+          <p className="text-sm text-white/70">Total del mes</p>
+          <p className="text-3xl font-bold mt-1">
+            {paying ? <Loader2 className="w-6 h-6 animate-spin" /> : paySuccess ? <><Check className="w-6 h-6" /> Listo</> : 'PAGAR'}
+          </p>
+        </button>
       </div>
 
       {/* Lista de cuentas con checkbox */}
