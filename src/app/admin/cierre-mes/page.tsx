@@ -58,7 +58,11 @@ interface DocumentoCierre {
   empleador_id: string;
   trabajador_id: string | null;
   nombre_archivo: string | null;
+  archivo_url: string | null;
   estado: string;
+  metadata: any;
+  empleador?: { nombre: string; apellido: string };
+  trabajador?: { nombre: string; apellido_paterno: string; rut: string };
 }
 
 export default function CierreMesPage() {
@@ -78,6 +82,7 @@ export default function CierreMesPage() {
   const [showCierreModal, setShowCierreModal] = useState(false);
   const [cierreDropdownOpen, setCierreDropdownOpen] = useState(false);
   const [masAccionesOpen, setMasAccionesOpen] = useState(false);
+  const [selectedProceso, setSelectedProceso] = useState<string | null>(null);
 
   // Data
   const [cierreActual, setCierreActual] = useState<CierreMes | null>(null);
@@ -162,14 +167,19 @@ export default function CierreMesPage() {
     })));
   }, [cierre]);
 
-  // Load documentos for active periodo
+  // Load documentos for active periodo (with joins)
   const loadDocumentos = useCallback(async () => {
     if (!cierre) return;
     const supabase = createClient();
     const { data } = await supabase.from('cierre_mes_documento')
-      .select('id, tipo, empleador_id, trabajador_id, nombre_archivo, estado')
-      .eq('cierre_mes_id', cierre.id);
-    setDocumentos(data || []);
+      .select('id, tipo, empleador_id, trabajador_id, nombre_archivo, archivo_url, estado, metadata, empleadores(nombre, apellido), trabajadores(nombre, apellido_paterno, rut)')
+      .eq('cierre_mes_id', cierre.id)
+      .order('tipo').order('empleador_id');
+    setDocumentos((data || []).map((d: any) => ({
+      ...d,
+      empleador: d.empleadores || null,
+      trabajador: d.trabajadores || null,
+    })));
   }, [cierre]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -515,15 +525,21 @@ export default function CierreMesPage() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {docsByTipo.map(proc => {
               const Icon = proc.icon;
+              const isSelected = selectedProceso === proc.key;
               return (
-                <div key={proc.key}
-                  className={`rounded-xl border p-4 flex items-start justify-between transition cursor-pointer ${
-                    proc.completed
-                      ? 'bg-zinc-800/80 border-zinc-600/50 hover:border-violet-500/50 hover:shadow-lg hover:shadow-violet-500/5'
-                      : 'bg-zinc-900/50 border-zinc-800/50 opacity-50'
+                <button key={proc.key}
+                  onClick={() => setSelectedProceso(isSelected ? null : proc.key)}
+                  className={`rounded-xl border p-4 flex items-start justify-between transition text-left ${
+                    isSelected
+                      ? 'bg-violet-900/30 border-violet-500 ring-2 ring-violet-500/30'
+                      : proc.completed
+                        ? 'bg-zinc-800/80 border-zinc-600/50 hover:border-violet-500/50 hover:shadow-lg hover:shadow-violet-500/5'
+                        : 'bg-zinc-900/50 border-zinc-800/50 opacity-50'
                   }`}>
                   <div className="flex items-start gap-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${proc.completed ? 'bg-violet-600' : 'bg-zinc-700'}`}>
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                      isSelected ? 'bg-violet-500' : proc.completed ? 'bg-violet-600' : 'bg-zinc-700'
+                    }`}>
                       <Icon className="w-4 h-4 text-white" />
                     </div>
                     <div>
@@ -533,15 +549,131 @@ export default function CierreMesPage() {
                       </p>
                     </div>
                   </div>
-                  {proc.completed && (
-                    <button className="p-1.5 rounded-lg text-zinc-400 hover:text-violet-400 hover:bg-zinc-700 transition" title="Descargar">
-                      <Download className="w-4 h-4" />
-                    </button>
+                  {proc.completed && !isSelected && (
+                    <Download className="w-4 h-4 text-zinc-500 shrink-0" />
                   )}
-                </div>
+                  {isSelected && (
+                    <ChevronDown className="w-4 h-4 text-violet-400 shrink-0" />
+                  )}
+                </button>
               );
             })}
           </div>
+
+          {/* Panel detalle del proceso seleccionado */}
+          {selectedProceso && (() => {
+            const proc = PROCESOS.find(p => p.key === selectedProceso);
+            if (!proc) return null;
+            const procDocs = documentos.filter(d => d.tipo === proc.tipo);
+            const Icon = proc.icon;
+
+            // Agrupar por empleador
+            const byEmpleador: Record<string, { empName: string; docs: DocumentoCierre[] }> = {};
+            procDocs.forEach(d => {
+              const empName = d.empleador ? `${d.empleador.nombre} ${d.empleador.apellido}`.trim() : d.empleador_id.slice(0, 8);
+              if (!byEmpleador[d.empleador_id]) byEmpleador[d.empleador_id] = { empName, docs: [] };
+              byEmpleador[d.empleador_id].docs.push(d);
+            });
+
+            const isPerEmployer = ['previred_csv','lre_txt','contabilidad_csv','libro_remuneraciones'].includes(proc.tipo);
+
+            return (
+              <div className="rounded-xl border border-violet-500/30 bg-zinc-900/50 overflow-hidden">
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-zinc-700/50 flex items-center justify-between bg-violet-900/20">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
+                      <Icon className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-zinc-100">{proc.label}</p>
+                      <p className="text-xs text-zinc-400">{proc.desc} · {procDocs.length} archivo{procDocs.length !== 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setSelectedProceso(null)} className="text-zinc-400 hover:text-zinc-200 transition">
+                    <XCircle className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Content por empleador */}
+                <div className="divide-y divide-zinc-800/50">
+                  {Object.entries(byEmpleador).map(([empId, { empName, docs }]) => (
+                    <div key={empId} className="px-5 py-3">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Building2 className="w-4 h-4 text-violet-400" />
+                        <p className="text-sm font-semibold text-zinc-200">{empName}</p>
+                        <span className="text-[10px] text-zinc-500 ml-1">{docs.length} archivo{docs.length !== 1 ? 's' : ''}</span>
+                      </div>
+
+                      {isPerEmployer ? (
+                        /* Documento único por empleador */
+                        <div className="flex items-center justify-between rounded-lg bg-zinc-800/60 border border-zinc-700/50 px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <FileText className="w-4 h-4 text-zinc-400" />
+                            <div>
+                              <p className="text-sm text-zinc-300">{docs[0]?.nombre_archivo || `${proc.label}_${activePeriodo}`}</p>
+                              <p className="text-xs text-zinc-500">{docs[0]?.estado === 'firmado' ? 'Firmado' : docs[0]?.estado === 'enviado' ? 'Enviado' : 'Generado'}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                              docs[0]?.estado === 'firmado' ? 'bg-emerald-500/20 text-emerald-400' :
+                              docs[0]?.estado === 'enviado' ? 'bg-blue-500/20 text-blue-400' :
+                              'bg-zinc-700 text-zinc-400'
+                            }`}>
+                              {docs[0]?.estado === 'firmado' ? '✓ Firmado' : docs[0]?.estado === 'enviado' ? '↗ Enviado' : '● Generado'}
+                            </span>
+                            <button className="p-1.5 rounded-lg text-zinc-400 hover:text-violet-400 hover:bg-zinc-700 transition" title="Descargar">
+                              <Download className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Documentos por trabajador */
+                        <div className="space-y-1">
+                          {docs.map(doc => {
+                            const workerName = doc.trabajador
+                              ? `${doc.trabajador.nombre} ${doc.trabajador.apellido_paterno}`.trim()
+                              : doc.trabajador_id?.slice(0, 8) || '—';
+                            const workerRut = doc.trabajador?.rut || '';
+                            return (
+                              <div key={doc.id} className="flex items-center justify-between rounded-lg bg-zinc-800/40 border border-zinc-800 px-4 py-2.5 hover:bg-zinc-800/60 transition">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <Users className="w-4 h-4 text-zinc-500 shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="text-sm text-zinc-300 truncate">{workerName}</p>
+                                    {workerRut && <p className="text-[10px] text-zinc-500">{workerRut}</p>}
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                    doc.estado === 'firmado' ? 'bg-emerald-500/20 text-emerald-400' :
+                                    doc.estado === 'enviado' ? 'bg-blue-500/20 text-blue-400' :
+                                    doc.estado === 'error' ? 'bg-red-500/20 text-red-400' :
+                                    'bg-zinc-700 text-zinc-400'
+                                  }`}>
+                                    {doc.estado === 'firmado' ? '✓ Firmado' : doc.estado === 'enviado' ? '↗ Enviado' : doc.estado === 'error' ? '✗ Error' : '● Generado'}
+                                  </span>
+                                  <button className="p-1 rounded-lg text-zinc-500 hover:text-violet-400 hover:bg-zinc-700 transition" title="Descargar">
+                                    <Download className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {Object.keys(byEmpleador).length === 0 && (
+                    <div className="px-5 py-8 text-center text-zinc-500 text-sm">
+                      No hay documentos generados para este proceso.
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
