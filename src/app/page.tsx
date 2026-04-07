@@ -165,36 +165,15 @@ export default function Home() {
   }, [loading, user, profile, router]);
 
   useEffect(() => {
-    // HubSpot Form initialization with proper event handling
-    const portalId = "51289712";
-    const formId = "5e8bb93c-bc8c-4eef-babf-904efc6c2280";
-
-    const loadHubSpot = () => {
-      if ((window as any).hbspt) {
-        (window as any).hbspt.forms.create({
-          region: "na1",
-          portalId: portalId,
-          formId: formId,
-          target: "#hubspot-form-container",
-          onFormReady: () => {
-            setIsFormReady(true);
-          },
-        });
-        
-        // Fallback: Si en 5 segundos no ha disparado el evento (posible error 403 o red), ocultar el loader
-        setTimeout(() => setIsFormReady(true), 5000);
-      }
-    };
-
-    if (!document.querySelector('script[src*="js.hsforms.net"]')) {
+    // HubSpot new embed format
+    if (!document.querySelector('script[src*="js.hsforms.net/forms/embed"]')) {
       const script = document.createElement("script");
-      script.src = "https://js.hsforms.net/forms/v2.js";
-      script.async = true;
-      script.onload = loadHubSpot;
-      document.body.appendChild(script);
-    } else {
-      loadHubSpot();
+      script.src = "https://js.hsforms.net/forms/embed/51289712.js";
+      script.defer = true;
+      document.head.appendChild(script);
     }
+    // Mark form ready after script loads
+    setTimeout(() => setIsFormReady(true), 3000);
   }, []);
 
   if (loading) return null;
@@ -317,7 +296,7 @@ export default function Home() {
                 <p className="text-poppins-navy/50 text-sm">Cargando formulario...</p>
               </div>
             )}
-            <div id="hubspot-form-container" className="min-h-[300px]" />
+            <div className="hs-form-frame" data-region="na1" data-form-id="5e8bb93c-bc8c-4eef-babf-904efc6c2280" data-portal-id="51289712" />
           </div>
         </div>
       </section>
