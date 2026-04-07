@@ -11,7 +11,7 @@ import {
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 const PASOS = [
-  { key: 'novedades', label: 'Cierre Novedades', desc: 'Inasistencias, licencias, horas extras, bonos', icon: FileText, deadline: 'Último día hábil del mes' },
+  { key: 'cierre_mes', label: 'Cerrar Mes', desc: 'Confirmar cierre de novedades del periodo', icon: Calendar, deadline: 'Último día hábil del mes' },
   { key: 'liquidaciones', label: 'Liquidaciones', desc: 'Calcular sueldos, descuentos, impuestos', icon: Receipt, deadline: 'Antes del día 5' },
   { key: 'firma', label: 'Emisión y Firma', desc: 'Generar docs, firma electrónica trabajador', icon: Stamp, deadline: 'Antes del pago' },
   { key: 'previred', label: 'Previred', desc: 'Pago cotizaciones AFP, Salud, AFC', icon: CreditCard, deadline: 'Día 10 (13 electrónico)' },
@@ -31,13 +31,27 @@ function formatCLP(n: number): string { return '$' + (n ?? 0).toLocaleString('es
 
 export default function CierreMesPage() {
   const { profile } = useAuth();
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [month, setMonth] = useState(new Date().getMonth());
+  // Auto-select: si estamos en los primeros 10 días, puede que el mes anterior no esté cerrado
+  const [year, setYear] = useState(() => {
+    const d = new Date();
+    return d.getDate() <= 10 && d.getMonth() > 0 ? d.getFullYear() : d.getFullYear();
+  });
+  const [month, setMonth] = useState(() => {
+    const d = new Date();
+    return d.getDate() <= 10 ? (d.getMonth() === 0 ? 11 : d.getMonth() - 1) : d.getMonth();
+  });
   const [empleadores, setEmpleadores] = useState<any[]>([]);
   const [ciclos, setCiclos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCierreModal, setShowCierreModal] = useState(false);
+  const [cierreDropdownOpen, setCierreDropdownOpen] = useState(false);
 
   const periodo = `${year}-${String(month + 1).padStart(2, '0')}`;
+
+  // ¿El periodo está cerrado? (todos los empleadores tienen cierre_mes completado)
+  const mesCerrado = empleadores.length > 0 && empleadores.every(
+    emp => ciclos.find((c: any) => c.empleador_id === emp.id && c.paso === 'cierre_mes' && c.estado === 'completado')
+  );
 
   const loadData = useCallback(async () => {
     if (profile?.rol !== 'admin') return;
@@ -95,9 +109,22 @@ export default function CierreMesPage() {
     return { total, completados, pct: total > 0 ? Math.round((completados / total) * 100) : 0 };
   };
 
+  // Cerrar el mes: marcar cierre_mes como completado para TODOS los empleadores
+  const handleCerrarMes = async () => {
+    const supabase = createClient();
+    const ids = empleadores.map((e: any) => e.id);
+    await supabase.from('ciclo_cierre_mes').update({
+      estado: 'completado',
+      completado_at: new Date().toISOString(),
+    }).eq('periodo', periodo).eq('paso', 'cierre_mes').in('empleador_id', ids);
+    setCierreDropdownOpen(false);
+    setShowCierreModal(false);
+    loadData();
+  };
+
   // Deadlines
   const hoy = new Date();
-  const diaPrevired = new Date(year, month + 1, 13); // día 13 del mes siguiente
+  const diaPrevired = new Date(year, month + 1, 13);
   const diasParaPrevired = Math.ceil((diaPrevired.getTime() - hoy.getTime()) / 86400000);
 
   if (profile?.rol !== 'admin') return <p className="p-8 text-zinc-500">No autorizado</p>;
@@ -132,23 +159,96 @@ export default function CierreMesPage() {
 
       {/* Pipeline de 7 pasos */}
       <div className="grid grid-cols-7 gap-2">
-        {PASOS.map(paso => {
+        {PASOS.map((paso, idx) => {
           const stats = getPasoStats(paso.key);
           const Icon = paso.icon;
           const allDone = stats.completados === stats.total && stats.total > 0;
+          const isCierreMes = paso.key === 'cierre_mes';
+          const isDisabled = !isCierreMes && !mesCerrado;
+          const isActive = isCierreMes && !mesCerrado;
           return (
-            <div key={paso.key} className={`rounded-xl p-3 border ${allDone ? 'bg-emerald-900/20 border-emerald-700/50' : 'bg-zinc-800/50 border-zinc-700/50'}`}>
-              <Icon className={`w-5 h-5 mb-2 ${allDone ? 'text-emerald-400' : 'text-zinc-400'}`} />
-              <p className="text-xs font-semibold text-zinc-200 truncate">{paso.label}</p>
+            <button
+              key={paso.key}
+              disabled={isDisabled}
+              onClick={() => { if (isCierreMes && !mesCerrado) setShowCierreModal(true); }}
+              className={`rounded-xl p-3 border text-left transition-all ${
+                isDisabled
+                  ? 'bg-zinc-900/50 border-zinc-800/50 opacity-40 cursor-not-allowed'
+                  : allDone
+                    ? 'bg-emerald-900/20 border-emerald-700/50'
+                    : isActive
+                      ? 'bg-violet-900/30 border-violet-500/60 ring-2 ring-violet-500/30 animate-pulse cursor-pointer hover:bg-violet-900/50'
+                      : 'bg-zinc-800/50 border-zinc-700/50'
+              }`}
+            >
+              <Icon className={`w-5 h-5 mb-2 ${
+                isDisabled ? 'text-zinc-600' : allDone ? 'text-emerald-400' : isActive ? 'text-violet-400' : 'text-zinc-400'
+              }`} />
+              <p className={`text-xs font-semibold truncate ${isDisabled ? 'text-zinc-600' : isActive ? 'text-violet-200' : 'text-zinc-200'}`}>
+                {paso.label}
+              </p>
               <p className="text-[10px] text-zinc-500 mt-0.5">{paso.deadline}</p>
               <div className="mt-2 h-1.5 rounded-full bg-zinc-700">
-                <div className="h-1.5 rounded-full bg-emerald-500 transition-all" style={{ width: `${stats.pct}%` }} />
+                <div className={`h-1.5 rounded-full transition-all ${isActive ? 'bg-violet-500' : 'bg-emerald-500'}`} style={{ width: `${stats.pct}%` }} />
               </div>
               <p className="text-[10px] text-zinc-500 mt-1">{stats.completados}/{stats.total}</p>
-            </div>
+            </button>
           );
         })}
       </div>
+
+      {/* Modal Cerrar Mes */}
+      {showCierreModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => { setShowCierreModal(false); setCierreDropdownOpen(false); }}>
+          <div className="bg-zinc-900 rounded-2xl border border-zinc-700 w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="bg-gradient-to-r from-violet-600 to-violet-700 rounded-t-2xl p-6">
+              <h2 className="text-xl font-bold text-white">Cerrar Mes — {MESES[month]} {year}</h2>
+              <p className="text-violet-200 text-sm mt-1">
+                Esta acción confirma que todas las novedades del periodo están completas.
+              </p>
+            </div>
+            <div className="p-6 space-y-5">
+              <div className="bg-zinc-800 rounded-xl p-4 border border-zinc-700">
+                <p className="text-sm text-zinc-300 leading-relaxed">
+                  Al cerrar el mes, se habilitarán los pasos siguientes: cálculo de liquidaciones, emisión, firma, Previred, LRE y F29.
+                </p>
+                <p className="text-sm text-amber-400 mt-3 font-medium">
+                  ¿Desea cerrar el periodo {MESES[month]} {year}?
+                </p>
+              </div>
+
+              {/* Dropdown de decisión */}
+              <div className="relative">
+                <button
+                  onClick={() => setCierreDropdownOpen(!cierreDropdownOpen)}
+                  className="w-full flex items-center justify-between rounded-xl border border-zinc-600 bg-zinc-800 px-4 py-3 text-sm text-zinc-200 hover:border-violet-500 transition"
+                >
+                  <span>Seleccione una opción...</span>
+                  <ChevronRight className={`w-4 h-4 text-zinc-400 transition-transform ${cierreDropdownOpen ? 'rotate-90' : ''}`} />
+                </button>
+                {cierreDropdownOpen && (
+                  <div className="absolute left-0 right-0 mt-2 rounded-xl border border-zinc-600 bg-zinc-800 shadow-xl z-10 overflow-hidden">
+                    <button
+                      onClick={() => { setCierreDropdownOpen(false); setShowCierreModal(false); }}
+                      className="w-full text-left px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-700 border-b border-zinc-700 transition"
+                    >
+                      <p className="font-medium text-amber-400">Aún no</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">Todavía quiero realizar cambios a este proceso.</p>
+                    </button>
+                    <button
+                      onClick={handleCerrarMes}
+                      className="w-full text-left px-4 py-3 text-sm text-zinc-300 hover:bg-zinc-700 transition"
+                    >
+                      <p className="font-medium text-emerald-400">Sí, cerrar periodo</p>
+                      <p className="text-xs text-zinc-500 mt-0.5">Este periodo ya está listo y quiero pasar al periodo siguiente.</p>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Tabla empleadores × pasos */}
       <div className="rounded-xl border border-zinc-700/50 bg-zinc-800/30 overflow-hidden">
