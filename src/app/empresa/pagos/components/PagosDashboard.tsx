@@ -76,27 +76,72 @@ export default function PagosDashboard({ empleadorId, onOpenAgent }: Props) {
   const monedaPuntos = proyeccion?.moneda || 'puntos';
   const programaNombre = proyeccion?.programa || 'Puntos Poppins';
 
+  const [payError, setPayError] = useState<string | null>(null);
+
   const handlePagar = async () => {
     if (selectedCuentas.length === 0) return;
     setPaying(true);
+    setPayError(null);
     const supabase = createClient();
     const periodo = new Date().toISOString().substring(0, 7);
 
-    // Crear pagos para cada cuenta seleccionada
-    const pagos = selectedCuentas.map(c => ({
-      empleador_id: empleadorId,
-      tipo: c.tipo,
-      monto: c.monto_fijo || 0,
-      estado: 'pendiente',
-      periodo,
-      cuenta_pago_id: c.id,
-      descripcion: c.alias || `${c.proveedor} - ${c.tipo}`,
-    }));
+    try {
+      // 1. Crear pagos pendientes en Supabase
+      const pagos = selectedCuentas.map(c => ({
+        empleador_id: empleadorId,
+        tipo: c.tipo,
+        monto: c.monto_fijo || 0,
+        estado: 'pendiente',
+        periodo,
+        cuenta_pago_id: c.id,
+        descripcion: c.alias || `${c.proveedor} - ${c.tipo}`,
+      }));
 
-    await supabase.from('pagos_empleador').insert(pagos);
-    setPaying(false);
-    setPaySuccess(true);
-    setTimeout(() => { setPaySuccess(false); loadData(); }, 2000);
+      const { data: insertedPagos } = await supabase
+        .from('pagos_empleador')
+        .insert(pagos)
+        .select('id');
+
+      const pagoIds = (insertedPagos || []).map((p: any) => p.id);
+
+      // 2. Llamar a Flow create-bulk para pago consolidado
+      const res = await fetch('/api/pagos/flow/create-bulk', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pagoIds,
+          monto: totalSelected,
+          descripcion: `Pago Poppins - ${selectedCuentas.length} cuentas (${periodo})`,
+          email: '',
+        }),
+      });
+
+      const result = await res.json();
+
+      if (result.url) {
+        // Flow real: redirigir al usuario a la pasarela de pago
+        window.location.href = result.url;
+        return;
+      }
+
+      // Simulación (Flow no configurado): marcar como procesado
+      if (result.simulated) {
+        await supabase
+          .from('pagos_empleador')
+          .update({ estado: 'procesado', flow_token: result.token })
+          .in('id', pagoIds);
+
+        setPaying(false);
+        setPaySuccess(true);
+        setTimeout(() => { setPaySuccess(false); loadData(); }, 2500);
+        return;
+      }
+
+      throw new Error(result.error || 'Error al procesar pago');
+    } catch (err: any) {
+      setPaying(false);
+      setPayError(err.message || 'Error al procesar el pago');
+    }
   };
 
   if (loading) return <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-zinc-400" /></div>;
@@ -204,6 +249,14 @@ export default function PagosDashboard({ empleadorId, onOpenAgent }: Props) {
           </div>
         )}
       </div>
+
+      {/* Error de pago */}
+      {payError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4 flex items-center justify-between">
+          <p className="text-sm text-red-700">{payError}</p>
+          <button onClick={() => setPayError(null)} className="text-xs text-red-500 hover:underline">Cerrar</button>
+        </div>
+      )}
 
       {/* Historial */}
       <div>
