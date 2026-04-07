@@ -219,24 +219,25 @@ export default function Home() {
             transition={{ duration: 0.8 }}
             className="z-10"
           >
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-black text-poppins-navy leading-[1.1] mb-6">
-              El hogar que <span className="text-poppins-pink">siempre soñaste</span>, bajo control.
+            <h1 className="text-3xl md:text-4xl lg:text-5xl font-black text-poppins-navy leading-[1.15] mb-6">
+              La primera app chilena que organiza todos los pagos de tu <span className="text-poppins-pink">hogar y empleo doméstico.</span>
             </h1>
-            <p className="text-lg md:text-xl text-poppins-navy/70 mb-8 max-w-lg leading-relaxed">
-              La primera plataforma que centraliza y automatiza toda la administración del hogar en Latinoamérica. 
-              Sueldos, gastos y servicios, en un solo lugar.
+            <p className="text-base md:text-lg text-poppins-navy/60 mb-4 max-w-lg leading-relaxed">
+              Desde el sueldo y cotizaciones de tu nana hasta el arriendo, cuentas básicas y servicios: automatiza, controla y olvida el estrés.
             </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4 mb-10">
-              <LinkButton href="#contact" variant="primary">
-                Pide tu acceso ahora <ArrowRight className="w-5 h-5" />
-              </LinkButton>
+            <p className="text-sm text-poppins-pink font-medium mb-6">Un solo lugar. Una sola app. Sin olvidos. Sin enredos. Sin estrés.</p>
+
+            <div className="space-y-2.5 mb-8">
+              <Bullet text="Gestión eficiente de relaciones laborales" />
+              <Bullet text="Control total de tus gastos domésticos." />
+              <Bullet text="Olvida los pagos atrasados y el estrés organizativo." />
             </div>
 
-            <div className="space-y-3">
-              <Bullet text="Sueldos y cotizaciones automáticas" />
-              <Bullet text="Control total de gastos domésticos" />
-              <Bullet text="Cero estrés organizativo" />
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input type="email" placeholder="Tu correo electrónico" className="flex-1 border border-zinc-200 rounded-full px-5 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-poppins-pink/40" />
+              <LinkButton href="#contact" variant="primary">
+                Quiero la magia en mi casa <ArrowRight className="w-5 h-5" />
+              </LinkButton>
             </div>
           </motion.div>
 
@@ -268,11 +269,11 @@ export default function Home() {
       </section>
 
       {/* Todo lo que necesitas — Interactive 3D Cards */}
-      <section className="py-20 bg-poppins-navy">
+      <section className="py-20 bg-white">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Todo lo que necesitas, en un solo lugar</h2>
-            <p className="text-white/60 max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-black text-poppins-navy mb-3">Todo lo que necesitas, en un solo lugar</h2>
+            <p className="text-poppins-navy/60 max-w-2xl mx-auto">
               Evita multas, atrasos y problemas judiciales. Con Poppins cumples la ley, te organizas y das seguridad a quienes trabajan en tu hogar.
             </p>
           </div>

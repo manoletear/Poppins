@@ -2,10 +2,10 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #1e1b4b; /* Deep Poppins Navy */
-  --poppins-pink: #e11d48;
-  --poppins-navy: #1e1b4b;
-  --poppins-light: #f8fafc;
+  --foreground: #2D2D90; /* Poppins Navy */
+  --poppins-pink: #E91E8C;
+  --poppins-navy: #2D2D90;
+  --poppins-light: #f8f9fb;
   --font-outfit: var(--font-outfit), ui-sans-serif, system-ui;
 }
 
