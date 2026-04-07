@@ -7,30 +7,30 @@ import { createClient } from '@/lib/supabase/client';
 // ── Catálogo empresas chilenas por región ──
 const EMPRESAS = [
   // Electricidad
-  { categoria: 'electricidad', nombre: 'Enel Distribución', regiones: ['Región Metropolitana'], idLabel: 'Número de Cliente', idPlaceholder: 'Ej: 1234567', campos: [{ campo: 'direccion', label: 'Dirección de suministro', placeholder: 'Av. Ejemplo 123' }], emoji: '⚡' },
-  { categoria: 'electricidad', nombre: 'CGE Distribución', regiones: ['Región de O\'Higgins', 'Región del Maule', 'Región del Biobío', 'Región de La Araucanía', 'Región de Los Ríos', 'Región de Los Lagos', 'Región de Valparaíso'], idLabel: 'Número de Servicio', idPlaceholder: 'Ej: 987654', campos: [], emoji: '⚡' },
-  { categoria: 'electricidad', nombre: 'Chilquinta Energía', regiones: ['Región de Valparaíso'], idLabel: 'Número de Cliente', idPlaceholder: 'Ej: 456789', campos: [], emoji: '⚡' },
-  { categoria: 'electricidad', nombre: 'Saesa', regiones: ['Región de Los Lagos', 'Región de Los Ríos', 'Región de Aysén'], idLabel: 'Número de Servicio', idPlaceholder: '', campos: [], emoji: '⚡' },
+  { categoria: 'electricidad', nombre: 'Enel Distribución', regiones: ['Región Metropolitana'], idLabel: 'Número de Cliente', idPlaceholder: 'Ej: 1234567', campos: [{ campo: 'direccion', label: 'Dirección de suministro', placeholder: 'Av. Ejemplo 123' }], emoji: '⚡', url: 'https://www.enel.cl/es/clientes/pago-en-linea.html', ayuda: 'Encuentra tu Número de Cliente en la esquina superior derecha de tu boleta Enel.' },
+  { categoria: 'electricidad', nombre: 'CGE Distribución', regiones: ['Región de O\'Higgins', 'Región del Maule', 'Región del Biobío', 'Región de La Araucanía', 'Región de Los Ríos', 'Región de Los Lagos', 'Región de Valparaíso'], idLabel: 'Número de Servicio', idPlaceholder: 'Ej: 987654', campos: [], emoji: '⚡', url: 'https://www.cge.cl/pago-en-linea/', ayuda: 'Tu Número de Servicio está en la parte superior de tu boleta CGE.' },
+  { categoria: 'electricidad', nombre: 'Chilquinta Energía', regiones: ['Región de Valparaíso'], idLabel: 'Número de Cliente', idPlaceholder: 'Ej: 456789', campos: [], emoji: '⚡', url: 'https://www.chilquinta.cl/Paginas/pago-en-linea.aspx', ayuda: 'Número de Cliente en tu boleta Chilquinta.' },
+  { categoria: 'electricidad', nombre: 'Saesa', regiones: ['Región de Los Lagos', 'Región de Los Ríos', 'Región de Aysén'], idLabel: 'Número de Servicio', idPlaceholder: '', campos: [], emoji: '⚡', url: 'https://www.saesa.cl/', ayuda: 'Número de Servicio en tu boleta Saesa.' },
   // Agua
-  { categoria: 'agua', nombre: 'Aguas Andinas', regiones: ['Región Metropolitana'], idLabel: 'Número de Cliente', idPlaceholder: 'Ej: 12345678-9', campos: [{ campo: 'direccion', label: 'Dirección', placeholder: '' }], emoji: '💧' },
-  { categoria: 'agua', nombre: 'ESVAL', regiones: ['Región de Valparaíso'], idLabel: 'Número de Servicio', idPlaceholder: 'Ej: 1234567', campos: [], emoji: '💧' },
-  { categoria: 'agua', nombre: 'ESSBIO', regiones: ['Región del Biobío', 'Región de Ñuble'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧' },
-  { categoria: 'agua', nombre: 'Nuevo Sur', regiones: ['Región del Maule'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧' },
-  { categoria: 'agua', nombre: 'Aguas del Altiplano', regiones: ['Región de Arica y Parinacota', 'Región de Tarapacá'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧' },
-  { categoria: 'agua', nombre: 'Aguas del Valle', regiones: ['Región de Coquimbo'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧' },
-  { categoria: 'agua', nombre: 'Aguas Araucanía', regiones: ['Región de La Araucanía', 'Región de Los Ríos'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧' },
+  { categoria: 'agua', nombre: 'Aguas Andinas', regiones: ['Región Metropolitana'], idLabel: 'Número de Cliente', idPlaceholder: 'Ej: 12345678-9', campos: [{ campo: 'direccion', label: 'Dirección', placeholder: '' }], emoji: '💧', url: 'https://www.aguasandinas.cl/web/aguasandinas/paga-tu-cuenta', ayuda: 'Tu Número de Cliente está en la esquina superior de tu boleta de agua.' },
+  { categoria: 'agua', nombre: 'ESVAL', regiones: ['Región de Valparaíso'], idLabel: 'Número de Servicio', idPlaceholder: 'Ej: 1234567', campos: [], emoji: '💧', url: 'https://www.esval.cl/pagos/', ayuda: 'Número de Servicio en tu boleta ESVAL.' },
+  { categoria: 'agua', nombre: 'ESSBIO', regiones: ['Región del Biobío', 'Región de Ñuble'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧', url: 'https://www.essbio.cl/', ayuda: '' },
+  { categoria: 'agua', nombre: 'Nuevo Sur', regiones: ['Región del Maule'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧', url: 'https://www.nuevosur.cl/', ayuda: '' },
+  { categoria: 'agua', nombre: 'Aguas del Altiplano', regiones: ['Región de Arica y Parinacota', 'Región de Tarapacá'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧', url: 'https://www.aguasdelaltiplano.cl/', ayuda: '' },
+  { categoria: 'agua', nombre: 'Aguas del Valle', regiones: ['Región de Coquimbo'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧', url: 'https://www.aguasdelvalle.cl/', ayuda: '' },
+  { categoria: 'agua', nombre: 'Aguas Araucanía', regiones: ['Región de La Araucanía', 'Región de Los Ríos'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '💧', url: 'https://www.aguasaraucania.cl/', ayuda: '' },
   // Gas
-  { categoria: 'gas', nombre: 'Metrogas', regiones: ['Región Metropolitana', 'Región de O\'Higgins'], idLabel: 'Número de Cliente', idPlaceholder: 'Ej: MG-123456', campos: [], emoji: '🔥' },
-  { categoria: 'gas', nombre: 'Abastible', regiones: ['Nacional'], idLabel: 'Número de Cuenta', idPlaceholder: 'Ej: 12345678', campos: [{ campo: 'tipo_gas', label: 'Tipo', placeholder: 'Granel / Cilindro' }], emoji: '🔥' },
-  { categoria: 'gas', nombre: 'Lipigas', regiones: ['Nacional'], idLabel: 'Código de Cliente', idPlaceholder: 'Ej: LP-789012', campos: [], emoji: '🔥' },
-  { categoria: 'gas', nombre: 'Gasco', regiones: ['Región de Valparaíso', 'Región del Biobío'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '🔥' },
+  { categoria: 'gas', nombre: 'Metrogas', regiones: ['Región Metropolitana', 'Región de O\'Higgins'], idLabel: 'Número de Cliente', idPlaceholder: 'Ej: MG-123456', campos: [], emoji: '🔥', url: 'https://www.metrogas.cl/pago-en-linea', ayuda: 'Tu Número de Cliente Metrogas está en tu boleta mensual.' },
+  { categoria: 'gas', nombre: 'Abastible', regiones: ['Nacional'], idLabel: 'Número de Cuenta', idPlaceholder: 'Ej: 12345678', campos: [{ campo: 'tipo_gas', label: 'Tipo', placeholder: 'Granel / Cilindro' }], emoji: '🔥', url: 'https://www.abastible.cl/', ayuda: 'Número de Cuenta en tu contrato o boleta Abastible.' },
+  { categoria: 'gas', nombre: 'Lipigas', regiones: ['Nacional'], idLabel: 'Código de Cliente', idPlaceholder: 'Ej: LP-789012', campos: [], emoji: '🔥', url: 'https://www.lipigas.cl/', ayuda: '' },
+  { categoria: 'gas', nombre: 'Gasco', regiones: ['Región de Valparaíso', 'Región del Biobío'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '🔥', url: 'https://www.gasco.cl/', ayuda: '' },
   // Internet/TV
-  { categoria: 'internet', nombre: 'Movistar', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [{ campo: 'telefono', label: 'Número de teléfono', placeholder: '+56 9 ...' }], emoji: '📡' },
-  { categoria: 'internet', nombre: 'VTR', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [], emoji: '📡' },
-  { categoria: 'internet', nombre: 'Entel', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [], emoji: '📡' },
-  { categoria: 'internet', nombre: 'WOM', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [], emoji: '📡' },
-  { categoria: 'internet', nombre: 'Claro', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [], emoji: '📡' },
-  { categoria: 'internet', nombre: 'GTD', regiones: ['Región del Biobío', 'Región de La Araucanía', 'Región de Los Lagos'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '📡' },
+  { categoria: 'internet', nombre: 'Movistar', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [{ campo: 'telefono', label: 'Número de teléfono', placeholder: '+56 9 ...' }], emoji: '📡', url: 'https://www.movistar.cl/atencion-al-cliente/paga-tu-cuenta', ayuda: 'Usa el RUT del titular de la cuenta Movistar.' },
+  { categoria: 'internet', nombre: 'VTR', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [], emoji: '📡', url: 'https://www.vtr.com/productos/otros/pago-express', ayuda: 'RUT del titular del servicio VTR.' },
+  { categoria: 'internet', nombre: 'Entel', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [], emoji: '📡', url: 'https://www.entel.cl/pago-en-linea/', ayuda: '' },
+  { categoria: 'internet', nombre: 'WOM', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [], emoji: '📡', url: 'https://www.wom.cl/pago-en-linea/', ayuda: '' },
+  { categoria: 'internet', nombre: 'Claro', regiones: ['Nacional'], idLabel: 'RUT Titular', idPlaceholder: '12.345.678-9', campos: [], emoji: '📡', url: 'https://www.clarochile.cl/', ayuda: '' },
+  { categoria: 'internet', nombre: 'GTD', regiones: ['Región del Biobío', 'Región de La Araucanía', 'Región de Los Lagos'], idLabel: 'Número de Cliente', idPlaceholder: '', campos: [], emoji: '📡', url: 'https://www.gtd.cl/', ayuda: '' },
 ];
 
 const REGIONES = [
@@ -70,11 +70,14 @@ export default function AgentePoppins({ empleadorId, onClose, onSaved }: Props) 
 
   const reset = () => { setStep('categoria'); setIdentificador(''); setCamposExtra({}); setAlias(''); setMontoEstimado(''); setSelectedEmpresa(null); setSelectedRegion(''); };
 
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const handleSave = async () => {
     if (!selectedEmpresa || !identificador) return;
     setSaving(true);
+    setSaveError(null);
     const supabase = createClient();
-    await supabase.from('cuentas_pago').insert({
+    const { error } = await supabase.from('cuentas_pago').insert({
       empleador_id: empleadorId,
       tipo: selectedCat,
       alias: alias || `${selectedEmpresa.nombre} - ${identificador}`,
@@ -85,6 +88,10 @@ export default function AgentePoppins({ empleadorId, onClose, onSaved }: Props) 
       activa: true,
     });
     setSaving(false);
+    if (error) {
+      setSaveError(`Error al guardar: ${error.message}`);
+      return;
+    }
     setStep('listo');
     onSaved();
   };
@@ -177,8 +184,15 @@ export default function AgentePoppins({ empleadorId, onClose, onSaved }: Props) 
             <div className="space-y-4">
               <button onClick={() => setStep('empresa')} className="text-xs text-zinc-500 hover:text-zinc-700 flex items-center gap-1"><ChevronLeft className="w-3 h-3" /> Cambiar empresa</button>
               <p className="text-sm font-medium text-zinc-900">4. Datos de tu cuenta en {selectedEmpresa.nombre}</p>
-              <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-500">
-                <Search className="w-3.5 h-3.5 inline mr-1" /> Estos datos están en tu boleta o en el sitio web de {selectedEmpresa.nombre}
+              <div className="bg-zinc-50 rounded-lg p-3 text-xs text-zinc-500 space-y-1">
+                <p><Search className="w-3.5 h-3.5 inline mr-1" /> Estos datos están en tu boleta o en el sitio web de {selectedEmpresa.nombre}</p>
+                {selectedEmpresa.ayuda && <p className="text-zinc-600 font-medium">{selectedEmpresa.ayuda}</p>}
+                {selectedEmpresa.url && (
+                  <a href={selectedEmpresa.url} target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-violet-600 hover:underline font-medium">
+                    Verificar en {selectedEmpresa.nombre} →
+                  </a>
+                )}
               </div>
               <div className="space-y-3">
                 <div>
@@ -229,6 +243,7 @@ export default function AgentePoppins({ empleadorId, onClose, onSaved }: Props) 
                   {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />} Agregar cuenta
                 </button>
               </div>
+              {saveError && <p className="text-xs text-red-600 mt-2">{saveError}</p>}
             </div>
           )}
 
