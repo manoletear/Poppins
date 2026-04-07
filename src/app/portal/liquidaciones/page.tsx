@@ -362,6 +362,16 @@ export default function MisLiquidacionesPage() {
                             >
                               PDF
                             </button>
+                            {liq.estado !== 'aprobado' && liq.estado !== 'pagado' ? (
+                              <button
+                                onClick={() => setFirmaTarget(liq)}
+                                className="text-xs px-3 py-1 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 transition font-medium"
+                              >
+                                Firmar
+                              </button>
+                            ) : (
+                              <span className="text-xs px-2 py-1 rounded-lg bg-emerald-100 text-emerald-700 font-medium">✓</span>
+                            )}
                           </div>
                         </td>
                       </tr>

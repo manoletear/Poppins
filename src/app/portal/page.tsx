@@ -116,6 +116,7 @@ export default function PortalDashboard() {
   const [numeroContrato, setNumeroContrato] = useState<string | null>(null);
   const [empleadorNombre, setEmpleadorNombre] = useState<string | null>(null);
   const [lugarTrabajo, setLugarTrabajo] = useState<string | null>(null);
+  const [sueldoPeriodo, setSueldoPeriodo] = useState<string | null>(null);
 
   // Derive empleadorId + employer info from active contract
   useEffect(() => {
@@ -169,12 +170,13 @@ export default function PortalDashboard() {
 
     try {
       // All queries in parallel for speed
-      const [marcajeRes, tareasRes, solicitudesRes, recordatoriosRes, liqRes] = await Promise.all([
+      const [marcajeRes, tareasRes, solicitudesRes, recordatoriosRes, liqRes, vacRes] = await Promise.all([
         supabase.from('marcajes_horario').select('*').eq('trabajador_id', trabajadorId).eq('fecha', today).maybeSingle(),
         supabase.from('tareas').select('id, titulo, hora, prioridad, estado').eq('trabajador_id', trabajadorId).eq('fecha', today).order('hora', { ascending: true }),
         supabase.from('solicitudes_empleado').select('id, tipo, descripcion, estado, fecha_inicio, fecha_fin').eq('trabajador_id', trabajadorId).in('estado', ['pendiente', 'aprobada']).order('created_at', { ascending: false }).limit(5),
         empleadorId ? supabase.from('recordatorios').select('id, titulo, hora, tipo').eq('empleador_id', empleadorId).eq('activo', true) : Promise.resolve({ data: [] }),
         supabase.from('liquidaciones').select('liquido_pagar, periodo').eq('trabajador_id', trabajadorId).order('periodo', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('solicitudes_empleado').select('dias').eq('trabajador_id', trabajadorId).eq('tipo', 'vacaciones').eq('estado', 'aprobada'),
       ]);
 
       // Process marcaje
@@ -204,7 +206,13 @@ export default function PortalDashboard() {
       if (tareasRes.data) setTareas(tareasRes.data);
       if (solicitudesRes.data) setSolicitudes(solicitudesRes.data);
       if (recordatoriosRes.data) setRecordatorios(recordatoriosRes.data);
-      if (liqRes.data) setSueldoLiquido(liqRes.data.liquido_pagar);
+      if (liqRes.data) {
+        setSueldoLiquido(liqRes.data.liquido_pagar);
+        setSueldoPeriodo(liqRes.data.periodo || null);
+      }
+      // Vacaciones: 15 legales - días aprobados usados
+      const diasUsados = (vacRes.data || []).reduce((sum: number, v: any) => sum + (v.dias || 0), 0);
+      setVacacionesDias(Math.max(15 - diasUsados, 0));
     } catch (error) {
       console.error('Error loading portal data:', error);
     } finally {
@@ -375,7 +383,7 @@ export default function PortalDashboard() {
           <p className="mt-1 text-xl font-bold text-zinc-900">
             ${sueldoLiquido.toLocaleString('es-CL')}
           </p>
-          <p className="text-xs text-violet-600">Marzo 2026</p>
+          <p className="text-xs text-violet-600">{sueldoPeriodo ? new Date(sueldoPeriodo + '-01').toLocaleDateString('es-CL', { month: 'long', year: 'numeric' }) : 'Último periodo'}</p>
         </Link>
       </div>
 

@@ -102,10 +102,14 @@ export default function BeneficiosPage() {
       if (!trabajadorId) { setLoading(false); return; }
       try {
         const supabase = createClient();
+        // Get empleadorId from active contract
+        const { data: cont } = await supabase.from('contratos').select('empleador_id')
+          .eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).maybeSingle();
+        if (!cont?.empleador_id) { setLoading(false); return; }
         const { data } = await supabase
           .from('beneficios_empleador')
           .select('*')
-          .eq('trabajador_id', trabajadorId)
+          .eq('empleador_id', cont.empleador_id)
           .eq('vigente', true);
         setBeneficiosPersonalizados(data ?? []);
       } catch {
@@ -115,7 +119,7 @@ export default function BeneficiosPage() {
       }
     }
     loadBeneficios();
-  }, []);
+  }, [trabajadorId]);
 
   const toggleLegal = (index: number) => {
     setExpandedLegal(expandedLegal === index ? null : index);

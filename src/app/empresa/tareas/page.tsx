@@ -80,6 +80,8 @@ export default function TareasPage() {
   const [historicoTareas, setHistoricoTareas] = useState<Task[]>([]);
   const [historicoFilter, setHistoricoFilter] = useState('');
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const [trabajadores, setTrabajadores] = useState<{ id: string; nombre: string }[]>([]);
+  const [newTrabajadorId, setNewTrabajadorId] = useState('');
 
   const empleadorId = profile?.empleador_id;
 
@@ -92,6 +94,22 @@ export default function TareasPage() {
   }, [empleadorId, currentDate]);
 
   useEffect(() => { loadTareas(); }, [loadTareas]);
+
+  // Load trabajadores for assignment select
+  useEffect(() => {
+    if (!empleadorId) return;
+    const supabase = createClient();
+    supabase.from('contratos').select('trabajador_id, trabajadores(id, nombre, apellido_paterno)')
+      .eq('empleador_id', empleadorId).eq('estado', 'activo')
+      .then(({ data }: any) => {
+        const workers = (data || []).map((c: any) => ({
+          id: c.trabajador_id,
+          nombre: `${c.trabajadores?.nombre || ''} ${c.trabajadores?.apellido_paterno || ''}`.trim(),
+        })).filter((w: any) => w.id);
+        setTrabajadores(workers);
+        if (workers.length === 1) setNewTrabajadorId(workers[0].id);
+      });
+  }, [empleadorId]);
 
   // Auto-load histórico para resumen y filtros globales
   useEffect(() => {
@@ -150,6 +168,7 @@ export default function TareasPage() {
       titulo: newTitle.trim(),
       categoria: newCategoria || undefined,
       prioridad: newPrioridad,
+      trabajador_id: newTrabajadorId || undefined,
       fecha: toISODate(currentDate),
     });
     setNewTitle('');
@@ -217,6 +236,12 @@ export default function TareasPage() {
               <option value="baja">Baja</option>
             </select>
           </div>
+          {trabajadores.length > 0 && (
+            <select value={newTrabajadorId} onChange={(e) => setNewTrabajadorId(e.target.value)} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm w-full">
+              <option value="">Asignar a...</option>
+              {trabajadores.map((w) => <option key={w.id} value={w.id}>{w.nombre}</option>)}
+            </select>
+          )}
           <div className="flex gap-2">
             <button type="submit" disabled={saving || !newTitle.trim()} className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50">
               {saving ? 'Guardando...' : 'Crear'}
