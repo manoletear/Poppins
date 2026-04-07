@@ -40,6 +40,7 @@ const navSections = [
     label: 'RRHH',
     items: [
       { name: 'Empleados', href: '/admin/empleados', icon: Users },
+      { name: 'Cierre de Mes', href: '/admin/cierre-mes', icon: FileText },
       { name: 'Liquidaciones', href: '/admin/liquidaciones', icon: Receipt },
     ],
   },
