@@ -161,6 +161,7 @@ export default function SolicitudesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!empleadorId) { setErrorMsg('Cargando datos, intenta en un momento'); return; }
     setSubmitting(true);
     setErrorMsg(null);
 

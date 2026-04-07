@@ -99,17 +99,22 @@ export default function ViviendaPage() {
   };
 
   const handleSave = async () => {
-    if (!vivienda) return;
     setSaving(true);
     try {
       const supabase = createClient();
       const { id, empleador_id, ...updateData } = form as Vivienda;
-      const { error: updateError } = await supabase
-        .from('viviendas_empleador')
-        .update(updateData)
-        .eq('id', vivienda.id);
-
-      if (updateError) throw updateError;
+      if (vivienda) {
+        const { error: updateError } = await supabase
+          .from('viviendas_empleador')
+          .update(updateData)
+          .eq('id', vivienda.id);
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('viviendas_empleador')
+          .insert({ ...updateData, empleador_id: empleadorId });
+        if (insertError) throw insertError;
+      }
       closeModal();
       await fetchVivienda();
     } catch (err: unknown) {
@@ -137,16 +142,13 @@ export default function ViviendaPage() {
   }
 
   // Error state
-  if (error || !vivienda) {
+  if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-3 text-center">
           <AlertCircle className="h-8 w-8 text-red-400" />
-          <p className="text-sm text-zinc-700">{error || 'No se encontraron datos de vivienda'}</p>
-          <button
-            onClick={fetchVivienda}
-            className="mt-2 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors"
-          >
+          <p className="text-sm text-zinc-700">{error}</p>
+          <button onClick={fetchVivienda} className="mt-2 inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors">
             Reintentar
           </button>
         </div>
@@ -154,30 +156,30 @@ export default function ViviendaPage() {
     );
   }
 
-  const stats = [
-    { label: 'Superficie construida', value: vivienda.metros_construidos ? `${vivienda.metros_construidos} m²` : '—' },
-    { label: 'Terreno total', value: vivienda.metros_terreno ? `${vivienda.metros_terreno} m²` : '—' },
+  const stats = !vivienda ? [] : [
+    { label: 'Superficie construida', value: vivienda?.metros_construidos ? `${vivienda?.metros_construidos} m²` : '—' },
+    { label: 'Terreno total', value: vivienda?.metros_terreno ? `${vivienda?.metros_terreno} m²` : '—' },
     { label: 'Pisos', value: vivienda.pisos?.toString() ?? '—' },
-    { label: 'Dormitorios', value: vivienda.dormitorios?.toString() ?? '—' },
-    { label: 'Baños', value: vivienda.banos?.toString() ?? '—' },
+    { label: 'Dormitorios', value: vivienda?.dormitorios?.toString() ?? '—' },
+    { label: 'Baños', value: vivienda?.banos?.toString() ?? '—' },
     { label: 'Estacionamientos', value: vivienda.estacionamientos?.toString() ?? '—' },
   ];
 
   const features = [
-    { name: 'Piscina', has: vivienda.tiene_piscina },
+    { name: 'Piscina', has: vivienda?.tiene_piscina },
     {
-      name: vivienda.tiene_jardin && vivienda.metros_jardin
-        ? `Jardín (${vivienda.metros_jardin} m²)`
+      name: vivienda?.tiene_jardin && vivienda?.metros_jardin
+        ? `Jardín (${vivienda?.metros_jardin} m²)`
         : 'Jardín',
-      has: vivienda.tiene_jardin,
+      has: vivienda?.tiene_jardin,
     },
-    { name: 'Terraza', has: vivienda.tiene_terraza },
-    { name: 'Quincho', has: vivienda.tiene_quincho },
+    { name: 'Terraza', has: vivienda?.tiene_terraza },
+    { name: 'Quincho', has: vivienda?.tiene_quincho },
     {
-      name: vivienda.tiene_patio_interior && vivienda.metros_patio
-        ? `Patio Interior (${vivienda.metros_patio} m²)`
+      name: vivienda?.tiene_patio_interior && vivienda?.metros_patio
+        ? `Patio Interior (${vivienda?.metros_patio} m²)`
         : 'Patio Interior',
-      has: vivienda.tiene_patio_interior,
+      has: vivienda?.tiene_patio_interior,
     },
   ];
 
@@ -195,17 +197,17 @@ export default function ViviendaPage() {
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       lines: [
-        vivienda.metros_construidos ? `${vivienda.metros_construidos}m² requieren limpieza diaria` : 'Limpieza diaria',
-        `${vivienda.dormitorios ?? 0} dormitorios, ${vivienda.banos ?? 0} baños`,
+        vivienda?.metros_construidos ? `${vivienda?.metros_construidos}m² requieren limpieza diaria` : 'Limpieza diaria',
+        `${vivienda?.dormitorios ?? 0} dormitorios, ${vivienda?.banos ?? 0} baños`,
         'Recomendado: Jornada completa',
       ],
       cargoKey: 'asesora',
     },
   ];
 
-  if (vivienda.tiene_jardin) {
-    const jardinArea = vivienda.metros_jardin ? `${vivienda.metros_jardin}m² de jardín` : 'Jardín';
-    const patioExtra = vivienda.tiene_patio_interior && vivienda.metros_patio ? ` + ${vivienda.metros_patio}m² patio` : '';
+  if (vivienda?.tiene_jardin) {
+    const jardinArea = vivienda?.metros_jardin ? `${vivienda?.metros_jardin}m² de jardín` : 'Jardín';
+    const patioExtra = vivienda?.tiene_patio_interior && vivienda?.metros_patio ? ` + ${vivienda?.metros_patio}m² patio` : '';
     services.push({
       title: 'Jardinero',
       icon: TreePine,
@@ -220,7 +222,7 @@ export default function ViviendaPage() {
     });
   }
 
-  if (vivienda.tiene_piscina) {
+  if (vivienda?.tiene_piscina) {
     services.push({
       title: 'Piscinero',
       icon: Waves,
@@ -235,8 +237,8 @@ export default function ViviendaPage() {
     });
   }
 
-  const tipoLabel = tipoLabels[vivienda.tipo] || vivienda.tipo;
-  const heading = `${tipoLabel} en ${vivienda.comuna}`;
+  const tipoLabel = tipoLabels[vivienda?.tipo || ''] || vivienda?.tipo || '' || vivienda?.tipo;
+  const heading = `${tipoLabel} en ${vivienda?.comuna}`;
 
   return (
     <div className="space-y-6">
@@ -244,17 +246,24 @@ export default function ViviendaPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-zinc-900">Mi Vivienda</h1>
-          <p className="text-sm text-zinc-500">Detalles de tu propiedad</p>
+          <p className="text-sm text-zinc-500">{vivienda ? 'Detalles de tu propiedad' : 'Registra tu vivienda'}</p>
         </div>
         <button
-          onClick={openModal}
+          onClick={() => { if (vivienda) openModal(); else { setForm({ tipo: 'casa' } as any); setModalOpen(true); } }}
           className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
         >
           <Pencil className="h-4 w-4" />
-          Editar
+          {vivienda ? 'Editar' : 'Registrar'}
         </button>
       </div>
 
+      {!vivienda ? (
+        <div className="flex flex-col items-center justify-center min-h-[300px] rounded-xl border border-dashed border-zinc-300 bg-zinc-50">
+          <Home className="h-10 w-10 text-zinc-300 mb-3" />
+          <p className="text-sm text-zinc-500 mb-4">Registra tu vivienda para ver servicios requeridos</p>
+        </div>
+      ) : (
+      <>
       {/* Main Grid */}
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Main Info Card */}
@@ -265,7 +274,7 @@ export default function ViviendaPage() {
               {tipoLabel}
             </span>
           </div>
-          <p className="text-sm text-zinc-500">{vivienda.direccion}, {vivienda.comuna}</p>
+          <p className="text-sm text-zinc-500">{vivienda?.direccion}, {vivienda?.comuna}</p>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mt-6">
             {stats.map((stat) => (
@@ -346,6 +355,8 @@ export default function ViviendaPage() {
         </div>
       </div>
 
+      </>
+      )}
       {/* Edit Modal */}
       {modalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">

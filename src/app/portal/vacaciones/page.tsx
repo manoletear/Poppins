@@ -220,6 +220,7 @@ export default function VacacionesPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!empleadorId) { alert('Cargando datos, intenta en un momento'); return; }
     setSubmitting(true);
 
     const { error } = await supabase.from('solicitudes_empleado').insert({

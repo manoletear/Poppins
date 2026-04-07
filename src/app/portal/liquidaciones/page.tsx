@@ -110,7 +110,7 @@ function FirmaModal({ liq, onClose, onFirma }: { liq: Liquidacion; onClose: () =
     const supabase = createClient();
     await supabase
       .from('liquidaciones')
-      .update({ estado: 'aprobado' })
+      .update({ estado: 'aprobado', firmada_por_empleado: true, fecha_firma_empleado: new Date().toISOString() })
       .eq('id', liq.id);
     setFirmado(true);
     setTimeout(() => {
