@@ -80,7 +80,7 @@ export default function EmpleadorDetailPage() {
         supabase.from('empleadores').select('*').eq('id', id).single(),
         supabase.from('contratos').select('id, trabajador_id, tipo_contrato, fecha_inicio, fecha_termino, sueldo_base, estado').eq('empleador_id', id),
         supabase.from('pagos_empleador').select('id, monto, estado, tipo, fecha_pago, descripcion, created_at').eq('empleador_id', id).order('created_at', { ascending: false }),
-        supabase.from('solicitudes').select('id, tipo, estado, descripcion, created_at').eq('empleador_id', id).order('created_at', { ascending: false }),
+        supabase.from('solicitudes_empleado').select('id, tipo, estado, descripcion, created_at').eq('empleador_id', id).order('created_at', { ascending: false }),
       ]);
 
       if (empRes.data) setEmpleador(empRes.data as Empleador);

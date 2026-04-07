@@ -55,6 +55,7 @@ export default function AdminFacturacionPage() {
   const [filterPlan, setFilterPlan] = useState('');
   const [filterPayment, setFilterPayment] = useState('');
   const [generando, setGenerando] = useState<string | null>(null);
+  const [facturaMsg, setFacturaMsg] = useState<string | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -123,7 +124,8 @@ export default function AdminFacturacionPage() {
       estado: 'emitida',
     });
     setGenerando(null);
-    alert(`Factura generada para ${emp.nombre} - ${periodo} - ${formatCLP(monto)}`);
+    setFacturaMsg(`Factura generada: ${emp.nombre} — ${periodo} — ${formatCLP(monto)}`);
+    setTimeout(() => setFacturaMsg(null), 4000);
   };
 
   if (authLoading || loading) {
@@ -157,6 +159,14 @@ export default function AdminFacturacionPage() {
             <p className="text-sm text-zinc-500">Billing y revenue de la plataforma</p>
           </div>
         </div>
+
+        {/* Toast */}
+        {facturaMsg && (
+          <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+            <Receipt className="w-5 h-5 text-emerald-600 shrink-0" />
+            <p className="text-sm text-emerald-800 font-medium">{facturaMsg}</p>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">

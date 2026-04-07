@@ -78,7 +78,7 @@ export default function AdminPage() {
     async function load() {
       const supabase = createClient();
       const [empRes, contRes, liqRes, solRes, trabRes] = await Promise.all([
-        supabase.from('empleadores').select('id, nombre_empresa, plan'),
+        supabase.from('empleadores').select('id, nombre, plan_tipo'),
         supabase.from('contratos').select('empleador_id'),
         supabase.from('liquidaciones').select('id, empleador_id, estado, periodo').eq('periodo', periodo),
         supabase.from('solicitudes_empleado').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente'),
@@ -103,7 +103,7 @@ export default function AdminPage() {
     const empLiqs = liquidaciones.filter(l => l.empleador_id === e.id);
     return empLiqs.length > 0 && empLiqs.every(l => l.estado !== 'pagada');
   }).length;
-  const mrr = empleadores.reduce((s: number, e: any) => s + (PLAN_PRICES[e.plan] || 0), 0);
+  const mrr = empleadores.reduce((s: number, e: any) => s + (PLAN_PRICES[e.plan_tipo] || 0), 0);
   const totalEmp = empleadores.length;
   const empConLiq = new Set(liquidaciones.map(l => l.empleador_id)).size;
   const empLiqCompleta = new Set(liquidaciones.filter(l => l.estado === 'firmada' || l.estado === 'pagada').map(l => l.empleador_id)).size;
@@ -131,7 +131,7 @@ export default function AdminPage() {
     const empLiqs = liquidaciones.filter(l => l.empleador_id === e.id);
     const liqEstado = empLiqs.length === 0 ? 'pendiente' : empLiqs.some(l => l.estado === 'borrador') ? 'borrador' : 'completado';
     const previred = liqEstado === 'completado' ? 'completado' : 'pendiente';
-    return { id: e.id, nombre: e.nombre_empresa, plan: e.plan, empleados: contratoCounts[e.id] || 0, liqEstado, previred, lre: 'pendiente', f29: 'pendiente' };
+    return { id: e.id, nombre: e.nombre || `${e.nombre}`, plan: e.plan_tipo, empleados: contratoCounts[e.id] || 0, liqEstado, previred, lre: 'pendiente', f29: 'pendiente' };
   });
 
   if (authLoading || loading) {
@@ -240,7 +240,7 @@ export default function AdminPage() {
                   {status.replace('_', ' ')}
                 </span>
                 <p className="text-xs text-zinc-500">{done}/{total} empleadores</p>
-                <button className="mt-auto rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 transition-colors">
+                <button onClick={() => window.location.href = '/admin/cierre-mes'} className="mt-auto rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 transition-colors">
                   {step.action}
                 </button>
               </div>
