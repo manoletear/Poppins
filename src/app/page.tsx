@@ -7,7 +7,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Navbar } from "@/components/landing/Navbar";
-import { RotatingCardStack } from "@/components/landing/RotatingCardStack";
+import { SequentialCarousel } from "@/components/landing/SequentialCarousel";
+import { Interactive3DCards } from "@/components/landing/Interactive3DCard";
 import { 
   Shield, 
   Clock, 
@@ -245,7 +246,7 @@ export default function Home() {
             transition={{ duration: 0.8, delay: 0.2 }}
             className="flex-1 flex justify-center lg:justify-end items-center mt-12 lg:mt-0"
           >
-            <RotatingCardStack />
+            <SequentialCarousel />
           </motion.div>
         </div>
       </section>
@@ -266,30 +267,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Todo lo que necesitas */}
-      <section className="py-20 bg-[#f7f8fc]">
+      {/* Todo lo que necesitas — Interactive 3D Cards */}
+      <section className="py-20 bg-poppins-navy">
         <div className="max-w-6xl mx-auto px-6">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-black text-poppins-navy mb-3">Todo lo que necesitas, en un solo lugar</h2>
-            <p className="text-poppins-navy/60 max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-black text-white mb-3">Todo lo que necesitas, en un solo lugar</h2>
+            <p className="text-white/60 max-w-2xl mx-auto">
               Evita multas, atrasos y problemas judiciales. Con Poppins cumples la ley, te organizas y das seguridad a quienes trabajan en tu hogar.
             </p>
           </div>
-          <div className="grid md:grid-cols-4 gap-6">
-            {[
-              { icon: '📝', title: 'Contratos y Documentos', resuelve: 'Contratos digitales en minutos, anexos, finiquitos con firma válida y almacenamiento en la nube.', evita: 'Contratos informales, demandas laborales y pérdida de documentos.' },
-              { icon: '💰', title: 'Pago de Imposiciones', resuelve: 'Nos integramos con la DT y Previred, calcula y paga automático de AFP, Salud y AFC.', evita: 'Multas, recargos y juicios por cotizaciones impagas.' },
-              { icon: '🔔', title: 'Recordatorios y Alertas', resuelve: 'Notificaciones previas a vencimientos y confirmación de pagos exitosos.', evita: 'Atrasos en sueldos e imposiciones, intereses y sanciones.' },
-              { icon: '📊', title: 'Asistencia y Jornadas', resuelve: 'Control digital de asistencia, horarios, permisos, vacaciones y licencias.', evita: 'Inconsistencias en horas, conflictos por vacaciones y sanciones legales.' },
-            ].map((item, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm hover:shadow-md transition">
-                <div className="text-3xl mb-4">{item.icon}</div>
-                <h3 className="font-bold text-poppins-navy mb-3">{item.title}</h3>
-                <p className="text-xs text-poppins-navy/70 mb-2"><strong className="text-poppins-pink">Resuelve:</strong> {item.resuelve}</p>
-                <p className="text-xs text-poppins-navy/70"><strong className="text-red-500">Evita:</strong> {item.evita}</p>
-              </div>
-            ))}
-          </div>
+          <Interactive3DCards />
         </div>
       </section>
 
@@ -317,16 +304,16 @@ export default function Home() {
       <section id="contact" className="py-20 bg-[#f7f8fc]">
         <div className="max-w-xl mx-auto px-6">
           <div className="text-center mb-8">
-            <h2 className="text-3xl font-black text-poppins-navy mb-3">Calcula el costo total mensual</h2>
+            <h2 className="text-3xl font-black text-poppins-navy mb-3">Empieza la magia hoy</h2>
             <p className="text-poppins-navy/60 text-sm">
-              Descubre cuánto te costará realmente formalizar a tu trabajador/a. Es menos de lo que piensas.
+              Registra tus datos y un ejecutivo te contactará para activar tu cuenta Poppins.
             </p>
           </div>
           <div className="bg-white p-8 rounded-2xl shadow-lg border border-gray-100">
             {!isFormReady && (
               <div className="flex flex-col items-center justify-center py-12">
                 <div className="w-10 h-10 border-3 border-poppins-pink border-t-transparent rounded-full animate-spin mb-3" />
-                <p className="text-poppins-navy/50 text-sm">Cargando calculador...</p>
+                <p className="text-poppins-navy/50 text-sm">Cargando formulario...</p>
               </div>
             )}
             <div id="hubspot-form-container" className="min-h-[300px]" />
