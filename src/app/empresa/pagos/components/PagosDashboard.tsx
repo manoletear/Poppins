@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CreditCard, Check, ChevronDown, Zap, Droplets, Flame, Wifi, Home, Building2, User, Shield, Sparkles, Loader2, Receipt, Calendar } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { calcularPuntosAgente, type ProyeccionPuntosResult } from '@/lib/pagos/agente-puntos';
 
 function formatCLP(n: number): string { return '$' + (n ?? 0).toLocaleString('es-CL'); }
 
@@ -32,6 +33,7 @@ export default function PagosDashboard({ empleadorId, onOpenAgent }: Props) {
   const [showHistorial, setShowHistorial] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
+  const [proyeccion, setProyeccion] = useState<ProyeccionPuntosResult | null>(null);
 
   const loadData = useCallback(async () => {
     if (!empleadorId) { setLoading(false); return; }
@@ -44,6 +46,10 @@ export default function PagosDashboard({ empleadorId, onOpenAgent }: Props) {
     setCuentas(cuentasData);
     setSelected(new Set(cuentasData.map((c: any) => c.id)));
     setHistorial(hRes.data || []);
+    // Agente Poppins calcula puntos según tarjeta del empleador
+    const total = cuentasData.reduce((s: number, c: any) => s + (c.monto_fijo || 0), 0);
+    const proy = await calcularPuntosAgente(empleadorId, total);
+    setProyeccion(proy);
     setLoading(false);
   }, [empleadorId]);
 
@@ -62,7 +68,13 @@ export default function PagosDashboard({ empleadorId, onOpenAgent }: Props) {
 
   const selectedCuentas = cuentas.filter(c => selected.has(c.id));
   const totalSelected = selectedCuentas.reduce((s, c) => s + (c.monto_fijo || 0), 0);
-  const puntosEstimados = Math.floor(totalSelected / 1000);
+
+  // Agente Poppins calcula puntos según programa del banco
+  const puntosEstimados = proyeccion
+    ? Math.floor((totalSelected / 1000) * proyeccion.tasaPor1000)
+    : Math.floor(totalSelected / 1000);
+  const monedaPuntos = proyeccion?.moneda || 'puntos';
+  const programaNombre = proyeccion?.programa || 'Puntos Poppins';
 
   const handlePagar = async () => {
     if (selectedCuentas.length === 0) return;
@@ -106,10 +118,13 @@ export default function PagosDashboard({ empleadorId, onOpenAgent }: Props) {
         <div className="rounded-xl border border-zinc-200 bg-white p-5">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-amber-500" />
-            <p className="text-sm text-zinc-500">Puntos estimados</p>
+            <p className="text-sm text-zinc-500">{programaNombre}</p>
           </div>
           <p className="text-3xl font-bold text-zinc-900 mt-1">{puntosEstimados.toLocaleString('es-CL')}</p>
-          <p className="text-xs text-zinc-400 mt-2">1 punto por cada $1.000</p>
+          <p className="text-xs text-zinc-400 mt-1">{monedaPuntos}</p>
+          {proyeccion && (
+            <p className="text-[10px] text-violet-500 mt-1">{proyeccion.banco} · {proyeccion.descripcion}</p>
+          )}
         </div>
         <button onClick={handlePagar} disabled={paying || selectedCuentas.length === 0 || paySuccess}
           className={`rounded-xl p-5 flex flex-col items-center justify-center transition ${
