@@ -3,7 +3,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const SLIDES = [
+interface Slide {
+  emoji: string;
+  title: string;
+  desc: string;
+  gradient: string;
+  isPlan?: boolean;
+  bullets?: string[];
+}
+
+const SLIDES: Slide[] = [
   {
     emoji: "💰",
     title: "Sueldos Automáticos",
@@ -29,10 +38,18 @@ const SLIDES = [
     gradient: "from-blue-500 to-cyan-600",
   },
   {
-    emoji: "⭐",
-    title: "Acumula Puntos",
-    desc: "Cada pago suma puntos. Canjea por millas, descuentos y beneficios exclusivos.",
-    gradient: "from-amber-500 to-orange-600",
+    emoji: "✨",
+    title: "Plan Poppins — $24.770/mes",
+    desc: "Todo lo indispensable para formalizar, pagar y administrar tu servicio doméstico con tranquilidad y en regla.",
+    gradient: "from-poppins-pink to-rose-600",
+    isPlan: true,
+    bullets: [
+      "Contrato digital y firma electrónica.",
+      "Gestión automática de sueldos e imposiciones.",
+      "Registro de asistencia y licencias.",
+      "Emisión de finiquitos y documentos legales.",
+      "Soporte experto (virtual y humano).",
+    ],
   },
 ];
 
@@ -92,21 +109,44 @@ export function SequentialCarousel() {
                   transformStyle: "preserve-3d",
                 }}
               >
-                <div className="h-full flex flex-col justify-between p-8 text-white">
-                  <div>
-                    <span className="text-5xl mb-4 block">{slide.emoji}</span>
-                    <h3 className="text-2xl font-bold mb-3">{slide.title}</h3>
-                    <p className="text-white/80 text-sm leading-relaxed">{slide.desc}</p>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-1.5">
-                      {SLIDES.map((_, j) => (
-                        <div key={j} className={`w-2 h-2 rounded-full transition-all ${j === current ? 'bg-white w-6' : 'bg-white/30'}`} />
-                      ))}
+                {slide.isPlan ? (
+                  <div className="h-full flex flex-col justify-between p-6 text-white">
+                    <div>
+                      <h3 className="text-xl font-bold mb-1">{slide.title}</h3>
+                      <p className="text-white/80 text-xs leading-relaxed mb-3">{slide.desc}</p>
+                      <ul className="space-y-1.5">
+                        {slide.bullets!.map((b, j) => (
+                          <li key={j} className="flex items-start gap-2 text-xs text-white/90">
+                            <span className="mt-0.5">✓</span>
+                            <span>{b}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
-                    <span className="text-xs text-white/50">{i + 1}/{SLIDES.length}</span>
+                    <div className="flex items-center justify-between">
+                      <a href="/auth/login" className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white text-poppins-pink font-bold text-sm hover:bg-white/90 transition-all active:scale-95 shadow-lg">
+                        Elegir Plan →
+                      </a>
+                      <span className="text-xs text-white/50">{i + 1}/{SLIDES.length}</span>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="h-full flex flex-col justify-between p-8 text-white">
+                    <div>
+                      <span className="text-5xl mb-4 block">{slide.emoji}</span>
+                      <h3 className="text-2xl font-bold mb-3">{slide.title}</h3>
+                      <p className="text-white/80 text-sm leading-relaxed">{slide.desc}</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-1.5">
+                        {SLIDES.map((_, j) => (
+                          <div key={j} className={`w-2 h-2 rounded-full transition-all ${j === current ? 'bg-white w-6' : 'bg-white/30'}`} />
+                        ))}
+                      </div>
+                      <span className="text-xs text-white/50">{i + 1}/{SLIDES.length}</span>
+                    </div>
+                  </div>
+                )}
               </motion.div>
             );
           })}

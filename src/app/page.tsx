@@ -30,49 +30,30 @@ import {
 
 // ─── CardShowcase (inspired by Framer CardShowcase-3qxj) ─────────────────────
 
-interface ShowcaseCard {
-  number: string;
-  tag: string;
-  title: string;
-  description: string;
-  icon: typeof CreditCard;
-  gradient: string;
-  isPlan?: boolean;
-  bullets?: string[];
-}
-
-const SHOWCASE_CARDS: ShowcaseCard[] = [
+const SHOWCASE_CARDS = [
   {
     number: "01",
-    tag: "Contratos",
-    title: "Contrato digital y firma electrónica",
-    description: "Formaliza tu servicio doméstico con contratos digitales y firma electrónica, todo en regla desde el día uno.",
+    tag: "Registro",
+    title: "Configura tu hogar en minutos",
+    description: "Registra a tus trabajadores, define sus contratos y programa todos los pagos del hogar desde un solo lugar.",
     icon: CreditCard,
     gradient: "from-violet-600 to-indigo-700",
   },
   {
     number: "02",
-    tag: "Sueldos",
-    title: "Gestión automática de sueldos e imposiciones",
-    description: "Poppins calcula y paga sueldos, AFP, FONASA y todo lo que necesitas. Sin errores, sin atrasos.",
+    tag: "Automatización",
+    title: "Poppins paga por ti, cada mes",
+    description: "Sueldos, cotizaciones, arriendo, servicios básicos — todo se ejecuta automáticamente el día que tú elijas.",
     icon: BarChart3,
     gradient: "from-pink-500 to-rose-600",
   },
   {
     number: "03",
-    tag: "Plan Poppins",
-    title: "$24.770/mes",
-    description: "Todo lo indispensable para formalizar, pagar y administrar tu servicio doméstico con tranquilidad y en regla.",
+    tag: "Cumplimiento",
+    title: "Legal al día, sin esfuerzo",
+    description: "Contratos, liquidaciones, PREVIRED y Dirección del Trabajo. Poppins asegura que tu hogar cumpla la normativa vigente.",
     icon: ShieldCheck,
     gradient: "from-emerald-500 to-teal-600",
-    isPlan: true,
-    bullets: [
-      "Contrato digital y firma electrónica.",
-      "Gestión automática de sueldos e imposiciones.",
-      "Registro de asistencia y licencias.",
-      "Emisión de finiquitos y documentos legales.",
-      "Soporte experto (virtual y humano).",
-    ],
   },
 ];
 
@@ -157,21 +138,6 @@ function CardShowcaseSection() {
                   <p className="text-sm md:text-base text-white/80 leading-relaxed">
                     {card.description}
                   </p>
-                  {card.bullets && (
-                    <ul className="mt-3 space-y-1.5">
-                      {card.bullets.map((b, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm text-white/80">
-                          <CheckCircle2 className="w-4 h-4 text-white/90 mt-0.5 flex-shrink-0" />
-                          <span>{b}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {card.isPlan && (
-                    <a href="/auth/login" className="inline-flex items-center gap-2 mt-4 px-6 py-2.5 rounded-full bg-white text-emerald-600 font-bold text-sm hover:bg-white/90 transition-all active:scale-95 shadow-lg">
-                      Elegir Plan <ArrowRight className="w-4 h-4" />
-                    </a>
-                  )}
                 </motion.div>
               </div>
             </div>
