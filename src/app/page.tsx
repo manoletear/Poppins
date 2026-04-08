@@ -30,7 +30,18 @@ import {
 
 // ─── CardShowcase (inspired by Framer CardShowcase-3qxj) ─────────────────────
 
-const SHOWCASE_CARDS = [
+interface ShowcaseCard {
+  number: string;
+  tag: string;
+  title: string;
+  description: string;
+  icon: typeof CreditCard;
+  gradient: string;
+  isPlan?: boolean;
+  bullets?: string[];
+}
+
+const SHOWCASE_CARDS: ShowcaseCard[] = [
   {
     number: "01",
     tag: "Contratos",
@@ -146,9 +157,9 @@ function CardShowcaseSection() {
                   <p className="text-sm md:text-base text-white/80 leading-relaxed">
                     {card.description}
                   </p>
-                  {"bullets" in card && card.bullets && (
+                  {card.bullets && (
                     <ul className="mt-3 space-y-1.5">
-                      {(card.bullets as string[]).map((b, i) => (
+                      {card.bullets.map((b, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm text-white/80">
                           <CheckCircle2 className="w-4 h-4 text-white/90 mt-0.5 flex-shrink-0" />
                           <span>{b}</span>
@@ -156,8 +167,8 @@ function CardShowcaseSection() {
                       ))}
                     </ul>
                   )}
-                  {"isPlan" in card && card.isPlan && (
-                    <a href="#contact" className="inline-flex items-center gap-2 mt-4 px-6 py-2.5 rounded-full bg-white text-emerald-600 font-bold text-sm hover:bg-white/90 transition-all active:scale-95 shadow-lg">
+                  {card.isPlan && (
+                    <a href="/login" className="inline-flex items-center gap-2 mt-4 px-6 py-2.5 rounded-full bg-white text-emerald-600 font-bold text-sm hover:bg-white/90 transition-all active:scale-95 shadow-lg">
                       Elegir Plan <ArrowRight className="w-4 h-4" />
                     </a>
                   )}
@@ -237,7 +248,7 @@ export default function Home() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <LinkButton href="#contact" variant="primary">
+              <LinkButton href="/login" variant="primary">
                 Quiero la magia en mi casa <ArrowRight className="w-5 h-5" />
               </LinkButton>
             </div>
@@ -350,7 +361,7 @@ export default function Home() {
             "Agenda una llamada y experimenta desde el comienzo la tranquilidad de usar Poppins."
           </p>
           <p className="text-xl font-black text-poppins-navy mb-6">¡Nos pondremos en contacto contigo muy pronto!</p>
-          <LinkButton href="#contact" variant="primary">
+          <LinkButton href="/login" variant="primary">
             Quiero la magia en mi casa <ArrowRight className="w-5 h-5" />
           </LinkButton>
         </div>
@@ -367,7 +378,7 @@ export default function Home() {
               </div>
               <p className="text-4xl font-black text-poppins-navy">$24.770<span className="text-lg font-normal text-poppins-navy/50">/mes</span></p>
               <p className="text-xs text-poppins-navy/50 mt-1 max-w-[200px]">Todo lo indispensable para formalizar, pagar y administrar tu servicio doméstico con tranquilidad y en regla.</p>
-              <LinkButton href="#contact" variant="primary">
+              <LinkButton href="/login" variant="primary">
                 Elegir Plan
               </LinkButton>
             </div>
