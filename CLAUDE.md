@@ -44,6 +44,11 @@ No explores ni expliques de más salvo que sea estrictamente necesario para reso
 ## Prioridades de decisión
 exactitud suficiente > menor contexto > menor tool calls > menor salida > menor cambios
 
+## Modo autónomo
+- **Ejecuta sin pedir permiso** — Bash, ediciones, commits, push: hazlo directamente. El usuario está esperando al frente del computador solo para aprobar con "yes".
+- **No preguntes, avanza** — Si la tarea es clara, complétala de principio a fin sin pausas innecesarias.
+- **Desarrollo continuo** — No te detengas entre pasos. Encadena todo hasta que el feature esté terminado, testeado y pusheado.
+
 ## Anti-patrones prohibidos
 - Explicar obviedades
 - Brainstorming no solicitado

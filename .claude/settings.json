@@ -3,7 +3,17 @@
     "allow": [
       "Bash(npx vitest:*)",
       "Bash(rm src/data/mockData.js src/lib/supabase-queries.ts)",
-      "Bash(rmdir src/data)"
+      "Bash(rmdir src/data)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(grep -h \"from.*select\" /c/Users/ManuelAravena/Desktop/Personal/Proyectos/Poppins/src/app/admin/*.tsx /c/Users/ManuelAravena/Desktop/Personal/Proyectos/Poppins/src/app/admin/**/*.tsx)",
+      "Bash(grep -o \"CREATE TABLE [^\\(]*\" /c/Users/ManuelAravena/Desktop/Personal/Proyectos/Poppins/supabase/migrations/*.sql)",
+      "Bash(grep -E \"\\\\.insert\\\\\\(|\\\\.update\\\\\\(|\\\\.delete\\\\\\(\" /c/Users/ManuelAravena/Desktop/Personal/Proyectos/Poppins/src/app/admin/**/*.tsx)",
+      "Bash(grep -o \"from\\('[^']*'\\)\" /c/Users/ManuelAravena/Desktop/Personal/Proyectos/Poppins/src/app/admin/*.tsx /c/Users/ManuelAravena/Desktop/Personal/Proyectos/Poppins/src/app/admin/**/*.tsx)",
+      "Bash(xargs grep:*)",
+      "Bash(grep -h \"from.*solicitudes\" /c/Users/ManuelAravena/Desktop/Personal/Proyectos/Poppins/src/app/admin/**/*.tsx)",
+      "Bash(grep -h \"\\\\.from\" /c/Users/ManuelAravena/Desktop/Personal/Proyectos/Poppins/src/app/admin/empleadores/[id]/page.tsx)"
     ]
   }
 }

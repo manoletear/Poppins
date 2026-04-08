@@ -14,13 +14,10 @@ import {
   Settings,
   UserCircle,
   Receipt,
-  TrendingUp,
   Menu,
   X,
   LogOut,
   ChevronUp,
-  Target,
-  Activity,
 } from 'lucide-react';
 
 const navSections = [
@@ -32,11 +29,8 @@ const navSections = [
     ],
   },
   {
-    label: 'CRM',
+    label: 'Gestión',
     items: [
-      { name: 'Leads & Pipeline', href: '/admin/leads', icon: TrendingUp },
-      { name: 'Deals', href: '/admin/deals', icon: Target },
-      { name: 'Actividades', href: '/admin/actividades', icon: Activity },
       { name: 'Empleadores', href: '/admin/empleadores', icon: Building2 },
     ],
   },
