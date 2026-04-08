@@ -9,6 +9,7 @@ import { motion, useScroll, useTransform } from "framer-motion";
 import { Navbar } from "@/components/landing/Navbar";
 import { SequentialCarousel } from "@/components/landing/SequentialCarousel";
 import { Interactive3DCards } from "@/components/landing/Interactive3DCard";
+import { ChatBot } from "@/components/landing/ChatBot";
 import { 
   Shield, 
   Clock, 
@@ -402,6 +403,8 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      {/* Chatbot flotante */}
+      <ChatBot />
     </div>
   );
 }
