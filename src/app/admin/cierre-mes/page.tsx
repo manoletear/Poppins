@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { generateSueldosExcel } from '@/lib/payroll/generators/sueldos-excel';
 import { generateLiquidacionesPDF } from '@/lib/payroll/generators/liquidacion-pdf';
+import { downloadLibroRemuneraciones, downloadContabilidad, downloadPrevired, downloadLibroElectronico } from '@/lib/payroll/generators/cierre-downloads';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -585,6 +586,10 @@ export default function CierreMesPage() {
                       await generateLiquidacionesPDF(activePeriodo);
                       return;
                     }
+                    if (proc.key === 'libros' && proc.completed) { await downloadLibroRemuneraciones(activePeriodo); return; }
+                    if (proc.key === 'contabilidad' && proc.completed) { await downloadContabilidad(activePeriodo); return; }
+                    if (proc.key === 'previred' && proc.completed) { await downloadPrevired(activePeriodo); return; }
+                    if (proc.key === 'libro_electronico' && proc.completed) { await downloadLibroElectronico(activePeriodo); return; }
                     setSelectedProceso(isSelected ? null : proc.key);
                   }}
                   className={`rounded-xl border p-4 flex items-start justify-between transition text-left ${
