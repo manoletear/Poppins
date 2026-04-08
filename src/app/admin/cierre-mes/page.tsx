@@ -10,6 +10,7 @@ import {
   Clock, XCircle, Ban,
 } from 'lucide-react';
 import { generateSueldosExcel } from '@/lib/payroll/generators/sueldos-excel';
+import { generateLiquidacionesPDF } from '@/lib/payroll/generators/liquidacion-pdf';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -577,8 +578,11 @@ export default function CierreMesPage() {
                 <button key={proc.key}
                   onClick={async () => {
                     if (proc.key === 'sueldos' && proc.completed) {
-                      // Descarga automática del Excel de Sueldos
                       await generateSueldosExcel(activePeriodo);
+                      return;
+                    }
+                    if (proc.key === 'liquidaciones_pdf' && proc.completed) {
+                      await generateLiquidacionesPDF(activePeriodo);
                       return;
                     }
                     setSelectedProceso(isSelected ? null : proc.key);
