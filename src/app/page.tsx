@@ -166,37 +166,41 @@ export default function Home() {
   }, [loading, user, profile, router]);
 
   useEffect(() => {
-    // HubSpot new embed format
-    if (!document.querySelector('script[src*="js.hsforms.net/forms/embed"]')) {
+    // HubSpot classic embed with onFormSubmitted callback
+    if (!document.querySelector('script[src*="js.hsforms.net/forms/v2"]')) {
       const script = document.createElement("script");
-      script.src = "https://js.hsforms.net/forms/embed/51289712.js";
+      script.src = "https://js.hsforms.net/forms/v2.js";
       script.defer = true;
+      script.onload = () => {
+        const hbspt = (window as any).hbspt;
+        if (hbspt) {
+          hbspt.forms.create({
+            region: "na1",
+            portalId: "51289712",
+            formId: "5e8bb93c-bc8c-4eef-babf-904efc6c2280",
+            target: "#hubspot-form-container",
+            onFormSubmitted: (_form: any, data: any) => {
+              const fields = data?.submissionValues || {};
+              fetch('/api/webhook/leads', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  email: fields.email || '',
+                  nombre: fields.firstname || '',
+                  apellido: fields.lastname || '',
+                  telefono: fields.phone || '',
+                  empresa: fields.company || '',
+                  fuente: 'hubspot_form',
+                  notas: fields.message || '',
+                }),
+              }).catch(() => {});
+            },
+          });
+          setIsFormReady(true);
+        }
+      };
       document.head.appendChild(script);
     }
-    // Mark form ready after script loads
-    setTimeout(() => setIsFormReady(true), 3000);
-
-    // Listen for HubSpot form submissions and sync to CRM
-    const handleMessage = (event: MessageEvent) => {
-      if (event.data?.type === 'hsFormCallback' && event.data?.eventName === 'onFormSubmitted') {
-        const fields = event.data?.data?.submissionValues || {};
-        fetch('/api/webhook/leads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email: fields.email,
-            nombre: fields.firstname,
-            apellido: fields.lastname,
-            telefono: fields.phone,
-            empresa: fields.company,
-            fuente: 'hubspot_form',
-            notas: fields.message || fields.TICKET?.content || '',
-          }),
-        }).catch(() => {});
-      }
-    };
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
   }, []);
 
   if (loading) return null;
@@ -318,7 +322,7 @@ export default function Home() {
                 <p className="text-poppins-navy/50 text-sm">Cargando formulario...</p>
               </div>
             )}
-            <div className="hs-form-frame" data-region="na1" data-form-id="5e8bb93c-bc8c-4eef-babf-904efc6c2280" data-portal-id="51289712" />
+            <div id="hubspot-form-container" />
           </div>
         </div>
       </section>
