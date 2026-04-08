@@ -7,10 +7,12 @@ import { createClient } from '@supabase/supabase-js';
 // Body: { nombre, apellido, email, telefono, empresa, fuente, notas, cargo_interes, num_trabajadores, plan_interes }
 // También soporta campos en español o inglés
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+function getSupabaseAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+}
 
 function extractField(body: Record<string, any>, ...keys: string[]): string | null {
   for (const key of keys) {
@@ -62,7 +64,7 @@ export async function POST(request: NextRequest) {
       notas: extractField(body, 'notas', 'notes', 'mensaje', 'message', 'comentario'),
     };
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabaseAdmin()
       .from('leads')
       .insert(lead)
       .select('id, email, nombre')
