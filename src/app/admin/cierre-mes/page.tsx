@@ -9,6 +9,7 @@ import {
   Download, Lock, BookOpen, Calculator, FileSpreadsheet, Receipt,
   Clock, XCircle, Ban,
 } from 'lucide-react';
+import { generateSueldosExcel } from '@/lib/payroll/generators/sueldos-excel';
 
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
@@ -574,7 +575,14 @@ export default function CierreMesPage() {
               const isSelected = selectedProceso === proc.key;
               return (
                 <button key={proc.key}
-                  onClick={() => setSelectedProceso(isSelected ? null : proc.key)}
+                  onClick={async () => {
+                    if (proc.key === 'sueldos' && proc.completed) {
+                      // Descarga automática del Excel de Sueldos
+                      await generateSueldosExcel(activePeriodo);
+                      return;
+                    }
+                    setSelectedProceso(isSelected ? null : proc.key);
+                  }}
                   className={`rounded-xl border p-4 flex items-start justify-between transition text-left ${
                     isSelected
                       ? 'bg-violet-900/30 border-violet-500 ring-2 ring-violet-500/30'
