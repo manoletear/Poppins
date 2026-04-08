@@ -1,5 +1,6 @@
 'use client';
 
+import { Suspense } from 'react';
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useAuth } from '@/lib/auth/context';
@@ -170,7 +171,15 @@ const formatCLP = (v: number) => v.toLocaleString('es-CL', { style: 'currency', 
 const formatDate = (d: string) => new Date(d).toLocaleDateString('es-CL');
 const formatDateTime = (d: string) => new Date(d).toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'short' });
 
-export default function CRMPage() {
+export default function CRMPageWrapper() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="w-8 h-8 animate-spin text-pink-500" /></div>}>
+      <CRMPage />
+    </Suspense>
+  );
+}
+
+function CRMPage() {
   const { profile } = useAuth();
   const searchParams = useSearchParams();
   const [leads, setLeads] = useState<Lead[]>([]);
