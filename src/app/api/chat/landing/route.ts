@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
       }).catch((err) => console.error('Google Sheets error:', err))
     );
 
-    // If contact data captured, sync to HubSpot
+    // If contact data captured, sync to HubSpot + Supabase CRM
     if (contactData?.email) {
       bgTasks.push(
         (async () => {
@@ -155,6 +155,21 @@ export async function POST(request: NextRequest) {
             console.error('HubSpot error:', err);
           }
         })()
+      );
+
+      // Also save to Supabase CRM
+      bgTasks.push(
+        fetch(new URL('/api/webhook/leads', request.url).toString(), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: contactData.email,
+            nombre: contactData.nombre || undefined,
+            telefono: contactData.telefono || undefined,
+            fuente: 'chatbot',
+            notas: `Lead capturado via chatbot. Session: ${sessionId}`,
+          }),
+        }).then(() => {}).catch((err) => console.error('CRM sync error:', err))
       );
     }
 
