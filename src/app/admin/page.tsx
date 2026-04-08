@@ -23,7 +23,7 @@ const PLAN_PRICES: Record<string, number> = { starter: 0, casa: 14990, hogar: 29
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 const STEPS = [
-  { key: 'novedades', title: 'Cierre de Novedades', desc: 'Inasistencias, licencias, horas extras, bonos', icon: Calendar, action: 'Cerrar' },
+  { key: 'cerrar_mes', title: 'Cerrar Mes', desc: 'Confirmar novedades y autorizar cierre', icon: Calendar, action: 'Cerrar Mes' },
   { key: 'liquidaciones', title: 'Procesamiento Liquidaciones', desc: 'Calcular sueldos, descuentos, impuestos', icon: Receipt, action: 'Procesar' },
   { key: 'firma', title: 'Emisión y Firma', desc: 'Generar docs, firma electrónica trabajador', icon: FileText, action: 'Generar' },
   { key: 'previred', title: 'Pago Cotizaciones (Previred)', desc: 'Deadline: día 10 (o 13 electrónico)', icon: CreditCard, action: 'Pagar' },
@@ -64,6 +64,7 @@ export default function AdminPage() {
   const [liquidaciones, setLiquidaciones] = useState<any[]>([]);
   const [solicitudesPend, setSolicitudesPend] = useState(0);
   const [trabajadoresCount, setTrabajadoresCount] = useState(0);
+  const [mesCerrado, setMesCerrado] = useState(false);
 
   const periodo = `${mes.year}-${String(mes.month + 1).padStart(2, '0')}`;
   const mesLabel = `${MESES[mes.month]} ${mes.year}`;
@@ -77,14 +78,16 @@ export default function AdminPage() {
 
     async function load() {
       const supabase = createClient();
-      const [empRes, contRes, liqRes, solRes, trabRes] = await Promise.all([
+      const [empRes, contRes, liqRes, solRes, trabRes, cierreRes] = await Promise.all([
         supabase.from('empleadores').select('id, nombre, plan_tipo'),
         supabase.from('contratos').select('empleador_id'),
         supabase.from('liquidaciones').select('id, empleador_id, estado, periodo').eq('periodo', periodo),
         supabase.from('solicitudes_empleado').select('id', { count: 'exact', head: true }).eq('estado', 'pendiente'),
         supabase.from('contratos').select('trabajador_id', { count: 'exact', head: true }),
+        supabase.from('cierre_mes').select('estado').eq('periodo', periodo).maybeSingle(),
       ]);
 
+      setMesCerrado(cierreRes.data?.estado === 'cerrado');
       setEmpleadores(empRes.data || []);
       const counts: Record<string, number> = {};
       (contRes.data || []).forEach((c: any) => { counts[c.empleador_id] = (counts[c.empleador_id] || 0) + 1; });
@@ -219,30 +222,63 @@ export default function AdminPage() {
         })}
       </div>
 
-      {/* PIPELINE: Ciclo de Remuneraciones */}
+      {/* PIPELINE: Cierre de Mes */}
       <div>
-        <h2 className="text-lg font-semibold text-zinc-900 mb-3">Ciclo de Remuneraciones</h2>
+        <h2 className="text-lg font-semibold text-zinc-900 mb-3">Cierre de Mes</h2>
         <div className="flex gap-3 overflow-x-auto pb-2">
           {STEPS.map((step, i) => {
             const Icon = step.icon;
+            const isCerrarMes = step.key === 'cerrar_mes';
+            const isEnabled = isCerrarMes || mesCerrado;
             const { status, done, total } = stepStatus(step.key);
             return (
-              <div key={step.key} className="min-w-[170px] flex-1 rounded-xl border border-zinc-200 bg-white p-4 flex flex-col gap-2">
+              <div key={step.key} className={`min-w-[170px] flex-1 rounded-xl border p-4 flex flex-col gap-2 transition-all ${
+                !isEnabled
+                  ? 'border-zinc-100 bg-zinc-50 opacity-40'
+                  : isCerrarMes && !mesCerrado
+                    ? 'border-violet-300 bg-violet-50 ring-2 ring-violet-200'
+                    : mesCerrado && isCerrarMes
+                      ? 'border-emerald-200 bg-emerald-50'
+                      : 'border-zinc-200 bg-white'
+              }`}>
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 bg-zinc-100 rounded-lg flex items-center justify-center">
-                    <Icon className="w-4 h-4 text-zinc-600" />
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                    !isEnabled ? 'bg-zinc-100' :
+                    isCerrarMes && !mesCerrado ? 'bg-violet-600' :
+                    mesCerrado && isCerrarMes ? 'bg-emerald-500' :
+                    'bg-zinc-100'
+                  }`}>
+                    <Icon className={`w-4 h-4 ${
+                      !isEnabled ? 'text-zinc-300' :
+                      isCerrarMes ? 'text-white' :
+                      'text-zinc-600'
+                    }`} />
                   </div>
-                  <span className="text-xs font-medium text-zinc-400">Paso {i + 1}</span>
+                  <span className={`text-xs font-medium ${!isEnabled ? 'text-zinc-300' : 'text-zinc-400'}`}>Paso {i + 1}</span>
                 </div>
-                <p className="text-sm font-semibold text-zinc-900 leading-tight">{step.title}</p>
-                <p className="text-xs text-zinc-400 leading-snug">{step.desc}</p>
-                <span className={`inline-flex self-start rounded-full px-2 py-0.5 text-xs font-medium ${statusColor(status)}`}>
-                  {status.replace('_', ' ')}
-                </span>
-                <p className="text-xs text-zinc-500">{done}/{total} empleadores</p>
-                <button onClick={() => window.location.href = '/admin/cierre-mes'} className="mt-auto rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 transition-colors">
-                  {step.action}
-                </button>
+                <p className={`text-sm font-semibold leading-tight ${!isEnabled ? 'text-zinc-300' : isCerrarMes && !mesCerrado ? 'text-violet-800' : 'text-zinc-900'}`}>{step.title}</p>
+                <p className={`text-xs leading-snug ${!isEnabled ? 'text-zinc-200' : 'text-zinc-400'}`}>{step.desc}</p>
+                {isEnabled && (
+                  <>
+                    <span className={`inline-flex self-start rounded-full px-2 py-0.5 text-xs font-medium ${
+                      mesCerrado && isCerrarMes ? 'bg-emerald-100 text-emerald-700' : statusColor(status)
+                    }`}>
+                      {mesCerrado && isCerrarMes ? 'cerrado' : status.replace('_', ' ')}
+                    </span>
+                    {!isCerrarMes && <p className="text-xs text-zinc-500">{done}/{total} empleadores</p>}
+                  </>
+                )}
+                {isEnabled && (
+                  <button onClick={() => window.location.href = '/admin/cierre-mes'} className={`mt-auto rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    isCerrarMes && !mesCerrado
+                      ? 'bg-violet-600 text-white hover:bg-violet-700'
+                      : mesCerrado && isCerrarMes
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-zinc-900 text-white hover:bg-zinc-800'
+                  }`}>
+                    {mesCerrado && isCerrarMes ? 'Ver Procesos' : step.action}
+                  </button>
+                )}
               </div>
             );
           })}
