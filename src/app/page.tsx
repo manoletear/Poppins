@@ -33,25 +33,25 @@ import {
 const SHOWCASE_CARDS = [
   {
     number: "01",
-    tag: "Registro",
-    title: "Configura tu hogar en minutos",
-    description: "Registra a tus trabajadores, define sus contratos y programa todos los pagos del hogar desde un solo lugar.",
+    tag: "Contratos",
+    title: "Contrato digital y firma electrónica",
+    description: "Formaliza tu servicio doméstico con contratos digitales y firma electrónica, todo en regla desde el día uno.",
     icon: CreditCard,
     gradient: "from-violet-600 to-indigo-700",
   },
   {
     number: "02",
-    tag: "Automatización",
-    title: "Poppins paga por ti, cada mes",
-    description: "Sueldos, cotizaciones, arriendo, servicios básicos — todo se ejecuta automáticamente el día que tú elijas.",
+    tag: "Sueldos",
+    title: "Gestión automática de sueldos e imposiciones",
+    description: "Poppins calcula y paga sueldos, AFP, FONASA y todo lo que necesitas. Sin errores, sin atrasos.",
     icon: BarChart3,
     gradient: "from-pink-500 to-rose-600",
   },
   {
     number: "03",
     tag: "Cumplimiento",
-    title: "Legal al día, sin esfuerzo",
-    description: "Contratos, liquidaciones, PREVIRED y Dirección del Trabajo. Poppins asegura que tu hogar cumpla la normativa vigente.",
+    title: "Asistencia, licencias, finiquitos y soporte experto",
+    description: "Registro de asistencia, emisión de finiquitos y documentos legales. Con soporte virtual y humano incluido.",
     icon: ShieldCheck,
     gradient: "from-emerald-500 to-teal-600",
   },
@@ -235,12 +235,16 @@ export default function Home() {
       <section id="how-it-works" className="py-24 bg-white relative overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-bold text-poppins-navy mb-6 leading-tight">
-              Cómo funciona Poppins
+            <span className="inline-block bg-poppins-pink/10 text-poppins-pink font-bold text-sm px-4 py-1.5 rounded-full mb-4 uppercase tracking-wider">Plan Poppins</span>
+            <h2 className="text-4xl md:text-5xl font-bold text-poppins-navy mb-3 leading-tight">
+              $24.770<span className="text-xl md:text-2xl font-medium text-poppins-navy/50">/mes</span>
             </h2>
-            <p className="text-lg text-gray-600 leading-relaxed">
-              Automatización y control total de tus pagos del hogar. Una sola app, un solo pago, cero preocupaciones.
+            <p className="text-lg text-gray-600 leading-relaxed max-w-2xl mx-auto mb-6">
+              Todo lo indispensable para formalizar, pagar y administrar tu servicio doméstico con tranquilidad y en regla.
             </p>
+            <a href="#contact" className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-poppins-pink text-white font-bold text-lg hover:bg-poppins-pink/90 hover:scale-105 transition-all active:scale-95 shadow-xl">
+              Elegir Plan <ArrowRight className="w-5 h-5" />
+            </a>
           </div>
 
           <CardShowcaseSection />
