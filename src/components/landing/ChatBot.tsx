@@ -11,6 +11,18 @@ interface Message {
   timestamp: Date;
 }
 
+// Convert markdown links [text](url) to <a> tags
+function renderMarkdownLinks(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(
+      /\[([^\]]+)\]\(([^)]+)\)/g,
+      '<a href="$2" class="underline font-semibold hover:opacity-80" target="_self">$1</a>'
+    );
+}
+
 // Quick-reply suggestions shown at start
 const QUICK_REPLIES = [
   "Quiero saber los precios",
@@ -187,9 +199,8 @@ export function ChatBot() {
                         ? "bg-poppins-pink text-white rounded-br-md"
                         : "bg-gray-100 text-poppins-navy rounded-bl-md"
                     }`}
-                  >
-                    {msg.content}
-                  </div>
+                    dangerouslySetInnerHTML={{ __html: renderMarkdownLinks(msg.content) }}
+                  />
                   {msg.role === "user" && (
                     <div className="w-7 h-7 rounded-full bg-poppins-pink/10 flex items-center justify-center flex-shrink-0 mt-1">
                       <User className="w-4 h-4 text-poppins-pink" />

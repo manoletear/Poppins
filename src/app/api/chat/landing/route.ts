@@ -67,7 +67,7 @@ function generateSessionId(): string {
 
 async function callClaude(messages: ChatMessage[]): Promise<string> {
   if (!ANTHROPIC_API_KEY) {
-    return 'Gracias por tu interes en Poppins! En este momento no puedo procesar tu consulta. Dejanos tu email en el formulario de contacto y te responderemos pronto.';
+    return 'Gracias por tu interes en Poppins! En este momento no puedo procesar tu consulta. Dejanos tu email en [nuestro formulario de contacto](#contact) y te responderemos pronto.';
   }
 
   const response = await fetch('https://api.anthropic.com/v1/messages', {
