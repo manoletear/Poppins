@@ -873,6 +873,184 @@ export interface Database {
         };
         Update: Partial<Database['public']['Tables']['clientes']['Insert']>;
       };
+
+      // ── Onboarding ──
+      onboarding: {
+        Row: {
+          id: string;
+          empleador_id: string | null;
+          auth_user_id: string;
+          estado: 'pendiente' | 'en_progreso' | 'completado' | 'abandonado';
+          paso_actual: number;
+          datos_empleador_completos: boolean;
+          datos_trabajadores_completos: boolean;
+          cantidad_trabajadores: number;
+          contrato_subido: boolean;
+          contrato_url: string | null;
+          contrato_generado: boolean;
+          metodo_pago_configurado: boolean;
+          token_empleada: string;
+          token_empleada_usado: boolean;
+          token_empleada_expira: string;
+          fuente: string;
+          metadata: Json | null;
+          completado_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          empleador_id?: string | null;
+          auth_user_id: string;
+          estado?: 'pendiente' | 'en_progreso' | 'completado' | 'abandonado';
+          paso_actual?: number;
+          datos_empleador_completos?: boolean;
+          datos_trabajadores_completos?: boolean;
+          cantidad_trabajadores?: number;
+          contrato_subido?: boolean;
+          contrato_url?: string | null;
+          contrato_generado?: boolean;
+          metodo_pago_configurado?: boolean;
+          fuente?: string;
+          metadata?: Json | null;
+        };
+        Update: Partial<Database['public']['Tables']['onboarding']['Insert']>;
+      };
+
+      // ── Documentos ──
+      documentos: {
+        Row: {
+          id: string;
+          empleador_id: string | null;
+          trabajador_id: string | null;
+          contrato_id: string | null;
+          tipo: 'contrato' | 'anexo' | 'finiquito' | 'liquidacion' | 'certificado' | 'licencia_medica' | 'comprobante_pago' | 'otro';
+          nombre: string;
+          url: string;
+          mime_type: string | null;
+          tamano_bytes: number | null;
+          estado: 'activo' | 'archivado' | 'eliminado';
+          subido_por: string | null;
+          metadata: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          empleador_id?: string | null;
+          trabajador_id?: string | null;
+          contrato_id?: string | null;
+          tipo: 'contrato' | 'anexo' | 'finiquito' | 'liquidacion' | 'certificado' | 'licencia_medica' | 'comprobante_pago' | 'otro';
+          nombre: string;
+          url: string;
+          mime_type?: string | null;
+          tamano_bytes?: number | null;
+          estado?: 'activo' | 'archivado' | 'eliminado';
+          subido_por?: string | null;
+          metadata?: Json | null;
+        };
+        Update: Partial<Database['public']['Tables']['documentos']['Insert']>;
+      };
+
+      // ── Suscripciones ──
+      suscripciones: {
+        Row: {
+          id: string;
+          empleador_id: string;
+          plan: 'poppins' | 'premium' | 'enterprise';
+          estado: 'trial' | 'activa' | 'suspendida' | 'cancelada' | 'vencida';
+          fecha_inicio: string;
+          fecha_fin: string | null;
+          trial_hasta: string | null;
+          monto_mensual: number;
+          moneda: string;
+          dia_cobro: number;
+          num_trabajadores: number;
+          cancelada_at: string | null;
+          motivo_cancelacion: string | null;
+          metadata: Json | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          empleador_id: string;
+          plan?: 'poppins' | 'premium' | 'enterprise';
+          estado?: 'trial' | 'activa' | 'suspendida' | 'cancelada' | 'vencida';
+          fecha_inicio?: string;
+          fecha_fin?: string | null;
+          trial_hasta?: string | null;
+          monto_mensual?: number;
+          moneda?: string;
+          dia_cobro?: number;
+          num_trabajadores?: number;
+          metadata?: Json | null;
+        };
+        Update: Partial<Database['public']['Tables']['suscripciones']['Insert']>;
+      };
+
+      // ── Pagos Suscripción ──
+      pagos_suscripcion: {
+        Row: {
+          id: string;
+          suscripcion_id: string;
+          empleador_id: string;
+          monto: number;
+          moneda: string;
+          estado: 'pendiente' | 'procesando' | 'pagado' | 'fallido' | 'reembolsado';
+          flow_token: string | null;
+          flow_order_id: string | null;
+          flow_payment_status: string | null;
+          periodo_inicio: string;
+          periodo_fin: string;
+          comprobante_url: string | null;
+          fecha_pago: string | null;
+          metadata: Json | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          suscripcion_id: string;
+          empleador_id: string;
+          monto: number;
+          moneda?: string;
+          estado?: 'pendiente' | 'procesando' | 'pagado' | 'fallido' | 'reembolsado';
+          flow_token?: string | null;
+          flow_order_id?: string | null;
+          periodo_inicio: string;
+          periodo_fin: string;
+          metadata?: Json | null;
+        };
+        Update: Partial<Database['public']['Tables']['pagos_suscripcion']['Insert']>;
+      };
+
+      // ── Invitaciones ──
+      invitaciones: {
+        Row: {
+          id: string;
+          empleador_id: string;
+          tipo: 'trabajador' | 'contador';
+          email: string | null;
+          telefono: string | null;
+          nombre: string | null;
+          token: string;
+          estado: 'pendiente' | 'aceptada' | 'expirada' | 'cancelada';
+          trabajador_id: string | null;
+          expira_at: string;
+          aceptada_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          empleador_id: string;
+          tipo?: 'trabajador' | 'contador';
+          email?: string | null;
+          telefono?: string | null;
+          nombre?: string | null;
+          estado?: 'pendiente' | 'aceptada' | 'expirada' | 'cancelada';
+          trabajador_id?: string | null;
+        };
+        Update: Partial<Database['public']['Tables']['invitaciones']['Insert']>;
+      };
     };
     Views: {
       [_ in never]: never;
@@ -907,10 +1085,11 @@ export type UserProfile     = Database['public']['Tables']['user_profiles']['Row
 export type TarjetaCliente  = Database['public']['Tables']['tarjetas_cliente']['Row'];
 export type InstitucionPrevisional = Database['public']['Tables']['instituciones_previsionales']['Row'];
 export type Cliente         = Database['public']['Tables']['clientes']['Row'];
-export type Lead            = Database['public']['Tables']['leads']['Row'];
-export type CrmActividad    = Database['public']['Tables']['crm_actividades']['Row'];
-export type CrmDeal         = Database['public']['Tables']['crm_deals']['Row'];
-export type CrmPipelineEtapa = Database['public']['Tables']['crm_pipeline_etapas']['Row'];
+export type Onboarding      = Database['public']['Tables']['onboarding']['Row'];
+export type Documento       = Database['public']['Tables']['documentos']['Row'];
+export type Suscripcion     = Database['public']['Tables']['suscripciones']['Row'];
+export type PagoSuscripcion = Database['public']['Tables']['pagos_suscripcion']['Row'];
+export type Invitacion      = Database['public']['Tables']['invitaciones']['Row'];
 
 // ── Insert helpers ──
 export type EmpleadorInsert   = Database['public']['Tables']['empleadores']['Insert'];
