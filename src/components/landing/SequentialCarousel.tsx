@@ -39,16 +39,15 @@ const SLIDES: Slide[] = [
   },
   {
     emoji: "✨",
-    title: "Plan Poppins — $24.770/mes",
-    desc: "Todo lo indispensable para formalizar, pagar y administrar tu servicio doméstico con tranquilidad y en regla.",
+    title: "Plan Poppins",
+    desc: "",
     gradient: "from-poppins-pink to-rose-600",
     isPlan: true,
     bullets: [
-      "Contrato digital y firma electrónica.",
-      "Gestión automática de sueldos e imposiciones.",
-      "Registro de asistencia y licencias.",
-      "Emisión de finiquitos y documentos legales.",
-      "Soporte experto (virtual y humano).",
+      "Contratos y firma electrónica",
+      "Sueldos e imposiciones automáticas",
+      "Asistencia, licencias y finiquitos",
+      "Soporte experto incluido",
     ],
   },
 ];
@@ -110,24 +109,25 @@ export function SequentialCarousel() {
                 }}
               >
                 {slide.isPlan ? (
-                  <div className="h-full flex flex-col justify-between p-6 text-white">
+                  <div className="h-full flex flex-col justify-between p-7 text-white">
                     <div>
-                      <h3 className="text-xl font-bold mb-1">{slide.title}</h3>
-                      <p className="text-white/80 text-xs leading-relaxed mb-3">{slide.desc}</p>
-                      <ul className="space-y-1.5">
+                      <p className="text-xs font-semibold uppercase tracking-widest text-white/60 mb-2">Plan Poppins</p>
+                      <p className="text-4xl font-black mb-1">$24.770<span className="text-lg font-medium text-white/60">/mes</span></p>
+                      <p className="text-white/70 text-xs mb-4">Todo para tu empleo doméstico en regla.</p>
+                      <ul className="space-y-2">
                         {slide.bullets!.map((b, j) => (
-                          <li key={j} className="flex items-start gap-2 text-xs text-white/90">
-                            <span className="mt-0.5">✓</span>
+                          <li key={j} className="flex items-center gap-2 text-sm text-white/90">
+                            <span className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-[10px]">✓</span>
                             <span>{b}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
                     <div className="flex items-center justify-between">
-                      <a href="/auth/login" className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-white text-poppins-pink font-bold text-sm hover:bg-white/90 transition-all active:scale-95 shadow-lg">
+                      <a href="/auth/login" className="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-white text-poppins-pink font-bold text-sm hover:scale-105 transition-all active:scale-95 shadow-lg">
                         Elegir Plan →
                       </a>
-                      <span className="text-xs text-white/50">{i + 1}/{SLIDES.length}</span>
+                      <span className="text-xs text-white/40">{i + 1}/{SLIDES.length}</span>
                     </div>
                   </div>
                 ) : (
