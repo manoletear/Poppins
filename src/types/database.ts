@@ -707,7 +707,147 @@ export interface Database {
         Update: Partial<Database['public']['Tables']['instituciones_previsionales']['Insert']>;
       };
 
-      // ── 17. Clientes ──
+      // ── 17. Leads (enriquecido CRM) ──
+      leads: {
+        Row: {
+          id: string;
+          nombre: string | null;
+          apellido: string | null;
+          email: string;
+          telefono: string | null;
+          empresa: string | null;
+          fuente: 'formulario' | 'whatsapp' | 'email' | 'referido' | 'sitio_web' | 'instagram' | 'linkedin' | 'google_ads' | 'evento';
+          estado: 'nuevo' | 'contactado' | 'demo_agendada' | 'propuesta_enviada' | 'cerrado_ganado' | 'cerrado_perdido';
+          notas: string | null;
+          next_action: string | null;
+          valor_estimado: number | null;
+          temperatura: 'frio' | 'tibio' | 'caliente';
+          score: number;
+          cargo_interes: string | null;
+          num_trabajadores: number;
+          plan_interes: 'free' | 'starter' | 'premium' | 'enterprise' | null;
+          ultimo_contacto: string | null;
+          assigned_to: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          nombre?: string | null;
+          apellido?: string | null;
+          email: string;
+          telefono?: string | null;
+          empresa?: string | null;
+          fuente?: 'formulario' | 'whatsapp' | 'email' | 'referido' | 'sitio_web' | 'instagram' | 'linkedin' | 'google_ads' | 'evento';
+          estado?: 'nuevo' | 'contactado' | 'demo_agendada' | 'propuesta_enviada' | 'cerrado_ganado' | 'cerrado_perdido';
+          notas?: string | null;
+          next_action?: string | null;
+          valor_estimado?: number | null;
+          temperatura?: 'frio' | 'tibio' | 'caliente';
+          score?: number;
+          cargo_interes?: string | null;
+          num_trabajadores?: number;
+          plan_interes?: 'free' | 'starter' | 'premium' | 'enterprise' | null;
+          ultimo_contacto?: string | null;
+          assigned_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['leads']['Insert']>;
+      };
+
+      // ── 18. CRM Actividades ──
+      crm_actividades: {
+        Row: {
+          id: string;
+          lead_id: string | null;
+          deal_id: string | null;
+          tipo: 'llamada' | 'email' | 'whatsapp' | 'reunion' | 'demo' | 'nota' | 'seguimiento';
+          descripcion: string | null;
+          resultado: string | null;
+          scheduled_at: string | null;
+          completed_at: string | null;
+          duracion_min: number | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          lead_id?: string | null;
+          deal_id?: string | null;
+          tipo: 'llamada' | 'email' | 'whatsapp' | 'reunion' | 'demo' | 'nota' | 'seguimiento';
+          descripcion?: string | null;
+          resultado?: string | null;
+          scheduled_at?: string | null;
+          completed_at?: string | null;
+          duracion_min?: number | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['crm_actividades']['Insert']>;
+      };
+
+      // ── 19. CRM Deals ──
+      crm_deals: {
+        Row: {
+          id: string;
+          titulo: string;
+          lead_id: string | null;
+          etapa_id: string;
+          valor_mensual: number;
+          plan_tipo: 'free' | 'starter' | 'premium' | 'enterprise' | null;
+          probabilidad: number;
+          num_trabajadores: number;
+          fecha_cierre_esperada: string | null;
+          motivo_perdida: string | null;
+          notas: string | null;
+          assigned_to: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          titulo: string;
+          lead_id?: string | null;
+          etapa_id: string;
+          valor_mensual?: number;
+          plan_tipo?: 'free' | 'starter' | 'premium' | 'enterprise' | null;
+          probabilidad?: number;
+          num_trabajadores?: number;
+          fecha_cierre_esperada?: string | null;
+          motivo_perdida?: string | null;
+          notas?: string | null;
+          assigned_to?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['crm_deals']['Insert']>;
+      };
+
+      // ── 20. CRM Pipeline Etapas ──
+      crm_pipeline_etapas: {
+        Row: {
+          id: string;
+          nombre: string;
+          orden: number;
+          color: string;
+          es_ganado: boolean;
+          es_perdido: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nombre: string;
+          orden: number;
+          color?: string;
+          es_ganado?: boolean;
+          es_perdido?: boolean;
+          created_at?: string;
+        };
+        Update: Partial<Database['public']['Tables']['crm_pipeline_etapas']['Insert']>;
+      };
+
+      // ── 21. Clientes ──
       clientes: {
         Row: {
           id: string;
@@ -767,6 +907,10 @@ export type UserProfile     = Database['public']['Tables']['user_profiles']['Row
 export type TarjetaCliente  = Database['public']['Tables']['tarjetas_cliente']['Row'];
 export type InstitucionPrevisional = Database['public']['Tables']['instituciones_previsionales']['Row'];
 export type Cliente         = Database['public']['Tables']['clientes']['Row'];
+export type Lead            = Database['public']['Tables']['leads']['Row'];
+export type CrmActividad    = Database['public']['Tables']['crm_actividades']['Row'];
+export type CrmDeal         = Database['public']['Tables']['crm_deals']['Row'];
+export type CrmPipelineEtapa = Database['public']['Tables']['crm_pipeline_etapas']['Row'];
 
 // ── Insert helpers ──
 export type EmpleadorInsert   = Database['public']['Tables']['empleadores']['Insert'];

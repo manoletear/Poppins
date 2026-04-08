@@ -19,6 +19,8 @@ import {
   X,
   LogOut,
   ChevronUp,
+  Target,
+  Activity,
 } from 'lucide-react';
 
 const navSections = [
@@ -32,7 +34,9 @@ const navSections = [
   {
     label: 'CRM',
     items: [
-      { name: 'Leads', href: '/admin/leads', icon: TrendingUp },
+      { name: 'Leads & Pipeline', href: '/admin/leads', icon: TrendingUp },
+      { name: 'Deals', href: '/admin/deals', icon: Target },
+      { name: 'Actividades', href: '/admin/actividades', icon: Activity },
       { name: 'Empleadores', href: '/admin/empleadores', icon: Building2 },
     ],
   },
