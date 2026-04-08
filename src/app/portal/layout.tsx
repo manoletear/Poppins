@@ -12,6 +12,7 @@ import {
   Clock,
   CircleUser,
   Receipt,
+  CreditCard,
   Umbrella,
   FolderOpen,
   ShoppingCart,
@@ -44,6 +45,7 @@ const navSections = [
     items: [
       { name: 'Mi Ficha', href: '/portal/mi-ficha', icon: CircleUser },
       { name: 'Mis Liquidaciones', href: '/portal/liquidaciones', icon: Receipt },
+      { name: 'Anticipos', href: '/portal/anticipos', icon: CreditCard },
       { name: 'Mis Vacaciones', href: '/portal/vacaciones', icon: Umbrella },
       { name: 'Mis Documentos', href: '/portal/documentos', icon: FolderOpen },
     ],

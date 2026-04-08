@@ -185,6 +185,24 @@ export default function CierreMesPage() {
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { if (cierre) { loadEmpleadores(); loadDocumentos(); } }, [cierre, loadEmpleadores, loadDocumentos]);
 
+  // Load anticipos for validation + display
+  const [anticipos, setAnticipos] = useState<any[]>([]);
+  const loadAnticipos = useCallback(async () => {
+    if (!cierre) return;
+    const supabase = createClient();
+    const { data } = await supabase.from('anticipos')
+      .select('*, trabajadores(nombre, apellido_paterno, rut), empleadores(nombre, apellido)')
+      .eq('periodo', activePeriodo)
+      .in('estado', ['aprobado', 'comprobante_ok', 'transferido', 'procesado'])
+      .order('created_at');
+    setAnticipos(data || []);
+  }, [cierre, activePeriodo]);
+
+  useEffect(() => { if (cierre) loadAnticipos(); }, [cierre, loadAnticipos]);
+
+  // Anticipos sin comprobante bloquean cierre
+  const anticiposSinComprobante = anticipos.filter(a => a.estado === 'aprobado' || a.estado === 'transferido');
+
   // Histórico
   const loadHistorico = useCallback(async () => {
     if (profile?.rol !== 'admin') return;
@@ -321,11 +339,17 @@ export default function CierreMesPage() {
   const autorizados = empleadoresCierre.filter(e => e.autorizado);
   const pendientes = empleadoresCierre.filter(e => !e.autorizado);
   const docsCount = documentos.length;
-  const docsByTipo = PROCESOS.map(p => ({
-    ...p,
-    count: documentos.filter(d => d.tipo === p.tipo).length,
-    completed: documentos.filter(d => d.tipo === p.tipo && d.estado !== 'error').length > 0,
-  }));
+  const anticiposConComprobante = anticipos.filter(a => a.estado === 'comprobante_ok' || a.estado === 'procesado');
+  const docsByTipo = PROCESOS.map(p => {
+    if (p.key === 'anticipos') {
+      return { ...p, count: anticiposConComprobante.length, completed: anticiposConComprobante.length > 0 || anticipos.length === 0 };
+    }
+    return {
+      ...p,
+      count: documentos.filter(d => d.tipo === p.tipo).length,
+      completed: documentos.filter(d => d.tipo === p.tipo && d.estado !== 'error').length > 0,
+    };
+  });
 
   const esCerrado = cierre?.estado === 'cerrado';
   const esProcesando = cierre?.estado === 'procesando';
@@ -394,8 +418,9 @@ export default function CierreMesPage() {
             </div>
             <button
               onClick={() => setShowCierreModal(true)}
-              disabled={autorizados.length === 0}
+              disabled={autorizados.length === 0 || anticiposSinComprobante.length > 0}
               className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              title={anticiposSinComprobante.length > 0 ? `${anticiposSinComprobante.length} anticipo(s) sin comprobante` : undefined}
             >
               <Lock className="w-4 h-4" />
               Cerrar Mes ({autorizados.length})
@@ -412,6 +437,27 @@ export default function CierreMesPage() {
               <div className="h-2 rounded-full bg-violet-500 transition-all" style={{ width: `${empleadoresCierre.length > 0 ? (autorizados.length / empleadoresCierre.length) * 100 : 0}%` }} />
             </div>
           </div>
+
+          {/* Anticipos sin comprobante alert */}
+          {anticiposSinComprobante.length > 0 && (
+            <div className="rounded-xl bg-red-900/20 border border-red-700/50 p-4 flex items-start gap-3">
+              <Ban className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-300">No se puede cerrar el mes</p>
+                <p className="text-xs text-red-400 mt-1">
+                  {anticiposSinComprobante.length} anticipo{anticiposSinComprobante.length > 1 ? 's' : ''} aprobado{anticiposSinComprobante.length > 1 ? 's' : ''} sin comprobante de transferencia.
+                  El empleador debe subir el comprobante antes de cerrar.
+                </p>
+                <div className="mt-2 space-y-1">
+                  {anticiposSinComprobante.map((a: any) => (
+                    <p key={a.id} className="text-xs text-zinc-400">
+                      • {a.trabajadores?.nombre || '?'} {a.trabajadores?.apellido_paterno || ''} — {formatCLP(a.monto)} — Empleador: {a.empleadores?.nombre || '?'}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Employer table */}
           <div className="rounded-xl border border-zinc-700/50 bg-zinc-800/30 overflow-hidden">
@@ -564,6 +610,80 @@ export default function CierreMesPage() {
           {selectedProceso && (() => {
             const proc = PROCESOS.find(p => p.key === selectedProceso);
             if (!proc) return null;
+
+            // === ANTICIPOS: usa tabla anticipos con comprobantes reales ===
+            if (proc.key === 'anticipos') {
+              const anticiposProcesados = anticipos.filter(a => a.estado === 'comprobante_ok' || a.estado === 'procesado');
+              const Icon = proc.icon;
+              // Agrupar por empleador
+              const byEmp: Record<string, { empName: string; items: any[] }> = {};
+              anticiposProcesados.forEach((a: any) => {
+                const empName = a.empleadores ? `${a.empleadores.nombre} ${a.empleadores.apellido}`.trim() : a.empleador_id.slice(0, 8);
+                if (!byEmp[a.empleador_id]) byEmp[a.empleador_id] = { empName, items: [] };
+                byEmp[a.empleador_id].items.push(a);
+              });
+              return (
+                <div className="rounded-xl border border-violet-500/30 bg-zinc-900/50 overflow-hidden">
+                  <div className="px-5 py-4 border-b border-zinc-700/50 flex items-center justify-between bg-violet-900/20">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center">
+                        <Icon className="w-4 h-4 text-white" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-zinc-100">{proc.label}</p>
+                        <p className="text-xs text-zinc-400">{proc.desc} · {anticiposProcesados.length} anticipo{anticiposProcesados.length !== 1 ? 's' : ''} con comprobante</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setSelectedProceso(null)} className="text-zinc-400 hover:text-zinc-200 transition">
+                      <XCircle className="w-5 h-5" />
+                    </button>
+                  </div>
+                  <div className="divide-y divide-zinc-800/50">
+                    {Object.entries(byEmp).map(([empId, { empName, items }]) => (
+                      <div key={empId} className="px-5 py-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Building2 className="w-4 h-4 text-violet-400" />
+                          <p className="text-sm font-semibold text-zinc-200">{empName}</p>
+                          <span className="text-[10px] text-zinc-500">{items.length} anticipo{items.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {items.map((a: any) => {
+                            const wName = a.trabajadores ? `${a.trabajadores.nombre} ${a.trabajadores.apellido_paterno}`.trim() : '—';
+                            return (
+                              <div key={a.id} className="flex items-center justify-between rounded-lg bg-zinc-800/40 border border-zinc-800 px-4 py-2.5 hover:bg-zinc-800/60 transition">
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <Users className="w-4 h-4 text-zinc-500 shrink-0" />
+                                  <div className="min-w-0">
+                                    <p className="text-sm text-zinc-300 truncate">{wName}</p>
+                                    <p className="text-[10px] text-zinc-500">{formatCLP(a.monto)} · {a.metodo_transferencia || 'Transferencia'} · {a.fecha_transferencia || '—'}</p>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-500/20 text-emerald-400">
+                                    {a.estado === 'procesado' ? '✓ En liquidación' : '✓ Comprobante OK'}
+                                  </span>
+                                  {a.comprobante_url && (
+                                    <a href={a.comprobante_url} target="_blank" rel="noopener noreferrer"
+                                      className="p-1 rounded-lg text-zinc-500 hover:text-violet-400 hover:bg-zinc-700 transition" title="Descargar comprobante">
+                                      <Download className="w-3.5 h-3.5" />
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {Object.keys(byEmp).length === 0 && (
+                      <div className="px-5 py-8 text-center text-zinc-500 text-sm">No hay anticipos con comprobante para este periodo.</div>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+
+            // === OTROS PROCESOS: usa cierre_mes_documento ===
             const procDocs = documentos.filter(d => d.tipo === proc.tipo);
             const Icon = proc.icon;
 
