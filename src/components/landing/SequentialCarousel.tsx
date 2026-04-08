@@ -29,18 +29,10 @@ const SLIDES = [
     gradient: "from-blue-500 to-cyan-600",
   },
   {
-    emoji: "✨",
-    title: "Plan Poppins — $24.770/mes",
-    desc: "Todo lo indispensable para formalizar, pagar y administrar tu servicio doméstico con tranquilidad y en regla.",
+    emoji: "⭐",
+    title: "Acumula Puntos",
+    desc: "Cada pago suma puntos. Canjea por millas, descuentos y beneficios exclusivos.",
     gradient: "from-amber-500 to-orange-600",
-    isPlan: true,
-    bullets: [
-      "Contrato digital y firma electrónica.",
-      "Gestión automática de sueldos e imposiciones.",
-      "Registro de asistencia y licencias.",
-      "Emisión de finiquitos y documentos legales.",
-      "Soporte experto (virtual y humano).",
-    ],
   },
 ];
 
@@ -100,26 +92,11 @@ export function SequentialCarousel() {
                   transformStyle: "preserve-3d",
                 }}
               >
-                <div className={`h-full flex flex-col justify-between ${slide.isPlan ? 'p-6' : 'p-8'} text-white`}>
+                <div className="h-full flex flex-col justify-between p-8 text-white">
                   <div>
-                    <span className={`${slide.isPlan ? 'text-3xl mb-2' : 'text-5xl mb-4'} block`}>{slide.emoji}</span>
-                    <h3 className={`${slide.isPlan ? 'text-xl' : 'text-2xl'} font-bold mb-2`}>{slide.title}</h3>
+                    <span className="text-5xl mb-4 block">{slide.emoji}</span>
+                    <h3 className="text-2xl font-bold mb-3">{slide.title}</h3>
                     <p className="text-white/80 text-sm leading-relaxed">{slide.desc}</p>
-                    {slide.bullets && (
-                      <ul className="mt-2 space-y-1">
-                        {slide.bullets.map((b: string, j: number) => (
-                          <li key={j} className="flex items-start gap-1.5 text-xs text-white/80">
-                            <span className="text-white/90 mt-0.5">✓</span>
-                            <span>{b}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                    {slide.isPlan && (
-                      <a href="/auth/login" className="inline-flex items-center gap-2 mt-3 px-5 py-2 rounded-full bg-white text-orange-600 font-bold text-sm hover:bg-white/90 transition-all active:scale-95 shadow-lg">
-                        Elegir Plan →
-                      </a>
-                    )}
                   </div>
                   <div className="flex items-center justify-between">
                     <div className="flex gap-1.5">
