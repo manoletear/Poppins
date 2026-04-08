@@ -49,11 +49,19 @@ const SHOWCASE_CARDS = [
   },
   {
     number: "03",
-    tag: "Cumplimiento",
-    title: "Asistencia, licencias, finiquitos y soporte experto",
-    description: "Registro de asistencia, emisión de finiquitos y documentos legales. Con soporte virtual y humano incluido.",
+    tag: "Plan Poppins",
+    title: "$24.770/mes",
+    description: "Todo lo indispensable para formalizar, pagar y administrar tu servicio doméstico con tranquilidad y en regla.",
     icon: ShieldCheck,
     gradient: "from-emerald-500 to-teal-600",
+    isPlan: true,
+    bullets: [
+      "Contrato digital y firma electrónica.",
+      "Gestión automática de sueldos e imposiciones.",
+      "Registro de asistencia y licencias.",
+      "Emisión de finiquitos y documentos legales.",
+      "Soporte experto (virtual y humano).",
+    ],
   },
 ];
 
@@ -138,6 +146,21 @@ function CardShowcaseSection() {
                   <p className="text-sm md:text-base text-white/80 leading-relaxed">
                     {card.description}
                   </p>
+                  {"bullets" in card && card.bullets && (
+                    <ul className="mt-3 space-y-1.5">
+                      {(card.bullets as string[]).map((b, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm text-white/80">
+                          <CheckCircle2 className="w-4 h-4 text-white/90 mt-0.5 flex-shrink-0" />
+                          <span>{b}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {"isPlan" in card && card.isPlan && (
+                    <a href="#contact" className="inline-flex items-center gap-2 mt-4 px-6 py-2.5 rounded-full bg-white text-emerald-600 font-bold text-sm hover:bg-white/90 transition-all active:scale-95 shadow-lg">
+                      Elegir Plan <ArrowRight className="w-4 h-4" />
+                    </a>
+                  )}
                 </motion.div>
               </div>
             </div>
@@ -235,16 +258,12 @@ export default function Home() {
       <section id="how-it-works" className="py-24 bg-white relative overflow-hidden">
         <div className="container mx-auto px-6">
           <div className="max-w-4xl mx-auto text-center mb-16">
-            <span className="inline-block bg-poppins-pink/10 text-poppins-pink font-bold text-sm px-4 py-1.5 rounded-full mb-4 uppercase tracking-wider">Plan Poppins</span>
-            <h2 className="text-4xl md:text-5xl font-bold text-poppins-navy mb-3 leading-tight">
-              $24.770<span className="text-xl md:text-2xl font-medium text-poppins-navy/50">/mes</span>
+            <h2 className="text-4xl md:text-5xl font-bold text-poppins-navy mb-6 leading-tight">
+              Cómo funciona Poppins
             </h2>
-            <p className="text-lg text-gray-600 leading-relaxed max-w-2xl mx-auto mb-6">
-              Todo lo indispensable para formalizar, pagar y administrar tu servicio doméstico con tranquilidad y en regla.
+            <p className="text-lg text-gray-600 leading-relaxed">
+              Automatización y control total de tus pagos del hogar. Una sola app, un solo pago, cero preocupaciones.
             </p>
-            <a href="#contact" className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-poppins-pink text-white font-bold text-lg hover:bg-poppins-pink/90 hover:scale-105 transition-all active:scale-95 shadow-xl">
-              Elegir Plan <ArrowRight className="w-5 h-5" />
-            </a>
           </div>
 
           <CardShowcaseSection />
