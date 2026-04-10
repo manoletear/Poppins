@@ -68,8 +68,9 @@ export async function middleware(request: NextRequest) {
       empleado: '/portal/onboarding',
     };
     const onboardingPath = onboardingPaths[rol];
-    // Don't redirect if already on onboarding page
-    if (onboardingPath && !pathname.startsWith(onboardingPath)) {
+    // Don't redirect if already on onboarding or completar-hogar page
+    const allowedDuringOnboarding = [onboardingPath, '/empresa/completar-hogar'];
+    if (onboardingPath && !allowedDuringOnboarding.some(p => p && pathname.startsWith(p))) {
       return NextResponse.redirect(new URL(onboardingPath, request.url));
     }
   }
