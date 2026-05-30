@@ -263,7 +263,7 @@ export default function EmpleadorDetailPage() {
                 <div>
                   <label className="text-sm text-zinc-600 mb-2 block">Cambiar Plan</label>
                   <div className="flex gap-2">
-                    {['free', 'premium', 'enterprise'].map((plan) => (
+                    {['starter', 'pro', 'pro_plus'].map((plan) => (
                       <button
                         key={plan}
                         onClick={() => handleChangePlan(plan)}

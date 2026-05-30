@@ -1,11 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth/context';
 import { getInitials, getRolLabel } from '@/lib/auth/helpers';
 import { NotificacionesDropdown } from '@/components/NotificacionesDropdown';
+import { PLANES } from '@/lib/pagos/plans';
+import type { PlanTipo, CicloFacturacion } from '@/lib/pagos/types';
+import SuscripcionBanner from './components/SuscripcionBanner';
 import {
   LayoutDashboard,
   CircleUser,
@@ -72,16 +75,42 @@ const navSections = [
   },
 ];
 
-const plans = [
-  { id: 'starter', name: 'Starter', price: '$0', features: ['2 cuentas de pago', 'Pago con tarjeta de crédito', 'Acumulación de puntos del banco', 'Comprobantes de pago'] },
-  { id: 'casa', name: 'Casa', price: '$14.990/mes', features: ['5 cuentas de pago', 'Comisión reducida (2.5%)', 'Alertas de vencimiento', 'Historial completo', 'Proyección de puntos/millas'], current: true },
-  { id: 'hogar', name: 'Hogar', price: '$29.990/mes', features: ['Cuentas ilimitadas', 'Comisión mínima (1.8%)', 'Pago consolidado "Pagar Todo"', 'Proyección de millas a destinos', 'Soporte prioritario', 'Promociones bancarias exclusivas'] },
-];
+interface EstadoSus {
+  estado: string;
+  soloLectura: boolean;
+  enTrial: boolean;
+  diasRestantesTrial: number;
+  plan_tipo: PlanTipo;
+  ciclo: string | null;
+}
+
+const ORDEN: Record<PlanTipo, number> = { starter: 0, pro: 1, pro_plus: 2 };
+const PLAN_LIST: PlanTipo[] = ['starter', 'pro', 'pro_plus'];
+const fmtCLP = (n: number) => '$' + n.toLocaleString('es-CL');
 
 function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
   const [open, setOpen] = useState(false);
   const [showPlan, setShowPlan] = useState(false);
+  const [estado, setEstado] = useState<EstadoSus | null>(null);
+  const [ciclo, setCiclo] = useState<CicloFacturacion>('mensual');
+  const [submitting, setSubmitting] = useState<PlanTipo | null>(null);
   const { profile, signOut } = useAuth();
+
+  async function cargarEstado() {
+    try {
+      const res = await fetch('/api/suscripcion/estado');
+      if (res.ok) setEstado(await res.json());
+    } catch {
+      /* sin estado: el modal usa starter por defecto */
+    }
+  }
+
+  useEffect(() => {
+    cargarEstado();
+  }, []);
+
+  const currentPlan: PlanTipo = estado?.plan_tipo ?? 'starter';
+  const currentNombre = PLANES[currentPlan].nombre;
 
   const handleCerrarSesion = () => {
     setOpen(false);
@@ -98,6 +127,23 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
     setOpen(false);
     setShowPlan(true);
   };
+
+  async function handleCambiarPlan(plan: PlanTipo) {
+    if (plan === 'starter' || plan === currentPlan) return;
+    setSubmitting(plan);
+    try {
+      const res = await fetch('/api/suscripcion/iniciar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // camino B = suscripción estándar desde el portal (el bonus de 2 meses
+        // del camino A es exclusivo del onboarding con tarjeta al inicio).
+        body: JSON.stringify({ plan, ciclo, camino: 'B_post_trial' }),
+      });
+      if (res.ok) await cargarEstado();
+    } finally {
+      setSubmitting(null);
+    }
+  }
 
   return (
     <>
@@ -116,7 +162,10 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
           )}
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-zinc-900 truncate">{displayShortName}</p>
-            <p className="text-[11px] text-zinc-500">Plan Casa</p>
+            <p className="text-[11px] text-zinc-500">
+              Plan {currentNombre}
+              {estado?.enTrial ? ` · prueba (${estado.diasRestantesTrial}d)` : ''}
+            </p>
           </div>
           <ChevronUp className={`h-4 w-4 text-zinc-400 transition-transform ${open ? 'rotate-0' : 'rotate-180'}`} />
         </button>
@@ -141,7 +190,7 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
                   <Crown className="h-4 w-4 text-amber-500" />
                   <div className="text-left">
                     <p className="font-medium">Mi Plan</p>
-                    <p className="text-[11px] text-zinc-400">Casa · Ver detalles o hacer upgrade</p>
+                    <p className="text-[11px] text-zinc-400">{currentNombre} · Ver detalles o cambiar</p>
                   </div>
                 </button>
 
@@ -184,57 +233,91 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
               </button>
             </div>
 
-            {/* Plans grid */}
             <div className="p-6">
+              {/* Toggle mensual / anual */}
+              <div className="flex justify-center mb-5">
+                <div className="inline-flex rounded-lg border border-zinc-200 p-1 bg-zinc-50">
+                  {(['mensual', 'anual'] as CicloFacturacion[]).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setCiclo(c)}
+                      className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${
+                        ciclo === c ? 'bg-white shadow text-zinc-900' : 'text-zinc-500'
+                      }`}
+                    >
+                      {c === 'mensual' ? 'Mensual' : 'Anual'}
+                      {c === 'anual' && <span className="ml-1 text-[10px] text-emerald-600 font-bold">2 meses gratis</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Plans grid */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {plans.map((plan) => (
-                  <div
-                    key={plan.id}
-                    className={`relative rounded-xl border-2 p-5 transition-all ${
-                      plan.current
-                        ? 'border-blue-500 bg-blue-50/50 shadow-md'
-                        : 'border-zinc-200 hover:border-zinc-300'
-                    }`}
-                  >
-                    {plan.current && (
-                      <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-blue-600 px-3 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
-                        <Sparkles className="h-3 w-3" /> Plan Actual
-                      </span>
-                    )}
-                    <div className="text-center mb-4 mt-1">
-                      <h3 className="text-lg font-bold text-zinc-900">{plan.name}</h3>
-                      <p className="text-2xl font-bold text-zinc-900 mt-1">{plan.price}</p>
-                    </div>
-                    <ul className="space-y-2">
-                      {plan.features.map((f) => (
-                        <li key={f} className="flex items-center gap-2 text-sm text-zinc-600">
-                          <Check className={`h-4 w-4 shrink-0 ${plan.current ? 'text-blue-500' : 'text-zinc-400'}`} />
-                          {f}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="mt-4">
-                      {plan.current ? (
-                        <div className="w-full rounded-lg bg-blue-100 py-2 text-center text-sm font-medium text-blue-700">
-                          Plan Actual
-                        </div>
-                      ) : plan.id === 'hogar' ? (
-                        <button className="w-full rounded-lg bg-zinc-900 py-2 text-sm font-medium text-white hover:bg-zinc-800 transition-colors">
-                          Hacer Upgrade
-                        </button>
-                      ) : (
-                        <button className="w-full rounded-lg border border-zinc-300 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50 transition-colors" disabled>
-                          Downgrade
-                        </button>
+                {PLAN_LIST.map((tipo) => {
+                  const plan = PLANES[tipo];
+                  const current = tipo === currentPlan;
+                  const precio = ciclo === 'anual' ? plan.precio_anual : plan.precio_mensual;
+                  const sufijo = tipo === 'starter' ? '' : ciclo === 'anual' ? '/año' : '/mes';
+                  const esUpgrade = ORDEN[tipo] > ORDEN[currentPlan];
+                  return (
+                    <div
+                      key={tipo}
+                      className={`relative rounded-xl border-2 p-5 transition-all ${
+                        current ? 'border-blue-500 bg-blue-50/50 shadow-md' : 'border-zinc-200 hover:border-zinc-300'
+                      }`}
+                    >
+                      {current && (
+                        <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-blue-600 px-3 py-0.5 text-[10px] font-bold text-white uppercase tracking-wider">
+                          <Sparkles className="h-3 w-3" /> Plan Actual
+                        </span>
                       )}
+                      <div className="text-center mb-4 mt-1">
+                        <h3 className="text-lg font-bold text-zinc-900">{plan.nombre}</h3>
+                        <p className="text-2xl font-bold text-zinc-900 mt-1">
+                          {precio === 0 ? 'Gratis' : fmtCLP(precio)}
+                          {sufijo && <span className="text-sm font-normal text-zinc-500">{sufijo}</span>}
+                        </p>
+                        {tipo === 'starter' && <p className="text-[11px] text-zinc-400">30 días de prueba</p>}
+                      </div>
+                      <ul className="space-y-2">
+                        {plan.beneficios.map((f) => (
+                          <li key={f} className="flex items-center gap-2 text-sm text-zinc-600">
+                            <Check className={`h-4 w-4 shrink-0 ${current ? 'text-blue-500' : 'text-zinc-400'}`} />
+                            {f}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="mt-4">
+                        {current ? (
+                          <div className="w-full rounded-lg bg-blue-100 py-2 text-center text-sm font-medium text-blue-700">
+                            Plan Actual
+                          </div>
+                        ) : tipo === 'starter' ? (
+                          <div className="w-full rounded-lg bg-zinc-50 py-2 text-center text-sm font-medium text-zinc-400">
+                            Incluido al inicio
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleCambiarPlan(tipo)}
+                            disabled={submitting !== null}
+                            className={`w-full rounded-lg py-2 text-sm font-medium transition-colors disabled:opacity-50 ${
+                              esUpgrade
+                                ? 'bg-zinc-900 text-white hover:bg-zinc-800'
+                                : 'border border-zinc-300 text-zinc-600 hover:bg-zinc-50'
+                            }`}
+                          >
+                            {submitting === tipo ? 'Procesando…' : esUpgrade ? `Subir a ${plan.nombre}` : `Cambiar a ${plan.nombre}`}
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <p className="text-xs text-zinc-400 text-center mt-4">
-                Los cambios de plan se aplican en el siguiente ciclo de facturación.
-                ¿Necesitas ayuda? Escríbenos a soporte@poppins.cl
+                Anual: pagás 10 meses y lo usás los 365 días. ¿Necesitas ayuda? Escríbenos a soporte@poppins.cl
               </p>
             </div>
           </div>
@@ -351,6 +434,7 @@ export default function EmpresaLayout({ children }: { children: React.ReactNode 
         </header>
 
         <main id="main-content" className="flex-1 overflow-y-auto bg-white p-4 sm:p-6 lg:p-8">
+          <SuscripcionBanner />
           {children}
         </main>
       </div>

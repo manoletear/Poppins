@@ -102,12 +102,15 @@ export default function EmpleadoresAdminPage() {
   }, [empleadores]);
 
   const planColors: Record<string, string> = {
-    free: 'bg-zinc-100 text-zinc-600',
     starter: 'bg-zinc-100 text-zinc-600',
-    premium: 'bg-violet-100 text-violet-700',
+    pro: 'bg-blue-100 text-blue-700',
+    pro_plus: 'bg-violet-100 text-violet-700',
+    // legacy (pre-migración)
+    free: 'bg-zinc-100 text-zinc-600',
+    premium: 'bg-blue-100 text-blue-700',
     casa: 'bg-blue-100 text-blue-700',
-    hogar: 'bg-emerald-100 text-emerald-700',
-    enterprise: 'bg-amber-100 text-amber-700',
+    hogar: 'bg-violet-100 text-violet-700',
+    enterprise: 'bg-violet-100 text-violet-700',
   };
 
   if (profile?.rol !== 'admin') {
@@ -193,12 +196,9 @@ export default function EmpleadoresAdminPage() {
               className="pl-9 pr-8 py-2 text-sm rounded-lg border border-zinc-200 bg-white focus:outline-none focus:ring-2 focus:ring-violet-500 appearance-none"
             >
               <option value="">Todos los planes</option>
-              <option value="free">Free</option>
               <option value="starter">Starter</option>
-              <option value="premium">Premium</option>
-              <option value="casa">Casa</option>
-              <option value="hogar">Hogar</option>
-              <option value="enterprise">Enterprise</option>
+              <option value="pro">Pro</option>
+              <option value="pro_plus">Pro+</option>
             </select>
           </div>
         </div>

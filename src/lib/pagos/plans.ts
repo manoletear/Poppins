@@ -1,47 +1,53 @@
 // src/lib/pagos/plans.ts
-import type { PlanSuscripcion, PlanTipo } from './types';
+// Fuente de verdad ÚNICA del catálogo de planes Poppins.
+import type { PlanSuscripcion, PlanTipo, CicloFacturacion } from './types';
 
 export const PLANES: Record<PlanTipo, PlanSuscripcion> = {
   starter: {
     tipo: 'starter',
     nombre: 'Starter',
     precio_mensual: 0,
-    max_cuentas: 2,
-    comision_porcentaje: 3.5,
+    precio_anual: 0,
+    max_trabajadores: 1,
+    es_trial: true,
+    trial_dias: 30,
     beneficios: [
-      '2 cuentas de pago',
-      'Pago con tarjeta de credito',
-      'Acumulacion de puntos del banco',
-      'Comprobantes de pago',
+      'Prueba gratis por 30 días',
+      'Sin tarjeta de crédito',
+      'Acceso completo a la plataforma',
+      'Al terminar elegís Pro o Pro+',
     ],
   },
-  casa: {
-    tipo: 'casa',
-    nombre: 'Casa',
-    precio_mensual: 14990,
-    max_cuentas: 5,
-    comision_porcentaje: 2.5,
+  pro: {
+    tipo: 'pro',
+    nombre: 'Pro',
+    precio_mensual: 19990,
+    precio_anual: 199900, // 10 meses
+    max_trabajadores: 1,
+    es_trial: false,
+    trial_dias: 0,
     beneficios: [
-      '5 cuentas de pago',
-      'Comision reducida (2.5%)',
-      'Alertas de vencimiento',
+      '1 trabajador (ej. Asesora del Hogar)',
+      'Liquidaciones y contratos',
+      'Pagos con tarjeta + acumulación de puntos',
+      'Recordatorios y alertas de vencimiento',
       'Historial completo',
-      'Proyeccion de puntos/millas',
     ],
   },
-  hogar: {
-    tipo: 'hogar',
-    nombre: 'Hogar',
-    precio_mensual: 29990,
-    max_cuentas: -1,
-    comision_porcentaje: 1.8,
+  pro_plus: {
+    tipo: 'pro_plus',
+    nombre: 'Pro+',
+    precio_mensual: 24990,
+    precio_anual: 249900, // 10 meses
+    max_trabajadores: -1, // ilimitado
+    es_trial: false,
+    trial_dias: 0,
     beneficios: [
-      'Cuentas ilimitadas',
-      'Comision minima (1.8%)',
+      'Trabajadores ilimitados (2ª asesora, jardín, etc.)',
+      'Todo lo del plan Pro',
       'Pago consolidado "Pagar Todo"',
-      'Proyeccion de millas a destinos',
+      'Proyección de puntos/millas',
       'Soporte prioritario',
-      'Promociones bancarias exclusivas',
     ],
   },
 };
@@ -50,13 +56,15 @@ export function getPlan(tipo: PlanTipo): PlanSuscripcion {
   return PLANES[tipo];
 }
 
-export function canAddAccount(planTipo: PlanTipo, currentCount: number): boolean {
-  const plan = PLANES[planTipo];
-  if (plan.max_cuentas === -1) return true;
-  return currentCount < plan.max_cuentas;
+/** Precio según ciclo. Anual = 10 × mensual (ahorro de 2 meses). */
+export function getPrecio(tipo: PlanTipo, ciclo: CicloFacturacion): number {
+  const plan = PLANES[tipo];
+  return ciclo === 'anual' ? plan.precio_anual : plan.precio_mensual;
 }
 
-export function getComision(planTipo: PlanTipo, monto: number): number {
+/** ¿Puede agregar otro trabajador con este plan? (-1 = ilimitado). */
+export function canAddTrabajador(planTipo: PlanTipo, currentCount: number): boolean {
   const plan = PLANES[planTipo];
-  return Math.round(monto * plan.comision_porcentaje / 100);
+  if (plan.max_trabajadores === -1) return true;
+  return currentCount < plan.max_trabajadores;
 }
