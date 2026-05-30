@@ -42,14 +42,24 @@ export interface BinLookupResult {
 }
 
 // ── Plans ────────────────────────────────────────────────────────────
-export type PlanTipo = 'starter' | 'casa' | 'hogar';
+// Catálogo canónico Poppins. Única fuente de verdad: lib/pagos/plans.ts.
+//   starter  → prueba 30 días sin cobro (luego pasa a pro / pro_plus)
+//   pro      → 1 trabajador (ej. Asesora del Hogar) · $14.990/mes
+//   pro_plus → trabajadores ilimitados (2ª asesora, jardín, etc.) · $19.990/mes
+// Anual = se paga 10 meses y se usa los 365 días (ahorro de 2 meses).
+// Sin comisión: el costo del servicio va incluido en el precio del plan.
+export type PlanTipo = 'starter' | 'pro' | 'pro_plus';
+
+export type CicloFacturacion = 'mensual' | 'anual';
 
 export interface PlanSuscripcion {
   tipo: PlanTipo;
   nombre: string;
-  precio_mensual: number;    // CLP, 0 for free
-  max_cuentas: number;       // 2, 5, unlimited (-1)
-  comision_porcentaje: number; // 3.5, 2.5, 1.8
+  precio_mensual: number;     // CLP, 0 = sin cobro (trial)
+  precio_anual: number;       // CLP, = precio_mensual * 10 (2 meses gratis)
+  max_trabajadores: number;   // 1 = pro · -1 = ilimitado (pro_plus)
+  es_trial: boolean;          // true solo para starter
+  trial_dias: number;         // 30 para starter, 0 para el resto
   beneficios: string[];
 }
 

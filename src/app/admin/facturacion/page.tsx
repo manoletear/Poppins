@@ -26,22 +26,31 @@ interface PagoInfo {
   last_paid?: string;
 }
 
+// Vocabulario unificado (lib/pagos/plans.ts): starter / pro / pro_plus.
+// Se mantienen los alias legacy mapeando al precio nuevo por si quedaran
+// filas sin migrar (la migración DB los convierte de todos modos).
 const planPrices: Record<string, number> = {
-  free: 0,
   starter: 0,
+  pro: 14990,
+  pro_plus: 19990,
+  // legacy
+  free: 0,
   premium: 14990,
   casa: 14990,
-  enterprise: 29990,
-  hogar: 29990,
+  enterprise: 19990,
+  hogar: 19990,
 };
 
 const planLabels: Record<string, string> = {
-  free: 'Starter (Free)',
-  starter: 'Starter (Free)',
-  premium: 'Casa ($14.990)',
-  casa: 'Casa ($14.990)',
-  enterprise: 'Hogar ($29.990)',
-  hogar: 'Hogar ($29.990)',
+  starter: 'Starter (gratis)',
+  pro: 'Pro ($14.990)',
+  pro_plus: 'Pro+ ($19.990)',
+  // legacy
+  free: 'Starter (gratis)',
+  premium: 'Pro ($14.990)',
+  casa: 'Pro ($14.990)',
+  enterprise: 'Pro+ ($19.990)',
+  hogar: 'Pro+ ($19.990)',
 };
 
 function formatCLP(n: number) { return '$' + (n ?? 0).toLocaleString('es-CL'); }

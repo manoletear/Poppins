@@ -14,25 +14,37 @@ function formatCLP(amount: number): string {
   return '$' + amount.toLocaleString('es-CL');
 }
 
+const NEXT_PLAN: Record<PlanTipo, PlanTipo | null> = {
+  starter: 'pro',
+  pro: 'pro_plus',
+  pro_plus: null,
+};
+
 export default function PlanBanner({ currentPlan, cuentasCount, onUpgrade }: Props) {
   const plan = PLANES[currentPlan] || PLANES.starter;
-  const isMaxPlan = currentPlan === 'hogar';
-  const isNearLimit = plan.max_cuentas > 0 && cuentasCount >= plan.max_cuentas - 1;
-  const nextPlanKey = currentPlan === 'starter' ? 'casa' : currentPlan === 'casa' ? 'hogar' : null;
+  const isMaxPlan = currentPlan === 'pro_plus';
+  const nextPlanKey = NEXT_PLAN[currentPlan];
   const nextPlan = nextPlanKey ? PLANES[nextPlanKey] : null;
 
+  const limiteTexto =
+    plan.max_trabajadores === -1
+      ? 'Trabajadores ilimitados'
+      : `Hasta ${plan.max_trabajadores} trabajador${plan.max_trabajadores > 1 ? 'es' : ''}`;
+
   return (
-    <div className={`rounded-xl border p-4 ${
-      isNearLimit ? 'border-amber-200 bg-amber-50' : 'border-zinc-200 bg-white'
-    }`}>
+    <div className="rounded-xl border border-zinc-200 bg-white p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${
-            currentPlan === 'hogar' ? 'bg-violet-100' : currentPlan === 'casa' ? 'bg-blue-100' : 'bg-zinc-100'
-          }`}>
-            <Crown className={`h-5 w-5 ${
-              currentPlan === 'hogar' ? 'text-violet-600' : currentPlan === 'casa' ? 'text-blue-600' : 'text-zinc-500'
-            }`} />
+          <div
+            className={`flex h-10 w-10 items-center justify-center rounded-lg ${
+              currentPlan === 'pro_plus' ? 'bg-violet-100' : currentPlan === 'pro' ? 'bg-blue-100' : 'bg-zinc-100'
+            }`}
+          >
+            <Crown
+              className={`h-5 w-5 ${
+                currentPlan === 'pro_plus' ? 'text-violet-600' : currentPlan === 'pro' ? 'text-blue-600' : 'text-zinc-500'
+              }`}
+            />
           </div>
           <div>
             <p className="text-sm font-semibold text-zinc-900">
@@ -42,10 +54,9 @@ export default function PlanBanner({ currentPlan, cuentasCount, onUpgrade }: Pro
               )}
             </p>
             <p className="text-xs text-zinc-500">
-              {plan.max_cuentas === -1
-                ? `${cuentasCount} cuentas activas (ilimitadas)`
-                : `${cuentasCount}/${plan.max_cuentas} cuentas`}
-              {' · '}Comision {plan.comision_porcentaje}%
+              {limiteTexto}
+              {' · '}
+              {cuentasCount} cuentas de pago activas
             </p>
           </div>
         </div>
@@ -60,12 +71,6 @@ export default function PlanBanner({ currentPlan, cuentasCount, onUpgrade }: Pro
           </button>
         )}
       </div>
-
-      {isNearLimit && !isMaxPlan && (
-        <p className="text-xs text-amber-700 mt-2">
-          Estas cerca del limite de cuentas de tu plan. Sube a Plan {nextPlan?.nombre} para agregar mas.
-        </p>
-      )}
     </div>
   );
 }
