@@ -9,8 +9,8 @@
 | Plan | Para | Mensual | Anual (paga 10) |
 |---|---|---|---|
 | **Starter** | Prueba 30 días, sin tarjeta | Gratis | — |
-| **Pro** | 1 trabajador | $14.990 | $149.900 |
-| **Pro+** | Trabajadores ilimitados | $19.990 | $199.900 |
+| **Pro** | 1 trabajador | $19.990 | $199.900 |
+| **Pro+** | Trabajadores ilimitados | $24.990 | $249.900 |
 
 - **Sin comisión** (eliminada de código y UI).
 - **Cobro**: cada 30 días desde el inicio efectivo de la suscripción, vía Flow.

@@ -21,8 +21,8 @@ export const PLANES: Record<PlanTipo, PlanSuscripcion> = {
   pro: {
     tipo: 'pro',
     nombre: 'Pro',
-    precio_mensual: 14990,
-    precio_anual: 149900, // 10 meses
+    precio_mensual: 19990,
+    precio_anual: 199900, // 10 meses
     max_trabajadores: 1,
     es_trial: false,
     trial_dias: 0,
@@ -37,8 +37,8 @@ export const PLANES: Record<PlanTipo, PlanSuscripcion> = {
   pro_plus: {
     tipo: 'pro_plus',
     nombre: 'Pro+',
-    precio_mensual: 19990,
-    precio_anual: 199900, // 10 meses
+    precio_mensual: 24990,
+    precio_anual: 249900, // 10 meses
     max_trabajadores: -1, // ilimitado
     es_trial: false,
     trial_dias: 0,

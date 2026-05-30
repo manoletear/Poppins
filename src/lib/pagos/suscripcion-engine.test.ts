@@ -82,13 +82,13 @@ describe('proximoCobro', () => {
 });
 
 describe('montoCobro', () => {
-  it('Pro mensual $14.990, anual $149.900 (10 meses)', () => {
-    expect(montoCobro('pro', 'mensual')).toBe(14990);
-    expect(montoCobro('pro', 'anual')).toBe(149900);
+  it('Pro mensual $19.990, anual $199.900 (10 meses)', () => {
+    expect(montoCobro('pro', 'mensual')).toBe(19990);
+    expect(montoCobro('pro', 'anual')).toBe(199900);
   });
-  it('Pro+ mensual $19.990, anual $199.900', () => {
-    expect(montoCobro('pro_plus', 'mensual')).toBe(19990);
-    expect(montoCobro('pro_plus', 'anual')).toBe(199900);
+  it('Pro+ mensual $24.990, anual $249.900', () => {
+    expect(montoCobro('pro_plus', 'mensual')).toBe(24990);
+    expect(montoCobro('pro_plus', 'anual')).toBe(249900);
   });
   it('Starter = 0', () => {
     expect(montoCobro('starter', 'mensual')).toBe(0);

@@ -31,26 +31,26 @@ interface PagoInfo {
 // filas sin migrar (la migración DB los convierte de todos modos).
 const planPrices: Record<string, number> = {
   starter: 0,
-  pro: 14990,
-  pro_plus: 19990,
+  pro: 19990,
+  pro_plus: 24990,
   // legacy
   free: 0,
-  premium: 14990,
-  casa: 14990,
-  enterprise: 19990,
-  hogar: 19990,
+  premium: 19990,
+  casa: 19990,
+  enterprise: 24990,
+  hogar: 24990,
 };
 
 const planLabels: Record<string, string> = {
   starter: 'Starter (gratis)',
-  pro: 'Pro ($14.990)',
-  pro_plus: 'Pro+ ($19.990)',
+  pro: 'Pro ($19.990)',
+  pro_plus: 'Pro+ ($24.990)',
   // legacy
   free: 'Starter (gratis)',
-  premium: 'Pro ($14.990)',
-  casa: 'Pro ($14.990)',
-  enterprise: 'Pro+ ($19.990)',
-  hogar: 'Pro+ ($19.990)',
+  premium: 'Pro ($19.990)',
+  casa: 'Pro ($19.990)',
+  enterprise: 'Pro+ ($24.990)',
+  hogar: 'Pro+ ($24.990)',
 };
 
 function formatCLP(n: number) { return '$' + (n ?? 0).toLocaleString('es-CL'); }

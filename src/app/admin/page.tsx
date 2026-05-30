@@ -20,9 +20,9 @@ import {
 } from 'lucide-react';
 
 const PLAN_PRICES: Record<string, number> = {
-  starter: 0, pro: 14990, pro_plus: 19990,
+  starter: 0, pro: 19990, pro_plus: 24990,
   // legacy (pre-migración)
-  free: 0, casa: 14990, premium: 14990, hogar: 19990, enterprise: 19990,
+  free: 0, casa: 19990, premium: 19990, hogar: 24990, enterprise: 24990,
 };
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
