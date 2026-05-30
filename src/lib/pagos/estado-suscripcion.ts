@@ -23,6 +23,26 @@ export interface EstadoSuscripcionResult {
   fecha_proximo_cobro: string | null;
 }
 
+/**
+ * Estado por defecto (Starter en trial) cuando el usuario aún no tiene empleador
+ * asociado — p.ej. recién registrado. Permite validar/usar el portal como Starter
+ * sin necesidad de un empleador ni suscripción todavía. `alta` = fecha de creación
+ * del perfil/usuario (cae a "hoy" si no se conoce).
+ */
+export function estadoStarterTrial(alta: Date): EstadoSuscripcionResult {
+  const now = new Date();
+  const estado = estadoPorTrial(now, alta, false); // 'trial' | 'pausada'
+  return {
+    estado,
+    soloLectura: esSoloLectura(estado),
+    enTrial: estado === 'trial' && enTrial(now, alta),
+    diasRestantesTrial: diasRestantesTrial(now, alta),
+    plan_tipo: 'starter',
+    ciclo: null,
+    fecha_proximo_cobro: null,
+  };
+}
+
 export async function getEstadoSuscripcion(
   supabase: SupabaseClient,
   empleadorId: string,
