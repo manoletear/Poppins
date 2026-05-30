@@ -10,6 +10,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/lib/auth/context';
 import { createClient } from '@/lib/supabase/client';
 import Image from 'next/image';
+import { PLANES } from '@/lib/pagos/plans';
+import type { PlanTipo, CicloFacturacion } from '@/lib/pagos/types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +34,7 @@ interface DatosContrato {
   acepta_politica_privacidad: boolean;
 }
 
-const STEPS = ['Bienvenida', 'Datos del Contratante', 'Contrato de Servicio', 'Pago', 'Confirmación'];
+const STEPS = ['Bienvenida', 'Datos del Contratante', 'Contrato de Servicio', 'Plan', 'Confirmación'];
 
 const SERVICIOS = [
   { value: 'integral', label: 'Servicio Integral', desc: 'Aseo, cocina y organización completa' },
@@ -49,8 +51,6 @@ const FRECUENCIAS = [
   { value: 'quincenal', label: 'Cada 2 semanas' },
   { value: 'mensual', label: 'Mensual' },
 ];
-
-const MONTO_MENSUAL = 24770; // CLP
 
 // ─── Stepper ──────────────────────────────────────────────────────────────────
 
@@ -231,13 +231,12 @@ function StepContrato({
           />
         </div>
 
-        {/* Resumen de precio */}
+        {/* Plan: se elige en el siguiente paso */}
         <div className="bg-[#f7f8fc] p-6 rounded-3xl border border-zinc-100 mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-[#2D2D90]/70">Plan Poppins — Mensual</span>
-            <span className="text-2xl font-black text-[#2D2D90]">${MONTO_MENSUAL.toLocaleString('es-CL')} <span className="text-sm font-normal text-zinc-400">CLP/mes</span></span>
-          </div>
-          <p className="text-xs text-zinc-500">Incluye gestión completa de 1 trabajador/a de casa particular. IVA incluido.</p>
+          <p className="text-sm text-[#2D2D90]/70">
+            En el <strong>siguiente paso</strong> elegís tu plan: <strong>Starter</strong> (30 días gratis, sin tarjeta)
+            o <strong>Pro / Pro+</strong> con <strong>2 meses gratis</strong>.
+          </p>
         </div>
 
         {/* Términos y condiciones */}
@@ -274,62 +273,106 @@ function StepContrato({
         </div>
 
         {error && <ErrorBanner message={error} />}
-        <StepNav onBack={onBack} onNext={onNext} nextLabel="Proceder al Pago" nextIcon={<CreditCard className="w-5 h-5" />} />
+        <StepNav onBack={onBack} onNext={onNext} nextLabel="Elegir Plan" nextIcon={<Sparkles className="w-5 h-5" />} />
       </div>
     </div>
   );
 }
 
-// ─── Step 3: Pago ─────────────────────────────────────────────────────────────
+// ─── Step 3: Elección de Plan ─────────────────────────────────────────────────
 
-function StepPago({
-  loading, error, onBack, onPay,
+function StepPlan({
+  loading, error, onBack, onSelect,
 }: {
   loading: boolean;
   error: string | null;
   onBack: () => void;
-  onPay: () => void;
+  onSelect: (plan: PlanTipo, ciclo: CicloFacturacion) => void;
 }) {
+  const [ciclo, setCiclo] = useState<CicloFacturacion>('mensual');
+  const fmt = (n: number) => '$' + n.toLocaleString('es-CL');
+  const pagos: PlanTipo[] = ['pro', 'pro_plus'];
+
   return (
-    <div className="max-w-2xl mx-auto py-8">
+    <div className="max-w-3xl mx-auto py-8">
       <Stepper currentStep={3} />
-      <div className="bg-white rounded-3xl shadow-2xl shadow-navy-900/5 border border-zinc-100 p-8 md:p-12 relative overflow-hidden">
-        <div className="absolute top-0 right-0 p-4 opacity-5">
-          <CreditCard className="w-24 h-24 text-[#2D2D90]" />
-        </div>
-        <h2 className="text-2xl font-black text-[#2D2D90] mb-2">Activar tu Cuenta</h2>
-        <p className="text-zinc-500 mb-8">Realiza el pago del primer mes para activar tu servicio Poppins.</p>
+      <div className="bg-white rounded-3xl shadow-2xl shadow-navy-900/5 border border-zinc-100 p-8 md:p-12">
+        <h2 className="text-2xl font-black text-[#2D2D90] mb-2">Elegí cómo empezar</h2>
+        <p className="text-zinc-500 mb-6">Probá gratis con Starter, o arrancá con Pro/Pro+ y obtené <strong>2 meses gratis</strong>.</p>
 
-        <div className="bg-[#f7f8fc] p-8 rounded-3xl border border-zinc-100 mb-8 text-center">
-          <p className="text-sm text-[#2D2D90]/60 uppercase font-bold tracking-wider mb-2">Primer mes — Plan Poppins</p>
-          <p className="text-5xl font-black text-[#2D2D90] mb-2">${MONTO_MENSUAL.toLocaleString('es-CL')}</p>
-          <p className="text-sm text-zinc-500">CLP · IVA incluido</p>
+        {/* Starter */}
+        <div className="rounded-2xl border-2 border-zinc-100 p-6 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <p className="font-black text-[#2D2D90] text-lg">Starter — 1 mes gratis</p>
+            <p className="text-sm text-zinc-500">30 días sin costo y <strong>sin tarjeta</strong>. Al terminar elegís Pro o Pro+.</p>
+          </div>
+          <button
+            onClick={() => onSelect('starter', 'mensual')}
+            disabled={loading}
+            className="shrink-0 rounded-full border-2 border-[#2D2D90] text-[#2D2D90] hover:bg-[#2D2D90] hover:text-white font-bold px-6 py-3 transition-colors disabled:opacity-50"
+          >
+            Empezar gratis
+          </button>
         </div>
 
-        <div className="space-y-3 mb-8">
-          <div className="flex items-center gap-3 text-sm text-zinc-600">
-            <Shield className="w-5 h-5 text-green-500 shrink-0" />
-            <span>Pago seguro procesado por <strong>Flow.cl</strong> — WebPay, tarjetas de crédito/débito y más.</span>
+        {/* Toggle mensual/anual */}
+        <div className="flex justify-center mb-5">
+          <div className="inline-flex rounded-full border border-zinc-200 p-1 bg-zinc-50">
+            {(['mensual', 'anual'] as CicloFacturacion[]).map((c) => (
+              <button
+                key={c}
+                onClick={() => setCiclo(c)}
+                className={`px-5 py-1.5 text-sm font-bold rounded-full transition-colors ${ciclo === c ? 'bg-white shadow text-[#2D2D90]' : 'text-zinc-400'}`}
+              >
+                {c === 'mensual' ? 'Mensual' : 'Anual'}
+                {c === 'anual' && <span className="ml-1 text-[10px] text-emerald-600">2 meses gratis</span>}
+              </button>
+            ))}
           </div>
-          <div className="flex items-center gap-3 text-sm text-zinc-600">
-            <Check className="w-5 h-5 text-green-500 shrink-0" />
-            <span>Puedes cancelar en cualquier momento sin penalización.</span>
-          </div>
+        </div>
+
+        {/* Pro / Pro+ */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {pagos.map((tipo) => {
+            const plan = PLANES[tipo];
+            const precio = ciclo === 'anual' ? plan.precio_anual : plan.precio_mensual;
+            return (
+              <div key={tipo} className={`rounded-2xl border-2 p-6 ${tipo === 'pro_plus' ? 'border-[#E91E8C]' : 'border-zinc-200'}`}>
+                <p className="font-black text-[#2D2D90] text-lg">{plan.nombre}</p>
+                <p className="text-3xl font-black text-[#2D2D90] mt-1">
+                  {fmt(precio)}<span className="text-sm font-normal text-zinc-400">{ciclo === 'anual' ? '/año' : '/mes'}</span>
+                </p>
+                <p className="text-xs text-emerald-600 font-bold mb-3">Primeros 2 meses gratis</p>
+                <ul className="space-y-1.5 mb-5">
+                  {plan.beneficios.map((b) => (
+                    <li key={b} className="flex items-center gap-2 text-sm text-zinc-600">
+                      <Check className="h-4 w-4 text-[#E91E8C] shrink-0" /> {b}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  onClick={() => onSelect(tipo, ciclo)}
+                  disabled={loading}
+                  className="w-full flex items-center justify-center gap-2 rounded-full bg-[#E91E8C] hover:bg-[#D81B7D] text-white font-bold px-6 py-3 transition-colors disabled:opacity-50"
+                >
+                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
+                  Empezar con {plan.nombre}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-zinc-500 mt-6">
+          <Shield className="w-4 h-4 text-green-500 shrink-0" />
+          Cobro recurrente seguro vía Flow. Con 2 meses gratis no se cobra nada hoy; podés cancelar cuando quieras.
         </div>
 
         {error && <ErrorBanner message={error} />}
 
-        <div className="mt-10 flex flex-col md:flex-row items-center justify-between gap-4">
+        <div className="mt-8">
           <button onClick={onBack} className="text-zinc-400 hover:text-[#2D2D90] font-bold text-sm transition-colors hover:underline underline-offset-4">
             ← Volver
-          </button>
-          <button
-            onClick={onPay}
-            disabled={loading}
-            className="w-full md:w-auto flex items-center justify-center gap-3 bg-[#E91E8C] hover:bg-[#D81B7D] text-white px-10 py-4 rounded-full font-bold shadow-lg shadow-pink-500/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
-          >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <CreditCard className="w-5 h-5" />}
-            Pagar ${MONTO_MENSUAL.toLocaleString('es-CL')} CLP
           </button>
         </div>
       </div>
@@ -534,14 +577,16 @@ export default function OnboardingPage() {
     setStep(3);
   }
 
-  async function handlePay() {
+  async function handleElegirPlan(plan: PlanTipo, ciclo: CicloFacturacion) {
     setError(null);
     setLoading(true);
     try {
       const authUserId = user?.id;
       if (!authUserId) throw new Error('No hay sesión activa.');
 
-      // 1. Save employer data
+      const precioMensual = plan === 'starter' ? 0 : PLANES[plan].precio_mensual;
+
+      // 1. Guardar empleador con el plan elegido
       const { data: emp, error: empErr } = await supabase
         .from('empleadores')
         .upsert({
@@ -554,14 +599,14 @@ export default function OnboardingPage() {
           direccion: contratante.direccion,
           comuna: contratante.comuna,
           ciudad: contratante.ciudad,
+          plan_tipo: plan,
         }, { onConflict: 'auth_user_id' })
         .select('id')
         .single();
-
       if (empErr) throw empErr;
 
-      // 2. Create contrato_servicio
-      const { data: cs, error: csErr } = await supabase
+      // 2. Contrato de servicio (registro legal)
+      const { error: csErr } = await supabase
         .from('contratos_servicio')
         .insert({
           empleador_id: emp.id,
@@ -575,65 +620,45 @@ export default function OnboardingPage() {
           tipo_servicio: contrato.tipo_servicio,
           frecuencia: contrato.frecuencia,
           fecha_inicio: contrato.fecha_inicio,
-          monto_mensual: MONTO_MENSUAL,
+          monto_mensual: precioMensual,
           acepta_terminos: contrato.acepta_terminos,
           acepta_politica_privacidad: contrato.acepta_politica_privacidad,
-          ip_aceptacion: '', // filled server-side ideally
+          ip_aceptacion: '',
           fecha_aceptacion: new Date().toISOString(),
-          estado: 'pendiente_pago',
-        })
-        .select('id')
-        .single();
-
+          estado: 'activo',
+        });
       if (csErr) throw csErr;
 
-      // 3. Create Flow payment via API
-      const payRes = await fetch('/api/onboarding/flow/create', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contratoId: cs.id,
-          empleadorId: emp.id,
-          monto: MONTO_MENSUAL,
-          email: contratante.email,
-          nombre: `${contratante.nombre} ${contratante.apellido}`,
-        }),
-      });
+      // 3. Vincular perfil + marcar onboarding completo
+      await supabase
+        .from('user_profiles')
+        .update({ empleador_id: emp.id, onboarding_completado: true })
+        .eq('auth_user_id', authUserId);
 
-      const payData = await payRes.json();
-
-      if (payData.simulated) {
-        // Sandbox/dev mode — skip payment, go to confirmation
-        await supabase
-          .from('contratos_servicio')
-          .update({ estado: 'activo', pago_estado: 'pagado' })
-          .eq('id', cs.id);
-
-        await supabase
-          .from('user_profiles')
-          .update({ empleador_id: emp.id, onboarding_completado: true })
-          .eq('auth_user_id', authUserId);
-
-        // Send welcome email
-        await fetch('/api/onboarding/welcome-email', {
+      // 4. Pro/Pro+ → crear suscripción (camino A = 2 meses gratis). Starter no cobra (trial 30d).
+      if (plan !== 'starter') {
+        const res = await fetch('/api/suscripcion/iniciar', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ empleadorId: emp.id }),
+          body: JSON.stringify({ plan, ciclo, camino: 'A_inmediato' }),
         });
-
-        await refreshProfile();
-        setStep(4);
-        return;
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'No se pudo iniciar la suscripción.');
+        // Flow real: si devolviera una URL de registro de tarjeta, redirigir aquí.
+        // (Modo simulado: la suscripción ya quedó creada con 2 meses de trial.)
       }
 
-      if (payData.error) throw new Error(payData.error);
+      // 5. Email de bienvenida
+      await fetch('/api/onboarding/welcome-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empleadorId: emp.id }),
+      });
 
-      // Redirect to Flow payment page
-      if (payData.url && payData.token) {
-        window.location.href = `${payData.url}?token=${payData.token}`;
-      }
-    } catch (e: any) {
-      setError(e.message || 'Error al procesar el pago.');
+      await refreshProfile();
+      setStep(4);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error al activar tu plan.');
     } finally {
       setLoading(false);
     }
@@ -684,11 +709,11 @@ export default function OnboardingPage() {
               />
             )}
             {step === 3 && (
-              <StepPago
+              <StepPlan
                 loading={loading}
                 error={error}
                 onBack={() => setStep(2)}
-                onPay={handlePay}
+                onSelect={handleElegirPlan}
               />
             )}
             {step === 4 && <StepSuccess router={router} />}
