@@ -29,8 +29,7 @@ export interface EstadoSuscripcionResult {
  * sin necesidad de un empleador ni suscripción todavía. `alta` = fecha de creación
  * del perfil/usuario (cae a "hoy" si no se conoce).
  */
-export function estadoStarterTrial(alta: Date): EstadoSuscripcionResult {
-  const now = new Date();
+export function estadoStarterTrial(alta: Date, now: Date = new Date()): EstadoSuscripcionResult {
   const estado = estadoPorTrial(now, alta, false); // 'trial' | 'pausada'
   return {
     estado,
