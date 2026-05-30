@@ -45,7 +45,13 @@
 - El modal del portal usa **camino B** (el bonus de camino A es exclusivo del onboarding con tarjeta al inicio).
 - "Cada 30 días": los planes Flow se crean con intervalo **Mensual** (Flow factura por mes calendario). Si querés exactamente 30 días fijos, hay que usar intervalo diario ×30 — decisión pendiente.
 
+## ✅ Onboarding migrado al modelo nuevo
+El paso "Pago" flat ($24.770) se reemplazó por **elección de plan**:
+- **Starter** → 30 días gratis, sin tarjeta → completa onboarding en trial.
+- **Pro / Pro+** (toggle mensual/anual) → **camino A (2 meses gratis)** → `/api/suscripcion/iniciar`.
+
+Guarda `plan_tipo` en el empleador, crea `contrato_servicio`, vincula el perfil y marca `onboarding_completado`. Sin cobro hoy en ningún camino.
+
 ## ⏳ No incluido (siguiente iteración)
-- Wire del **onboarding** (`/empresa/onboarding` + `/api/onboarding/flow/*`) al nuevo modelo (hoy aún crea la suscripción flat legacy). Conviene migrarlo para que el camino A (tarjeta al inicio, 2 meses gratis) salga del onboarding.
-- Cron/registro de tarjeta UI para camino A.
+- **Registro de tarjeta (redirect) de Flow** para camino A: en modo simulado la suscripción se crea directo; con Flow real hay que redirigir a `registerFlowCard` antes de `createFlowSubscription` y volver por callback.
 - Tests de integración de las rutas (requieren Supabase/Flow sandbox).
