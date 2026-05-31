@@ -17,6 +17,26 @@ function signParams(params: Record<string, string>): string {
 }
 
 /**
+ * Verifica la firma `s` de un callback/webhook de Flow.
+ * Flow firma todos los params (menos `s`) ordenados alfabéticamente con HMAC-SHA256.
+ * Comparación timing-safe. En modo simulado (sin llaves reales) acepta.
+ */
+export function verifyFlowSignature(params: Record<string, string>): boolean {
+  if (flowSimulado()) return true; // sandbox/dev: no hay firma real que validar
+  const provided = params['s'];
+  if (!provided) return false;
+  const rest: Record<string, string> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (k !== 's') rest[k] = v;
+  }
+  const expected = signParams(rest);
+  const a = Buffer.from(provided, 'utf8');
+  const b = Buffer.from(expected, 'utf8');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+/**
  * Creates a payment order in Flow
  */
 export async function createFlowPayment(data: {

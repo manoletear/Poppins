@@ -139,6 +139,12 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
         // del camino A es exclusivo del onboarding con tarjeta al inicio).
         body: JSON.stringify({ plan, ciclo, camino: 'B_post_trial' }),
       });
+      const data = await res.json().catch(() => ({}));
+      // Flow real: si pide registrar tarjeta, redirigir; simulado: refrescar estado.
+      if (res.ok && data.requiereTarjeta && data.cardRegisterUrl) {
+        window.location.href = data.cardRegisterUrl;
+        return;
+      }
       if (res.ok) await cargarEstado();
     } finally {
       setSubmitting(null);

@@ -11,6 +11,9 @@ import {
   createFlowCustomer,
   createFlowSubscription,
   cancelFlowSubscription,
+  registerFlowCard,
+  getFlowCardStatus,
+  flowSimulado,
   FLOW_INTERVAL,
 } from '@/lib/flow';
 import { getPlan } from './plans';
@@ -54,63 +57,111 @@ export interface IniciarSuscripcionInput {
   email: string;
 }
 
+function siteUrl(): string {
+  return (process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins-erp-2026.vercel.app').replace(/\/$/, '');
+}
+
 /**
- * Crea/actualiza la suscripción de un empleador: cliente Flow + suscripción Flow
- * + fila en `suscripciones` con las fechas calculadas por el motor.
+ * Inicia la suscripción de un empleador.
+ *
+ * - **Modo simulado** (sin llaves Flow reales): crea la suscripción directo y la deja
+ *   activa (sirve para validar UI/flujo).
+ * - **Flow real**: primero hay que registrar la tarjeta on-file. Crea el cliente,
+ *   guarda una fila `trial` (pendiente de tarjeta) y devuelve `cardRegisterUrl` para
+ *   redirigir al usuario. La suscripción se crea recién en `confirmarTarjetaYSuscribir`.
  */
 export async function iniciarSuscripcion(input: IniciarSuscripcionInput) {
   const { empleadorId, plan, ciclo, camino, nombre, email } = input;
   const db = svc();
   const ahora = new Date();
 
-  // 1. Cliente en Flow (idempotente por externalId = empleadorId)
+  // Cliente en Flow (idempotente por externalId = empleadorId)
   const customer = await createFlowCustomer({ name: nombre, email, externalId: empleadorId });
 
-  // 2. Suscripción en Flow (Flow cobra automáticamente según el plan)
-  const trialDays = trialDaysFor(camino);
-  const sub = await createFlowSubscription({
-    planId: planIdFlow(plan, ciclo),
-    customerId: customer.customerId,
-    trialPeriodDays: trialDays,
-  });
-
-  // 3. Fechas vía motor puro
-  const trial_inicio = ISO(ahora);
-  const trial_fin = ISO(trialFin(ahora));
-  const fecha_primer_cobro = ISO(primerCobro(camino, ahora, ahora));
-
-  // 4. Persistir
-  const row = {
+  // Fechas vía motor puro (comunes a ambos caminos)
+  const fechas = {
+    trial_inicio: ISO(ahora),
+    trial_fin: ISO(trialFin(ahora)),
+    fecha_primer_cobro: ISO(primerCobro(camino, ahora, ahora)),
+  };
+  const baseRow = {
     empleador_id: empleadorId,
     plan_tipo: plan,
     plan, // columna legacy
     ciclo,
     camino,
-    estado: 'activa' as const,
     monto_mensual: montoCobro(plan, ciclo),
-    trial_inicio,
-    trial_fin,
-    fecha_primer_cobro,
-    fecha_proximo_cobro: fecha_primer_cobro,
+    trial_inicio: fechas.trial_inicio,
+    trial_fin: fechas.trial_fin,
+    fecha_primer_cobro: fechas.fecha_primer_cobro,
+    fecha_proximo_cobro: fechas.fecha_primer_cobro,
     cobros_realizados: 0,
     flow_customer_id: customer.customerId,
-    flow_subscription_id: sub.subscriptionId,
   };
+
+  await db.from('empleadores').update({ plan_tipo: plan }).eq('id', empleadorId);
+
+  // ── Flow real: requiere registrar tarjeta antes de suscribir ──
+  if (!flowSimulado()) {
+    const card = await registerFlowCard({
+      customerId: customer.customerId,
+      urlReturn: `${siteUrl()}/empresa/suscripcion/confirmar?empleador=${empleadorId}`,
+    });
+    await db
+      .from('suscripciones')
+      .upsert(
+        { ...baseRow, estado: 'trial', flow_subscription_id: null, metadata: { card_token: card.token } },
+        { onConflict: 'empleador_id' },
+      );
+    return { ok: true, requiereTarjeta: true, cardRegisterUrl: card.url, token: card.token };
+  }
+
+  // ── Modo simulado: crear suscripción directa ──
+  const sub = await createFlowSubscription({
+    planId: planIdFlow(plan, ciclo),
+    customerId: customer.customerId,
+    trialPeriodDays: trialDaysFor(camino),
+  });
   const { data, error } = await db
     .from('suscripciones')
-    .upsert(row, { onConflict: 'empleador_id' })
+    .upsert({ ...baseRow, estado: 'activa', flow_subscription_id: sub.subscriptionId }, { onConflict: 'empleador_id' })
     .select()
     .single();
   if (error) throw new Error(`No se pudo guardar la suscripción: ${error.message}`);
 
-  // 5. Reflejar el plan en el empleador
-  await db.from('empleadores').update({ plan_tipo: plan }).eq('id', empleadorId);
+  return { ok: true, simulated: true, suscripcion: data };
+}
 
-  return {
-    ok: true,
-    simulated: 'simulated' in sub && sub.simulated === true,
-    suscripcion: data,
-  };
+/**
+ * Confirma el registro de tarjeta (Flow real) y recién ahí crea la suscripción.
+ * Se llama desde la página de retorno tras el registro de tarjeta.
+ */
+export async function confirmarTarjetaYSuscribir(empleadorId: string) {
+  const db = svc();
+  const { data: s, error } = await db
+    .from('suscripciones')
+    .select('*')
+    .eq('empleador_id', empleadorId)
+    .single();
+  if (error || !s) return { ok: false, reason: 'suscripcion_no_encontrada' };
+  if (!s.flow_customer_id) return { ok: false, reason: 'sin_cliente_flow' };
+
+  const token = (s.metadata as { card_token?: string } | null)?.card_token ?? '';
+  const card = await getFlowCardStatus({ customerId: s.flow_customer_id, token });
+  if (String(card.status) !== '1') return { ok: false, reason: 'tarjeta_no_registrada' };
+
+  const sub = await createFlowSubscription({
+    planId: planIdFlow(s.plan_tipo as Exclude<PlanTipo, 'starter'>, s.ciclo as CicloFacturacion),
+    customerId: s.flow_customer_id,
+    trialPeriodDays: trialDaysFor(s.camino as CaminoActivacion),
+  });
+
+  await db
+    .from('suscripciones')
+    .update({ estado: 'activa', flow_subscription_id: sub.subscriptionId })
+    .eq('id', s.id);
+
+  return { ok: true };
 }
 
 /** Cancela la suscripción (al fin del período). */
