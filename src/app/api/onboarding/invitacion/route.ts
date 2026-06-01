@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   // URL del link de onboarding
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poppins-frontend.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://poppins.tooxs-fperez.workers.dev';
   const link = `${baseUrl}/onboarding/empleada?token=${invitacion.token}`;
 
   return NextResponse.json({

@@ -58,7 +58,7 @@ export interface IniciarSuscripcionInput {
 }
 
 function siteUrl(): string {
-  return (process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins-fpds-projects-839a78c7.vercel.app').replace(/\/$/, '');
+  return (process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins.tooxs-fperez.workers.dev').replace(/\/$/, '');
 }
 
 /**
