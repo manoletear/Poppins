@@ -1,0 +1,22 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "poppins",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".open-next/assets"
+  },
+  // Variables de RUNTIME (server-side). Las NEXT_PUBLIC_* además deben ir como
+  // env vars de BUILD en el dashboard de Workers Builds (Next las inlinea al compilar).
+  // Los SECRETOS (service_role, BUK, Flow) NO van acá: usar `wrangler secret put` o el dashboard.
+  "vars": {
+    "NEXT_PUBLIC_SUPABASE_URL": "https://sczxyejqooqthxcxksah.supabase.co",
+    "NEXT_PUBLIC_SITE_URL": "https://poppins.tooxs-fperez.workers.dev",
+    "NEXT_PUBLIC_APP_URL": "https://poppins.tooxs-fperez.workers.dev",
+    "BUK_API_BASE_URL": "https://app.buk.cl/api/v1/chile",
+    "FLOW_ENV": "sandbox",
+    "USE_MOCK_DATA": "false"
+  }
+}

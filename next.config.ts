@@ -1,4 +1,6 @@
 import type { NextConfig } from "next";
+// Cloudflare Workers (OpenNext): habilita bindings/env en `next dev`.
+import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
@@ -23,5 +25,7 @@ const nextConfig: NextConfig = {
     ];
   },
 };
+
+initOpenNextCloudflareForDev();
 
 export default nextConfig;
