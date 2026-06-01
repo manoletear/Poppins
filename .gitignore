@@ -55,3 +55,7 @@ scripts/buk-scraper/output/
 
 # images
 imagenes referencia/
+
+# Cloudflare / OpenNext
+.open-next/
+.wrangler/
