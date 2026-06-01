@@ -662,7 +662,12 @@ export default function OnboardingPage() {
       await refreshProfile();
       setStep(4);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al activar tu plan.');
+      // Los errores del cliente Supabase no son instancias de Error (son objetos
+      // PostgrestError con .message/.details/.hint/.code). Extraemos el mensaje real
+      // en vez de ocultarlo bajo un genérico.
+      const err = e as { message?: string; details?: string; code?: string };
+      const msg = err?.message || err?.details || (typeof e === 'string' ? e : '');
+      setError(msg ? `${msg}${err?.code ? ` (${err.code})` : ''}` : 'Error al activar tu plan.');
     } finally {
       setLoading(false);
     }
