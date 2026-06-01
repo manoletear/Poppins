@@ -11,7 +11,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${siteUrl}/auth/login?error=no_code`);
   }
 
-  const response = NextResponse.redirect(`${siteUrl}/empresa`);
+  // Acumulamos las cookies de sesión (con sus opciones completas) que setea
+  // exchangeCodeForSession, y las aplicamos al response final preservando
+  // Max-Age/Path/HttpOnly/Secure/SameSite (si se copian sin opciones, la sesión
+  // no persiste y el login entra en loop).
+  const cookiesToSet: { name: string; value: string; options: Record<string, unknown> }[] = [];
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -19,9 +23,7 @@ export async function GET(request: NextRequest) {
     {
       cookies: {
         getAll: () => request.cookies.getAll(),
-        setAll: (cookies) => cookies.forEach(({ name, value, options }) => {
-          response.cookies.set(name, value, options);
-        }),
+        setAll: (cookies) => cookies.forEach((c) => cookiesToSet.push(c as typeof cookiesToSet[number])),
       },
     }
   );
@@ -48,7 +50,7 @@ export async function GET(request: NextRequest) {
 
     const dest = redirectMap[profile?.rol || ''] || '/empresa';
     const finalResponse = NextResponse.redirect(`${siteUrl}${dest}`);
-    response.cookies.getAll().forEach(c => finalResponse.cookies.set(c.name, c.value));
+    cookiesToSet.forEach(({ name, value, options }) => finalResponse.cookies.set(name, value, options));
     return finalResponse;
   } catch (e) {
     const detail = e instanceof Error ? e.message : 'unknown';
