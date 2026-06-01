@@ -29,7 +29,8 @@ export async function GET(request: NextRequest) {
   try {
     const { data, error } = await supabase.auth.exchangeCodeForSession(code);
     if (error || !data.user) {
-      return NextResponse.redirect(`${siteUrl}/auth/login?error=exchange_failed`);
+      const detail = error?.message || 'no_user';
+      return NextResponse.redirect(`${siteUrl}/auth/login?error=exchange_failed&detail=${encodeURIComponent(detail)}`);
     }
 
     // Try to get profile (trigger may have created it already)
@@ -49,7 +50,8 @@ export async function GET(request: NextRequest) {
     const finalResponse = NextResponse.redirect(`${siteUrl}${dest}`);
     response.cookies.getAll().forEach(c => finalResponse.cookies.set(c.name, c.value));
     return finalResponse;
-  } catch {
-    return NextResponse.redirect(`${siteUrl}/auth/login?error=callback_error`);
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : 'unknown';
+    return NextResponse.redirect(`${siteUrl}/auth/login?error=callback_error&detail=${encodeURIComponent(detail)}`);
   }
 }
