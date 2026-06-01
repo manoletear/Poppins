@@ -21,9 +21,11 @@ Resumen para retomar sin reconstruir todo el hilo. (Detalle del feature en
 ## 🔴 Lo que falta — REQUIERE TU ACCIÓN (no se puede autónomo)
 1. ~~**Acceso a la DB del front** (`sczxy`)~~ ✅ Listo (manoletear te agregó).
 2. ~~**Aplicar migraciones** a `sczxy`~~ ✅ Aplicadas vía `docs/APLICAR_MIGRACIONES_sczxy.sql` (incluyó crear tablas base `tarjetas_cliente`/`suscripciones` que faltaban). Verificado: columnas planes + función `empleador_solo_lectura` + 42 policies `ro_block_*`.
-3. **Env vars en Vercel** (`poppins`): `NEXT_PUBLIC_SUPABASE_URL` = `https://sczxyejqooqthxcxksah.supabase.co` + anon + service_role (de `sczxy`), `NEXT_PUBLIC_SITE_URL`.
-4. **Revisar/mergear PR #2** y **redeploy** → validar (registrate → Starter en trial; onboarding → Pro/Pro+).
+3. ~~**Env vars en Vercel**~~ ✅ Corregidas a `sczxy` (estaban apuntando a la DB equivocada `akyfibrj`/`cgnzb` — esa era la causa raíz del login roto). Site URL/Redirect URLs de Auth configurados.
+4. ~~**Mergear PR #2**~~ ✅ Mergeado a `main`. **Login/deploy en STANDBY** por límite de Vercel Hobby (deploy bloqueado por autor del commit). Plan de retoma completo en **`docs/RETOMAR_LOGIN_Y_DEPLOY.md`** (recomendado: validar local con `.env.local` ya creado).
 5. **Flow real** (cuando lo prendan): llaves `FLOW_API_KEY/SECRET`, crear los 4 planes en Flow (`poppins_pro_mensual`, etc.), y validar payloads de registro-tarjeta + webhook contra el sandbox (hoy andan en modo simulado).
+
+> **Sesión 2026-05-31 (autónoma):** migraciones aplicadas a sczxy; causa raíz del login encontrada (DB equivocada en Vercel) y corregida; fix de cookies de sesión en `auth/callback` (preservar opciones → evita loop); errores reales visibles en callback/onboarding; +11 tests (107 verdes, tsc limpio). Todo en `feat/planes-hardening` (pendiente de re-mergear). Detalle en `RETOMAR_LOGIN_Y_DEPLOY.md`.
 
 ## 🧠 Decisiones de producto abiertas
 - **Pricing canónico**: quedó tu modelo (3 planes por nº de trabajadores). El Runbook describe otro (Básico/Full por alcance) — reconciliar si hace falta.
