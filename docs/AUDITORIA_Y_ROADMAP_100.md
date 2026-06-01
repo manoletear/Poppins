@@ -5,6 +5,12 @@ sobre-reportaron varios "críticos" que resultaron falsos). Conclusión: **la ap
 desarrollada y cableada a datos reales en los 3 portales.** Lo que falta para "100% funcionando"
 es operativo (credenciales + correr + QA), no reescribir features.
 
+## 🧪 QA runtime real contra sczxy (2026-06-01)
+- ✅ **`next build` exit 0** con env reales — las ~50 páginas compilan (catch de errores SSR/data).
+- ✅ **Las 55 tablas/vistas que usa la app EXISTEN en sczxy** (probado vía API con anon; 0 faltantes). Esquema completo.
+- 🚨 **CRÍTICO — GRANTs faltantes:** el rol **`service_role` no tiene privilegios** sobre las tablas de `public` (da `42501 permission denied`), y `anon` tampoco en tablas de referencia (ej. `regiones_chile`). La service_role key ES válida (Admin API → 200), el problema son los GRANTs. **Impacto:** todo el server-side (APIs `/api/suscripcion/*`, webhooks, onboarding server, cron, emails) está roto contra sczxy; el cliente (anon/authenticated) funciona en las tablas grantadas. **FIX listo: `docs/FIX_GRANTS_sczxy.sql`** (correr en SQL Editor). Esto, sumado a que la app apuntaba a la DB equivocada, explica por qué "no funcionaba".
+- ⚠️ No testeable desde acá (DNS bloqueado a hosts externos): BUK (`app.buk.cl`), Flow, Resend, Anthropic. Se validan en tu máquina/Vercel.
+
 ## ✅ Estado por área (verificado)
 
 ### Portal Empleador (`/empresa/*`) — ~95% funcional, Supabase real
