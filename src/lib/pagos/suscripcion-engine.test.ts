@@ -95,6 +95,22 @@ describe('montoCobro', () => {
   });
 });
 
+describe('escenario camino A mensual (lifecycle de 13 cobros)', () => {
+  it('avanza +30 días por cobro y el cobro nº 12 es gratis', () => {
+    const alta = new Date('2026-01-01T00:00:00Z');
+    let fecha = primerCobro('A_inmediato', alta, alta); // día 60
+    const gratis: number[] = [];
+    for (let n = 1; n <= 13; n++) {
+      const next = proximoCobro('A_inmediato', 'mensual', fecha, n);
+      const diffDias = Math.round((next.fecha.getTime() - fecha.getTime()) / 86400000);
+      expect(diffDias).toBe(30);
+      if (next.gratis) gratis.push(n);
+      fecha = next.fecha;
+    }
+    expect(gratis).toEqual([12]); // 1 mes gratis al completar 12 ciclos
+  });
+});
+
 describe('estadoPorTrial / esSoloLectura', () => {
   it('dentro del trial → trial', () => {
     expect(estadoPorTrial(new Date('2026-01-10T00:00:00Z'), ALTA, false)).toBe('trial');

@@ -644,8 +644,12 @@ export default function OnboardingPage() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'No se pudo iniciar la suscripción.');
-        // Flow real: si devolviera una URL de registro de tarjeta, redirigir aquí.
-        // (Modo simulado: la suscripción ya quedó creada con 2 meses de trial.)
+        // Flow real (camino A): redirigir al registro de tarjeta; la suscripción se
+        // crea al volver (/empresa/suscripcion/confirmar). Simulado: ya quedó creada.
+        if (data.requiereTarjeta && data.cardRegisterUrl) {
+          window.location.href = data.cardRegisterUrl;
+          return;
+        }
       }
 
       // 5. Email de bienvenida
