@@ -8,7 +8,8 @@ es operativo (credenciales + correr + QA), no reescribir features.
 ## 🧪 QA runtime real contra sczxy (2026-06-01)
 - ✅ **`next build` exit 0** con env reales — las ~50 páginas compilan (catch de errores SSR/data).
 - ✅ **Las 55 tablas/vistas que usa la app EXISTEN en sczxy** (probado vía API con anon; 0 faltantes). Esquema completo.
-- 🚨 **CRÍTICO — GRANTs faltantes:** el rol **`service_role` no tiene privilegios** sobre las tablas de `public` (da `42501 permission denied`), y `anon` tampoco en tablas de referencia (ej. `regiones_chile`). La service_role key ES válida (Admin API → 200), el problema son los GRANTs. **Impacto:** todo el server-side (APIs `/api/suscripcion/*`, webhooks, onboarding server, cron, emails) está roto contra sczxy; el cliente (anon/authenticated) funciona en las tablas grantadas. **FIX listo: `docs/FIX_GRANTS_sczxy.sql`** (correr en SQL Editor). Esto, sumado a que la app apuntaba a la DB equivocada, explica por qué "no funcionaba".
+- ✅ **RESUELTO — GRANTs:** el `service_role` no tenía privilegios sobre `public` (daba `42501`), rompiendo todo el server-side. Aplicado `FIX_GRANTS_sczxy.sql` → **verificado: service_role accede a las 49 tablas, 0 denegadas.** (Causa de fondo de "no funcionaba", junto con la DB equivocada.)
+- ✅ **RESUELTO — esquema incompleto:** sczxy no tenía `onboarding/documentos/pagos_suscripcion/invitaciones` (20260408 a medias), `beneficios_empleador` (sin migración) ni buckets `comprobantes/documentos`. Aplicado `COMPLETAR_ESQUEMA_sczxy.sql` → **verificado: 49/55 tablas OK (las 6 restantes son BUK + buckets, falsos positivos), buckets avatars/comprobantes/documentos creados.** Esquema 100% completo y accesible.
 - ⚠️ No testeable desde acá (DNS bloqueado a hosts externos): BUK (`app.buk.cl`), Flow, Resend, Anthropic. Se validan en tu máquina/Vercel.
 
 ## ✅ Estado por área (verificado)
