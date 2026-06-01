@@ -19,8 +19,8 @@ Resumen para retomar sin reconstruir todo el hilo. (Detalle del feature en
 - Verificación: `tsc` limpio · **26 tests** · `next build` compila.
 
 ## 🔴 Lo que falta — REQUIERE TU ACCIÓN (no se puede autónomo)
-1. **Acceso a la DB del front** (`sczxy`): que manoletear te agregue como member (rol Administrator) de su org Supabase. (Mensaje listo en el chat.)
-2. **Aplicar migraciones** a `sczxy` (SQL Editor): los 3 bloques `20260530_*` + `20260531_rls_solo_lectura_policies.sql`.
+1. ~~**Acceso a la DB del front** (`sczxy`)~~ ✅ Listo (manoletear te agregó).
+2. ~~**Aplicar migraciones** a `sczxy`~~ ✅ Aplicadas vía `docs/APLICAR_MIGRACIONES_sczxy.sql` (incluyó crear tablas base `tarjetas_cliente`/`suscripciones` que faltaban). Verificado: columnas planes + función `empleador_solo_lectura` + 42 policies `ro_block_*`.
 3. **Env vars en Vercel** (`poppins`): `NEXT_PUBLIC_SUPABASE_URL` = `https://sczxyejqooqthxcxksah.supabase.co` + anon + service_role (de `sczxy`), `NEXT_PUBLIC_SITE_URL`.
 4. **Revisar/mergear PR #2** y **redeploy** → validar (registrate → Starter en trial; onboarding → Pro/Pro+).
 5. **Flow real** (cuando lo prendan): llaves `FLOW_API_KEY/SECRET`, crear los 4 planes en Flow (`poppins_pro_mensual`, etc.), y validar payloads de registro-tarjeta + webhook contra el sandbox (hoy andan en modo simulado).
