@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   }
   const { pagoId, monto, descripcion, email } = parsed.data;
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins-erp-2026.vercel.app';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins.tooxs-fperez.workers.dev';
 
   // Flow disabled only if no keys configured
   if (!FLOW_API_KEY || FLOW_API_KEY === 'flow_sandbox_key') {

@@ -54,7 +54,7 @@ export function emailLiquidacionLista(nombre: string, periodo: string, monto: st
         <h2 style="color:#2D2D90">Poppins</h2>
         <p>Hola ${nombre},</p>
         <p>Tu liquidación del período <strong>${periodo}</strong> por <strong>${monto}</strong> está lista para revisar y firmar.</p>
-        <a href="https://poppins-erp-2026.vercel.app/portal/liquidaciones" style="display:inline-block;background:#E91E8C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
+        <a href="https://poppins.tooxs-fperez.workers.dev/portal/liquidaciones" style="display:inline-block;background:#E91E8C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
           Ver Liquidación
         </a>
         <p style="color:#999;font-size:12px;margin-top:30px">Este email fue enviado por Poppins. Si no esperabas este mensaje, puedes ignorarlo.</p>
@@ -72,7 +72,7 @@ export function emailSolicitudAprobada(nombre: string, tipo: string, estado: str
         <h2 style="color:#2D2D90">Poppins</h2>
         <p>Hola ${nombre},</p>
         <p>Tu solicitud de <strong>${tipo}</strong> ha sido <strong style="color:${esAprobada ? '#16a34a' : '#dc2626'}">${estado}</strong> por tu empleador.</p>
-        <a href="https://poppins-erp-2026.vercel.app/portal/solicitudes" style="display:inline-block;background:#2D2D90;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
+        <a href="https://poppins.tooxs-fperez.workers.dev/portal/solicitudes" style="display:inline-block;background:#2D2D90;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
           Ver Detalles
         </a>
         <p style="color:#999;font-size:12px;margin-top:30px">Poppins — Magia en tu casa</p>
@@ -89,7 +89,7 @@ export function emailRecordatorioFirma(nombre: string, periodo: string): EmailPa
         <h2 style="color:#2D2D90">Poppins</h2>
         <p>Hola ${nombre},</p>
         <p>Tu empleador te recuerda firmar la liquidación del período <strong>${periodo}</strong>.</p>
-        <a href="https://poppins-erp-2026.vercel.app/portal/liquidaciones" style="display:inline-block;background:#E91E8C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
+        <a href="https://poppins.tooxs-fperez.workers.dev/portal/liquidaciones" style="display:inline-block;background:#E91E8C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
           Firmar Ahora
         </a>
         <p style="color:#999;font-size:12px;margin-top:30px">Poppins — Magia en tu casa</p>
@@ -106,7 +106,7 @@ export function emailPagoConfirmado(nombre: string, monto: string, cuentas: numb
         <h2 style="color:#2D2D90">Poppins</h2>
         <p>Hola ${nombre},</p>
         <p>Tu pago por <strong>${monto}</strong> (${cuentas} cuenta${cuentas > 1 ? 's' : ''}) ha sido procesado exitosamente.</p>
-        <a href="https://poppins-erp-2026.vercel.app/empresa/pagos" style="display:inline-block;background:#16a34a;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
+        <a href="https://poppins.tooxs-fperez.workers.dev/empresa/pagos" style="display:inline-block;background:#16a34a;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
           Ver Comprobante
         </a>
         <p style="color:#999;font-size:12px;margin-top:30px">Poppins — Magia en tu casa</p>
@@ -123,7 +123,7 @@ export function emailAlertaVencimiento(nombre: string, cuenta: string, diasResta
         <h2 style="color:#2D2D90">Poppins</h2>
         <p>Hola ${nombre},</p>
         <p>Tu cuenta <strong>${cuenta}</strong> vence en <strong>${diasRestantes} día${diasRestantes > 1 ? 's' : ''}</strong>.</p>
-        <a href="https://poppins-erp-2026.vercel.app/empresa/pagos" style="display:inline-block;background:#E91E8C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
+        <a href="https://poppins.tooxs-fperez.workers.dev/empresa/pagos" style="display:inline-block;background:#E91E8C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
           Pagar Ahora
         </a>
         <p style="color:#999;font-size:12px;margin-top:30px">Poppins — Magia en tu casa</p>

@@ -95,7 +95,7 @@ async function activateContract(contratoId: string, empleadorId: string, flowTok
   }
 
   // 5. Send welcome email
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins-erp-2026.vercel.app';
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins.tooxs-fperez.workers.dev';
   try {
     await fetch(`${siteUrl}/api/onboarding/welcome-email`, {
       method: 'POST',
