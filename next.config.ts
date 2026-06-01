@@ -3,6 +3,7 @@ import type { NextConfig } from "next";
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 const nextConfig: NextConfig = {
+  output: "standalone", // requerido por OpenNext (build webpack + --skipBuild)
   reactCompiler: true,
   poweredByHeader: false,
   images: {
