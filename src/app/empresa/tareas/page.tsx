@@ -7,7 +7,6 @@ import { getTareasHoy, updateTareaEstado, createTarea } from '@/lib/supabase/emp
 import { createClient } from '@/lib/supabase/client';
 
 type TaskStatus = 'completada' | 'en_progreso' | 'pendiente';
-type FilterTab = 'all' | 'pendiente' | 'en_progreso' | 'completada';
 
 interface Task {
   id: string;
@@ -46,11 +45,10 @@ const CATEGORIAS = [
 const categoryColors: Record<string, string> = Object.fromEntries(CATEGORIAS.map(c => [c.value, c.color]));
 const categoryLabels: Record<string, string> = Object.fromEntries(CATEGORIAS.map(c => [c.value, c.label]));
 
-const filterTabs: { label: string; value: FilterTab }[] = [
-  { label: 'All', value: 'all' },
-  { label: 'Pendientes', value: 'pendiente' },
-  { label: 'En Progreso', value: 'en_progreso' },
-  { label: 'Completadas', value: 'completada' },
+const COLUMNS: { estado: TaskStatus; label: string; dot: string }[] = [
+  { estado: 'pendiente', label: 'Pendientes', dot: 'bg-zinc-400' },
+  { estado: 'en_progreso', label: 'En Progreso', dot: 'bg-blue-500' },
+  { estado: 'completada', label: 'Completadas', dot: 'bg-emerald-500' },
 ];
 
 function formatDate(date: Date): string {
@@ -67,7 +65,6 @@ function toISODate(date: Date): string {
 
 export default function TareasPage() {
   const { profile } = useAuth();
-  const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(() => new Date());
@@ -82,6 +79,10 @@ export default function TareasPage() {
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [trabajadores, setTrabajadores] = useState<{ id: string; nombre: string }[]>([]);
   const [newTrabajadorId, setNewTrabajadorId] = useState('');
+  const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  const [ratingTask, setRatingTask] = useState<string | null>(null);
+  const [ratingValue, setRatingValue] = useState(5);
+  const [ratingNota, setRatingNota] = useState('');
 
   const empleadorId = profile?.empleador_id;
 
@@ -94,6 +95,16 @@ export default function TareasPage() {
   }, [empleadorId, currentDate]);
 
   useEffect(() => { loadTareas(); }, [loadTareas]);
+
+  const loadHistorico = useCallback(async () => {
+    if (!empleadorId) return;
+    setLoadingHistorico(true);
+    const supabase = createClient();
+    const { data } = await supabase.from('tareas').select('*, trabajadores(nombre, apellido_paterno)')
+      .eq('empleador_id', empleadorId).order('fecha', { ascending: false }).limit(100);
+    setHistoricoTareas(data || []);
+    setLoadingHistorico(false);
+  }, [empleadorId]);
 
   // Load trabajadores for assignment select
   useEffect(() => {
@@ -111,35 +122,19 @@ export default function TareasPage() {
       });
   }, [empleadorId]);
 
-  // Auto-load histórico para resumen y filtros globales
-  useEffect(() => {
-    if (empleadorId && historicoTareas.length === 0) loadHistorico();
-  }, [empleadorId]);
+  const completadas = tasks.filter((t) => t.estado === 'completada').length;
+  const enProgreso = tasks.filter((t) => t.estado === 'en_progreso').length;
+  const pendientes = tasks.filter((t) => t.estado === 'pendiente').length;
 
-  // Combinar: histórico tiene todas las tareas incluyendo las de hoy
-  const allTareas = historicoTareas.length > 0 ? historicoTareas : tasks;
-
-  // Filtro: 'all' muestra tareas del día; otros estados filtran desde TODAS
-  const filteredTasks = activeFilter === 'all'
-    ? tasks
-    : allTareas.filter((t) => t.estado === activeFilter);
-
-  const completadas = allTareas.filter((t) => t.estado === 'completada').length;
-  const enProgreso = allTareas.filter((t) => t.estado === 'en_progreso').length;
-  const pendientes = allTareas.filter((t) => t.estado === 'pendiente').length;
-
-  // Sincronizar toggles: actualizar ambos arrays
   function syncTaskUpdate(id: string, updates: Partial<Task>) {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
     setHistoricoTareas(prev => prev.map(t => t.id === id ? { ...t, ...updates } : t));
   }
 
-  const [ratingTask, setRatingTask] = useState<string | null>(null);
-  const [ratingValue, setRatingValue] = useState(5);
-  const [ratingNota, setRatingNota] = useState('');
-
-  async function toggleTask(id: string, currentEstado: string) {
-    const nuevoEstado = currentEstado === 'completada' ? 'pendiente' : 'completada';
+  async function moveTask(id: string, nuevoEstado: TaskStatus) {
+    setDragOverCol(null);
+    const current = tasks.find(t => t.id === id);
+    if (!current || current.estado === nuevoEstado) return;
     syncTaskUpdate(id, { estado: nuevoEstado });
     await updateTareaEstado(id, nuevoEstado);
   }
@@ -179,16 +174,6 @@ export default function TareasPage() {
     loadTareas();
   }
 
-  async function loadHistorico() {
-    if (!empleadorId) return;
-    setLoadingHistorico(true);
-    const supabase = createClient();
-    const { data } = await supabase.from('tareas').select('*, trabajadores(nombre, apellido_paterno)')
-      .eq('empleador_id', empleadorId).order('fecha', { ascending: false }).limit(100);
-    setHistoricoTareas(data || []);
-    setLoadingHistorico(false);
-  }
-
   function changeDate(delta: number) {
     setCurrentDate((prev) => {
       const d = new Date(prev);
@@ -198,7 +183,7 @@ export default function TareasPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -264,23 +249,6 @@ export default function TareasPage() {
         </button>
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex items-center gap-2 mb-4">
-        {filterTabs.map((tab) => (
-          <button
-            key={tab.value}
-            onClick={() => setActiveFilter(tab.value)}
-            className={
-              activeFilter === tab.value
-                ? 'bg-zinc-900 text-white rounded-full px-4 py-1.5 text-sm font-medium transition-colors'
-                : 'text-zinc-500 hover:text-zinc-700 rounded-full px-4 py-1.5 text-sm font-medium transition-colors'
-            }
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       {/* Stats bar */}
       <div className="flex items-center gap-4 text-sm text-zinc-500 mb-5">
         <span className="flex items-center gap-1.5">
@@ -299,110 +267,99 @@ export default function TareasPage() {
         </span>
       </div>
 
-      {/* Task list */}
+      {/* Kanban board */}
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
         </div>
       ) : (
-        <div className="space-y-2">
-          {filteredTasks.map((task) => {
-            const assigneeName = task.trabajadores
-              ? `${task.trabajadores.nombre} ${task.trabajadores.apellido_paterno || ''}`.trim()
-              : null;
-            const timeRange = [task.hora_inicio, task.hora_fin].filter(Boolean).join(' - ');
-
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {COLUMNS.map((col) => {
+            const colTasks = tasks.filter((t) => (t.estado || 'pendiente') === col.estado);
             return (
-              <div key={task.id}>
               <div
-                className={`rounded-xl border border-zinc-200 bg-white px-5 py-4 border-l-4 ${priorityBorderColor[task.prioridad || 'media']} flex items-start gap-4 transition-colors ${
-                  task.estado === 'completada' ? 'opacity-75' : ''
+                key={col.estado}
+                onDragOver={(e) => { e.preventDefault(); setDragOverCol(col.estado); }}
+                onDragLeave={() => setDragOverCol((c) => (c === col.estado ? null : c))}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const id = e.dataTransfer.getData('text/plain');
+                  if (id) moveTask(id, col.estado);
+                }}
+                className={`rounded-xl border p-3 min-h-[240px] transition-colors ${
+                  dragOverCol === col.estado ? 'border-zinc-400 bg-zinc-100' : 'border-zinc-200 bg-zinc-50/60'
                 }`}
               >
-                <button
-                  onClick={() => toggleTask(task.id, task.estado)}
-                  className={`mt-0.5 w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center transition-colors ${
-                    task.estado === 'completada'
-                      ? 'bg-emerald-500 border-emerald-500 text-white'
-                      : 'border-zinc-300 hover:border-zinc-400'
-                  }`}
-                >
-                  {task.estado === 'completada' && (
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                    </svg>
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <span className={`w-2 h-2 rounded-full ${col.dot}`} />
+                  <span className="text-sm font-semibold text-zinc-700">{col.label}</span>
+                  <span className="ml-auto text-xs text-zinc-400">{colTasks.length}</span>
+                </div>
+
+                <div className="space-y-2">
+                  {colTasks.map((task) => {
+                    const assigneeName = task.trabajadores
+                      ? `${task.trabajadores.nombre} ${task.trabajadores.apellido_paterno || ''}`.trim()
+                      : null;
+                    return (
+                      <div key={task.id}>
+                        <div
+                          draggable
+                          onDragStart={(e) => e.dataTransfer.setData('text/plain', task.id)}
+                          className={`rounded-lg border border-zinc-200 bg-white px-3 py-2.5 border-l-4 ${priorityBorderColor[task.prioridad || 'media']} cursor-grab active:cursor-grabbing shadow-sm hover:shadow transition-shadow`}
+                        >
+                          <p className={`text-sm font-medium ${task.estado === 'completada' ? 'text-zinc-400 line-through' : 'text-zinc-900'}`}>
+                            {task.titulo}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                            {assigneeName && (
+                              <span className="rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-[11px] font-medium">{assigneeName}</span>
+                            )}
+                            {task.categoria && (
+                              <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${categoryColors[task.categoria] || 'bg-zinc-100 text-zinc-700'}`}>
+                                {categoryLabels[task.categoria] || task.categoria}
+                              </span>
+                            )}
+                          </div>
+                          {task.estado === 'completada' && (
+                            <div className="mt-2 flex items-center gap-2">
+                              {!task.aprobada_por_empleador && (
+                                <button onClick={() => aprobarTarea(task.id)} className="rounded bg-emerald-600 text-white px-2 py-0.5 text-[11px] font-medium hover:bg-emerald-700">Aprobar</button>
+                              )}
+                              {task.aprobada_por_empleador && !task.calificacion && (
+                                <button onClick={() => setRatingTask(task.id)} className="rounded bg-amber-100 text-amber-700 px-2 py-0.5 text-[11px] font-medium hover:bg-amber-200">Calificar</button>
+                              )}
+                              {task.calificacion && (
+                                <span className="text-[11px] text-amber-500">{'★'.repeat(task.calificacion)}{'☆'.repeat(5 - task.calificacion)}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                        {ratingTask === task.id && (
+                          <div className="mt-2 p-3 rounded-lg bg-white border border-zinc-200">
+                            <p className="text-[11px] font-medium text-zinc-700 mb-2">Calificar (privado, solo admin Poppins)</p>
+                            <div className="flex gap-1 mb-2">
+                              {[1, 2, 3, 4, 5].map((v) => (
+                                <button key={v} onClick={() => setRatingValue(v)} className={`text-lg ${v <= ratingValue ? 'text-amber-500' : 'text-zinc-300'}`}>★</button>
+                              ))}
+                            </div>
+                            <input value={ratingNota} onChange={(e) => setRatingNota(e.target.value)} placeholder="Nota privada (opcional)" className="w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-xs mb-2" />
+                            <div className="flex gap-2">
+                              <button onClick={() => calificarTarea(task.id)} className="rounded-lg bg-zinc-900 text-white px-3 py-1 text-xs font-medium">Guardar</button>
+                              <button onClick={() => setRatingTask(null)} className="text-xs text-zinc-500">Cancelar</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {colTasks.length === 0 && (
+                    <p className="text-center text-xs text-zinc-300 py-8 border border-dashed border-zinc-200 rounded-lg">Arrastrá tareas aquí</p>
                   )}
-                </button>
-
-                <div className="flex-1 min-w-0">
-                  <span className={`text-sm font-medium ${task.estado === 'completada' ? 'line-through text-zinc-400' : 'text-zinc-900'}`}>
-                    {task.titulo}
-                  </span>
-                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                    {assigneeName && (
-                      <span className="rounded-full bg-blue-100 text-blue-700 px-2 py-0.5 text-xs font-medium">
-                        {assigneeName}
-                      </span>
-                    )}
-                    {task.categoria && (
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${categoryColors[task.categoria] || 'bg-zinc-100 text-zinc-700'}`}>
-                        {categoryLabels[task.categoria] || task.categoria}
-                      </span>
-                    )}
-                    {timeRange && <span className="text-xs text-zinc-400">{timeRange}</span>}
-                  </div>
                 </div>
-
-                {task.estado === 'en_progreso' && (
-                  <span className="rounded-full bg-blue-100 text-blue-700 px-2.5 py-0.5 text-xs font-medium whitespace-nowrap">
-                    En Progreso
-                  </span>
-                )}
-                {task.estado === 'completada' && !task.aprobada_por_empleador && (
-                  <button onClick={(e) => { e.stopPropagation(); aprobarTarea(task.id); }}
-                    className="rounded-lg bg-emerald-600 text-white px-3 py-1 text-xs font-medium hover:bg-emerald-700 transition whitespace-nowrap">
-                    Aprobar
-                  </button>
-                )}
-                {task.aprobada_por_empleador && !task.calificacion && (
-                  <button onClick={(e) => { e.stopPropagation(); setRatingTask(task.id); }}
-                    className="rounded-lg bg-amber-100 text-amber-700 px-3 py-1 text-xs font-medium hover:bg-amber-200 transition whitespace-nowrap">
-                    Calificar
-                  </button>
-                )}
-                {task.aprobada_por_empleador && task.calificacion && (
-                  <span className="flex items-center gap-1 text-xs text-amber-600">
-                    {'★'.repeat(task.calificacion)}{'☆'.repeat(5 - task.calificacion)}
-                  </span>
-                )}
-              </div>
-              {/* Rating modal inline */}
-              {ratingTask === task.id && (
-                <div className="mx-7 mb-3 p-3 rounded-lg bg-zinc-50 border border-zinc-200">
-                  <p className="text-xs font-medium text-zinc-700 mb-2">Calificar tarea (solo visible para el administrador de Poppins)</p>
-                  <div className="flex gap-1 mb-2">
-                    {[1,2,3,4,5].map(v => (
-                      <button key={v} onClick={() => setRatingValue(v)}
-                        className={`text-lg ${v <= ratingValue ? 'text-amber-500' : 'text-zinc-300'}`}>★</button>
-                    ))}
-                  </div>
-                  <input value={ratingNota} onChange={e => setRatingNota(e.target.value)} placeholder="Nota privada (opcional)"
-                    className="w-full rounded-lg border border-zinc-200 px-3 py-1.5 text-xs mb-2" />
-                  <div className="flex gap-2">
-                    <button onClick={() => calificarTarea(task.id)} className="rounded-lg bg-zinc-900 text-white px-3 py-1 text-xs font-medium">Guardar</button>
-                    <button onClick={() => setRatingTask(null)} className="text-xs text-zinc-500">Cancelar</button>
-                  </div>
-                </div>
-              )}
               </div>
             );
           })}
-
-          {filteredTasks.length === 0 && (
-            <div className="text-center py-12 text-zinc-400 text-sm">
-              No hay tareas para este día.
-            </div>
-          )}
         </div>
       )}
 
