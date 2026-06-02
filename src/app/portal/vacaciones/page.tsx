@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
+import { calcBusinessDays } from '@/lib/dias-habiles';
 import {
   Plus,
   Umbrella,
@@ -51,20 +52,6 @@ function StatusBadge({ estado }: { estado: string }) {
       {c.label}
     </span>
   );
-}
-
-function calcBusinessDays(start: string, end: string): number {
-  const s = new Date(start + 'T00:00:00');
-  const e = new Date(end + 'T00:00:00');
-  if (e < s) return 0;
-  let count = 0;
-  const cur = new Date(s);
-  while (cur <= e) {
-    const day = cur.getDay();
-    if (day !== 0 && day !== 6) count++;
-    cur.setDate(cur.getDate() + 1);
-  }
-  return count || 1;
 }
 
 function getDaysInRange(start: string, end: string): Set<string> {
