@@ -33,7 +33,7 @@ export default function RecordatoriosPage() {
   const [recordatorios, setRecordatorios] = useState<Recordatorio[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
-  const [newRec, setNewRec] = useState({ titulo: '', hora: '08:00', tipo: 'tarea' });
+  const [newRec, setNewRec] = useState<{ titulo: string; hora: string; tipo: string; dias: number[] }>({ titulo: '', hora: '08:00', tipo: 'tarea', dias: [1, 2, 3, 4, 5] });
   const [saving, setSaving] = useState(false);
 
   const empleadorId = profile?.empleador_id;
@@ -60,11 +60,12 @@ export default function RecordatoriosPage() {
   }
 
   async function handleAddRecordatorio() {
-    if (!empleadorId || !newRec.titulo) return;
+    if (!empleadorId || !newRec.titulo || newRec.dias.length === 0) return;
     setSaving(true);
     const supabase = createClient();
-    await supabase.from('recordatorios').insert({ empleador_id: empleadorId, titulo: newRec.titulo, hora: newRec.hora, tipo: newRec.tipo, activo: true, dias_semana: '{1,2,3,4,5}' });
-    setNewRec({ titulo: '', hora: '08:00', tipo: 'tarea' });
+    const diasLiteral = `{${[...newRec.dias].sort((a, b) => a - b).join(',')}}`;
+    await supabase.from('recordatorios').insert({ empleador_id: empleadorId, titulo: newRec.titulo, hora: newRec.hora, tipo: newRec.tipo, activo: true, dias_semana: diasLiteral });
+    setNewRec({ titulo: '', hora: '08:00', tipo: 'tarea', dias: [1, 2, 3, 4, 5] });
     setShowAdd(false);
     setSaving(false);
     loadData();
@@ -91,6 +92,16 @@ export default function RecordatoriosPage() {
         <div className="rounded-xl border border-zinc-200 bg-white p-4 space-y-3">
           <input placeholder="Título del recordatorio" value={newRec.titulo} onChange={e => setNewRec(p => ({ ...p, titulo: e.target.value }))}
             className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-zinc-500 mr-1">Días:</span>
+            {([[1, 'L'], [2, 'M'], [3, 'M'], [4, 'J'], [5, 'V'], [6, 'S'], [7, 'D']] as [number, string][]).map(([d, lbl], i) => (
+              <button key={i} type="button"
+                onClick={() => setNewRec(p => ({ ...p, dias: p.dias.includes(d) ? p.dias.filter(x => x !== d) : [...p.dias, d] }))}
+                className={`w-7 h-7 rounded-full text-xs font-medium transition-colors ${newRec.dias.includes(d) ? 'bg-zinc-900 text-white' : 'bg-zinc-100 text-zinc-500 hover:bg-zinc-200'}`}>
+                {lbl}
+              </button>
+            ))}
+          </div>
           <div className="flex gap-3">
             <input type="time" value={newRec.hora} onChange={e => setNewRec(p => ({ ...p, hora: e.target.value }))}
               className="border border-zinc-200 rounded-lg px-3 py-2 text-sm" />

@@ -299,7 +299,7 @@ export default function PortalDashboard() {
   };
 
   const tareasCompletadas = tareas.filter((t) => t.estado === 'completada').length;
-  const tareasTotal = tareas.length || 10;
+  const tareasTotal = tareas.length;
   const tareasPercentage = tareasTotal > 0 ? Math.round((tareasCompletadas / tareasTotal) * 100) : 0;
 
   const greeting = (() => {
