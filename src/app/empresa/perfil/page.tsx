@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
+import { validateRut, isValidEmail, isValidChileanMobile } from '@/lib/validators';
 import {
   Pencil,
   Heart,
@@ -390,6 +391,7 @@ function EditPerfilModal({
     comuna: empleador.comuna || '',
   });
   const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [regData, setRegData] = useState<RegionData[]>([]);
 
   useEffect(() => {
@@ -425,6 +427,10 @@ function EditPerfilModal({
   const comunas = regData.filter(r => r.region === form.region && r.ciudad === form.ciudad).map(r => r.comuna);
 
   const handleSave = async () => {
+    setFormError(null);
+    if (form.rut && !validateRut(form.rut)) { setFormError('RUT inválido — revisá el dígito verificador.'); return; }
+    if (form.email && !isValidEmail(form.email)) { setFormError('Email inválido.'); return; }
+    if (form.telefono && !isValidChileanMobile(form.telefono)) { setFormError('Teléfono celular inválido (formato +569XXXXXXXX).'); return; }
     setSaving(true);
     const supabase = createClient();
     const { region: _, ...updateData } = form;
@@ -484,6 +490,9 @@ function EditPerfilModal({
           </div>
         </div>
       </div>
+      {formError && (
+        <p className="mt-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{formError}</p>
+      )}
       <div className="mt-5 flex justify-end gap-2">
         <button onClick={onClose} className="rounded-lg border px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">Cancelar</button>
         <button onClick={handleSave} disabled={saving}

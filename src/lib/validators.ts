@@ -34,3 +34,16 @@ export function formatRut(rut: string): string {
 export function isValidEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test((email || '').trim());
 }
+
+/** Celular chileno: acepta +569XXXXXXXX, 569XXXXXXXX o 9XXXXXXXX. */
+export function isValidChileanMobile(phone: string): boolean {
+  const c = (phone || '').replace(/\D/g, '');
+  return /^(56)?9\d{8}$/.test(c);
+}
+
+/** Normaliza a formato +569XXXXXXXX. Devuelve '' si no es válido. */
+export function formatChileanMobile(phone: string): string {
+  const c = (phone || '').replace(/\D/g, '');
+  const m = c.match(/^(?:56)?(9\d{8})$/);
+  return m ? `+56${m[1]}` : '';
+}
