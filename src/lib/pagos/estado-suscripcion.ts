@@ -45,6 +45,7 @@ export function estadoStarterTrial(alta: Date, now: Date = new Date()): EstadoSu
 export async function getEstadoSuscripcion(
   supabase: SupabaseClient,
   empleadorId: string,
+  altaHint?: string | null,
 ): Promise<EstadoSuscripcionResult> {
   const [{ data: emp }, { data: sus }] = await Promise.all([
     supabase.from('empleadores').select('created_at, plan_tipo').eq('id', empleadorId).single(),
@@ -52,7 +53,13 @@ export async function getEstadoSuscripcion(
   ]);
 
   const now = new Date();
-  const alta = new Date(sus?.trial_inicio || emp?.created_at || now.toISOString());
+  // El trial cuenta desde el REGISTRO (lo más antiguo disponible): trial_inicio
+  // explícito, fecha del perfil del usuario (altaHint) o creación del empleador.
+  // Evita que recrear la fila de empleador "reinicie" el trial a 30 días.
+  const candidatos = [sus?.trial_inicio, altaHint, emp?.created_at]
+    .filter(Boolean)
+    .map((d) => new Date(d as string).getTime());
+  const alta = candidatos.length ? new Date(Math.min(...candidatos)) : now;
 
   let estado: EstadoSuscripcion;
   if (sus?.estado === 'activa' || sus?.estado === 'past_due') {
