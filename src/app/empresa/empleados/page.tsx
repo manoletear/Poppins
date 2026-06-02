@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { validateRut, isValidEmail } from '@/lib/validators';
 import {
   Users,
   Plus,
@@ -73,6 +74,7 @@ export default function EmpleadosPage() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [newEmp, setNewEmp] = useState({ nombre: '', apellido_paterno: '', rut: '', email: '', cargo: 'asesora_hogar', sueldo_base: '', tipo_jornada: 'completa' });
   const [savingEmp, setSavingEmp] = useState(false);
+  const [empError, setEmpError] = useState<string | null>(null);
 
   const loadEmpleados = useCallback(async () => {
     if (!empleadorId) { setLoading(false); return; }
@@ -109,22 +111,42 @@ export default function EmpleadosPage() {
   const handleAddEmpleado = async () => {
     if (!empleadorId || !newEmp.nombre || !newEmp.apellido_paterno || !newEmp.rut) return;
     setSavingEmp(true);
+    setEmpError(null);
+    if (!validateRut(newEmp.rut)) {
+      setEmpError('RUT inválido — revisá el dígito verificador (ej: 12345678-5).');
+      setSavingEmp(false);
+      return;
+    }
+    if (newEmp.email && !isValidEmail(newEmp.email)) {
+      setEmpError('Email inválido.');
+      setSavingEmp(false);
+      return;
+    }
     const supabase = createClient();
-    const { data: trab } = await supabase.from('trabajadores').insert({
+    const { data: trab, error: trabErr } = await supabase.from('trabajadores').insert({
       nombre: newEmp.nombre, apellido_paterno: newEmp.apellido_paterno,
       rut: newEmp.rut, email: newEmp.email || null, cargo: newEmp.cargo, estado: 'activo',
     }).select().single();
-    if (trab) {
-      const horasMap: Record<string, number> = { completa: 45, parcial: 30, art22: 45 };
-      await supabase.from('contratos').insert({
-        trabajador_id: trab.id, empleador_id: empleadorId,
-        numero_contrato: `PA-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-        sueldo_base: Number(newEmp.sueldo_base) || 500000,
-        tipo_contrato: 'indefinido', tipo_jornada: newEmp.tipo_jornada,
-        horas_semanales: horasMap[newEmp.tipo_jornada] || 45,
-        fecha_inicio: new Date().toISOString().split('T')[0],
-        cargo: newEmp.cargo, estado: 'activo',
-      });
+    if (trabErr || !trab) {
+      setEmpError(`No se pudo crear el empleado: ${trabErr?.message ?? 'error desconocido'}`);
+      setSavingEmp(false);
+      return;
+    }
+    const horasMap: Record<string, number> = { completa: 45, parcial: 30, art22: 45 };
+    const { error: contErr } = await supabase.from('contratos').insert({
+      trabajador_id: trab.id, empleador_id: empleadorId,
+      numero_contrato: `PA-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
+      sueldo_base: Number(newEmp.sueldo_base) || 500000,
+      tipo_contrato: 'indefinido', tipo_jornada: newEmp.tipo_jornada,
+      horas_semanales: horasMap[newEmp.tipo_jornada] || 45,
+      fecha_inicio: new Date().toISOString().split('T')[0],
+      cargo: newEmp.cargo, estado: 'activo',
+    });
+    if (contErr) {
+      setEmpError(`Empleado creado pero falló el contrato: ${contErr.message}`);
+      setSavingEmp(false);
+      loadEmpleados();
+      return;
     }
     setNewEmp({ nombre: '', apellido_paterno: '', rut: '', email: '', cargo: 'asesora_hogar', sueldo_base: '', tipo_jornada: 'completa' });
     setShowAddForm(false);
@@ -182,6 +204,9 @@ export default function EmpleadosPage() {
               <option value="art22">Art. 22</option>
             </select>
           </div>
+          {empError && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{empError}</p>
+          )}
           <div className="flex gap-2 justify-end">
             <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-sm text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50">Cancelar</button>
             <button onClick={handleAddEmpleado} disabled={savingEmp || !newEmp.nombre || !newEmp.rut}

@@ -48,7 +48,12 @@ interface ShoppingItem {
   checked: boolean;
 }
 
-const periodos = ['Marzo 2026', 'Febrero 2026', 'Enero 2026'];
+const MESES_ES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const periodos = Array.from({ length: 6 }, (_, i) => {
+  const d = new Date();
+  d.setMonth(d.getMonth() - i);
+  return `${MESES_ES[d.getMonth()]} ${d.getFullYear()}`;
+});
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
