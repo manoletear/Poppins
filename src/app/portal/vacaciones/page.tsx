@@ -99,14 +99,15 @@ export default function VacacionesPage() {
   const [dias, setDias] = useState(1);
   const [descripcion, setDescripcion] = useState('');
   const [empleadorId, setEmpleadorId] = useState('');
+  const [fechaContrato, setFechaContrato] = useState<string | null>(null);
 
   const supabase = useMemo(() => createClient(), []);
 
   // Derive empleadorId from active contract
   useEffect(() => {
     if (!trabajadorId) return;
-    supabase.from('contratos').select('empleador_id').eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).maybeSingle()
-      .then(({ data }: any) => { if (data) setEmpleadorId(data.empleador_id); }).catch(() => {});
+    supabase.from('contratos').select('empleador_id, fecha_inicio').eq('trabajador_id', trabajadorId).eq('estado', 'activo').limit(1).maybeSingle()
+      .then(({ data }: any) => { if (data) { setEmpleadorId(data.empleador_id); setFechaContrato(data.fecha_inicio || null); } }).catch(() => {});
   }, [trabajadorId, supabase]);
 
   useEffect(() => {
@@ -136,8 +137,12 @@ export default function VacacionesPage() {
     setLoading(false);
   }
 
-  // Vacation balance
-  const DIAS_LEGALES = 15;
+  // Vacation balance — feriado legal 15 días hábiles + feriado progresivo
+  // (Art. 68 CdT): +1 día por cada 3 años de servicio sobre los 10.
+  const aniosServicio = fechaContrato
+    ? Math.floor((Date.now() - new Date(fechaContrato).getTime()) / (365.25 * 24 * 3600 * 1000))
+    : 0;
+  const DIAS_LEGALES = 15 + Math.max(0, Math.floor((aniosServicio - 10) / 3));
   const diasUsados = vacaciones
     .filter((v) => v.estado === 'aprobada')
     .reduce((sum, v) => sum + v.dias, 0);
@@ -283,7 +288,7 @@ export default function VacacionesPage() {
           </div>
           <div className="flex-1">
             <p className="text-3xl font-bold text-emerald-600">{diasDisponibles} días disponibles</p>
-            <p className="text-sm text-zinc-500 mt-1">{DIAS_LEGALES} días legales por año</p>
+            <p className="text-sm text-zinc-500 mt-1">{DIAS_LEGALES} días legales por año{DIAS_LEGALES > 15 ? ' (incluye feriado progresivo)' : ''}</p>
 
             {/* Progress Bar */}
             <div className="mt-4">
