@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
 import { validateRut, isValidEmail, isValidChileanMobile } from '@/lib/validators';
+import AddressAutocomplete from '@/components/AddressAutocomplete';
 import {
   Pencil,
   Heart,
@@ -461,6 +462,7 @@ function EditPerfilModal({
         <FormField label="Email" value={form.email} onChange={set('email')} type="email" />
         <FormField label="Teléfono" value={form.telefono} onChange={set('telefono')} />
         <FormField label="Fecha Nacimiento" value={form.fecha_nacimiento} onChange={set('fecha_nacimiento')} type="date" />
+        <AddressAutocomplete onSelect={(a) => setForm(prev => ({ ...prev, direccion: a.direccion, ciudad: a.ciudad || prev.ciudad, comuna: a.comuna || prev.comuna, region: a.region || prev.region }))} />
         <FormField label="Dirección" value={form.direccion} onChange={set('direccion')} />
 
         {/* Región → Ciudad → Comuna */}
