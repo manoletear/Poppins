@@ -60,7 +60,7 @@ export function mapBukEmployee(buk: BukEmployee): PoppinsEmployee {
     direccion: buk.address || '',
     iniciales: getInitials(firstName, lastName),
     color: getColor(`${firstName}${lastName}`),
-    empleador: 'Familia Aravena Riffo', // TODO: multi-employer en Fase 4
+    empleador: '', // se resuelve por contrato/empleador real (no hardcode)
   };
 }
 

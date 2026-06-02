@@ -120,10 +120,19 @@ export default function ComprasPage() {
       ) || [],
     }));
 
-    await supabase
+    const { error } = await supabase
       .from('items_lista_compras')
       .update({ comprado: newValue })
       .eq('id', item.id);
+    if (error) {
+      // Rollback del optimistic update si falla
+      setItems((prev) => ({
+        ...prev,
+        [item.lista_id]: prev[item.lista_id]?.map((i) =>
+          i.id === item.id ? { ...i, comprado: !newValue } : i
+        ) || [],
+      }));
+    }
   }
 
   function openAddItem(listaId: string) {
