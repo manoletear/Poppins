@@ -24,6 +24,6 @@ export async function GET() {
     return NextResponse.json(estadoStarterTrial(alta));
   }
 
-  const estado = await getEstadoSuscripcion(supabase, perfil.empleador_id);
+  const estado = await getEstadoSuscripcion(supabase, perfil.empleador_id, perfil.created_at || user.created_at);
   return NextResponse.json(estado);
 }
