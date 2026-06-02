@@ -188,13 +188,24 @@ function AnticiposSection({ empleadorId }: { empleadorId: string }) {
   };
 
   const handleUploadComprobante = async (id: string, file: File) => {
+    if (!['application/pdf', 'image/png', 'image/jpeg'].includes(file.type)) {
+      alert('Formato no permitido. Subí PDF, PNG o JPG.');
+      setUploadTargetId(null);
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      alert('El archivo supera el límite de 5 MB.');
+      setUploadTargetId(null);
+      return;
+    }
     setUploadingId(id);
     try {
       const supabase = createClient();
-      const filePath = `anticipos/${id}.pdf`;
+      const ext = file.type === 'application/pdf' ? 'pdf' : file.type === 'image/png' ? 'png' : 'jpg';
+      const filePath = `anticipos/${id}.${ext}`;
       const { error: upErr } = await supabase.storage
         .from('comprobantes')
-        .upload(filePath, file, { upsert: true });
+        .upload(filePath, file, { upsert: true, contentType: file.type });
       if (upErr) throw upErr;
 
       const { data: urlData } = supabase.storage.from('comprobantes').getPublicUrl(filePath);
