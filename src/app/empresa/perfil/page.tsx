@@ -305,7 +305,9 @@ export default function PerfilEmpleadorPage() {
                 </label>
               </div>
               <h2 className="text-base font-bold text-zinc-900 mt-3">
-                {empleador.nombre} {empleador.apellido}
+                {empleador.apellido && !(empleador.nombre || '').includes(empleador.apellido)
+                  ? `${empleador.nombre} ${empleador.apellido}`
+                  : empleador.nombre}
               </h2>
               <p className="text-sm text-zinc-500">Empleador</p>
               <span className="mt-2 rounded-full bg-blue-100 px-3 py-0.5 text-xs font-semibold text-blue-700">
@@ -326,12 +328,6 @@ export default function PerfilEmpleadorPage() {
                 label="Dirección"
                 value={[empleador.direccion, empleador.comuna, empleador.ciudad].filter(Boolean).join(', ')}
               />
-              <div>
-                <dt className="text-[11px] font-medium uppercase text-zinc-400">Cuentas Activas</dt>
-                <dd className="text-sm font-medium text-amber-600">
-                  {cuentasActivas} de {empleador.max_cuentas}
-                </dd>
-              </div>
             </div>
           </div>
         </div>
