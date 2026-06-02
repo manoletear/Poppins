@@ -11,7 +11,7 @@ export interface ParsedAddress {
 
 // Carga el script de Google Maps (Places) una sola vez.
 let mapsPromise: Promise<void> | null = null;
-function loadGoogleMaps(apiKey: string): Promise<void> {
+export function loadGoogleMaps(apiKey: string): Promise<void> {
   if (typeof window === 'undefined') return Promise.resolve();
   if ((window as any).google?.maps?.places) return Promise.resolve();
   if (mapsPromise) return mapsPromise;
