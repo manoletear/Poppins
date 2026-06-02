@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { X, ChevronRight, ChevronLeft, Zap, Droplets, Flame, Wifi, Sparkles, Check, Loader2, Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { loadGoogleMaps } from '@/components/AddressAutocomplete';
 
 // ── Catálogo empresas chilenas por región ──
 const EMPRESAS = [
@@ -62,6 +63,34 @@ export default function AgentePoppins({ empleadorId, onClose, onSaved }: Props) 
   const [alias, setAlias] = useState('');
   const [montoEstimado, setMontoEstimado] = useState('');
   const [saving, setSaving] = useState(false);
+  const [detecting, setDetecting] = useState(false);
+
+  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  function handleDetectRegion() {
+    if (!mapsKey || !navigator.geolocation) return;
+    setDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          await loadGoogleMaps(mapsKey!);
+          const g = (window as any).google;
+          const geocoder = new g.maps.Geocoder();
+          const { results } = await geocoder.geocode({ location: { lat: pos.coords.latitude, lng: pos.coords.longitude } });
+          const comps = results?.[0]?.address_components || [];
+          const reg: string = comps.find((c: any) => c.types.includes('administrative_area_level_1'))?.long_name || '';
+          const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/regi[oó]n/g, '').replace(/\s+/g, ' ').trim();
+          const nReg = norm(reg);
+          const match = REGIONES.find(r => nReg && (nReg.includes(norm(r)) || norm(r).includes(nReg)));
+          if (match) { setSelectedRegion(match); setStep('empresa'); }
+        } finally {
+          setDetecting(false);
+        }
+      },
+      () => setDetecting(false),
+      { timeout: 10000 }
+    );
+  }
 
   const empresasFiltradas = EMPRESAS.filter(e =>
     e.categoria === selectedCat &&
@@ -146,6 +175,12 @@ export default function AgentePoppins({ empleadorId, onClose, onSaved }: Props) 
             <div className="space-y-4">
               <button onClick={() => setStep('categoria')} className="text-xs text-zinc-500 hover:text-zinc-700 flex items-center gap-1"><ChevronLeft className="w-3 h-3" /> Cambiar categoría</button>
               <p className="text-sm font-medium text-zinc-900">2. ¿En qué región estás?</p>
+              {mapsKey && (
+                <button onClick={handleDetectRegion} disabled={detecting}
+                  className="w-full flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
+                  {detecting ? <Loader2 className="w-4 h-4 animate-spin" /> : '📍'} {detecting ? 'Detectando...' : 'Detectar mi ubicación'}
+                </button>
+              )}
               <div className="space-y-1 max-h-64 overflow-y-auto">
                 {REGIONES.map(r => (
                   <button key={r} onClick={() => { setSelectedRegion(r); setStep('empresa'); }}
