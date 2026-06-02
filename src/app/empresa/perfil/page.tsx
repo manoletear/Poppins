@@ -434,8 +434,9 @@ function EditPerfilModal({
     setSaving(true);
     const supabase = createClient();
     const { region: _, ...updateData } = form;
-    await supabase.from('empleadores').update(updateData).eq('id', empleador.id);
+    const { error } = await supabase.from('empleadores').update(updateData).eq('id', empleador.id);
     setSaving(false);
+    if (error) { setFormError('No se pudo guardar: ' + error.message); return; }
     onSaved();
     onClose();
   };
