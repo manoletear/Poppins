@@ -79,6 +79,9 @@ export default function TareasPage() {
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [trabajadores, setTrabajadores] = useState<{ id: string; nombre: string }[]>([]);
   const [newTrabajadorId, setNewTrabajadorId] = useState('');
+  const [newRecordar, setNewRecordar] = useState(false);
+  const [newRecFecha, setNewRecFecha] = useState('');
+  const [newRecHora, setNewRecHora] = useState('08:00');
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
   const [ratingTask, setRatingTask] = useState<string | null>(null);
   const [ratingValue, setRatingValue] = useState(5);
@@ -166,9 +169,19 @@ export default function TareasPage() {
       trabajador_id: newTrabajadorId || undefined,
       fecha: toISODate(currentDate),
     });
+    // Recordatorio opcional con fecha/hora (avisa por correo el día indicado)
+    if (newRecordar && newRecFecha) {
+      const supabase = createClient();
+      await supabase.from('recordatorios').insert({
+        empleador_id: empleadorId, titulo: newTitle.trim(), tipo: 'tarea',
+        fecha: newRecFecha, hora: newRecHora, activo: true,
+      });
+    }
     setNewTitle('');
     setNewCategoria('');
     setNewPrioridad('media');
+    setNewRecordar(false);
+    setNewRecFecha('');
     setShowNewForm(false);
     setSaving(false);
     loadTareas();
@@ -226,6 +239,16 @@ export default function TareasPage() {
               <option value="">Asignar a...</option>
               {trabajadores.map((w) => <option key={w.id} value={w.id}>{w.nombre}</option>)}
             </select>
+          )}
+          <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <input type="checkbox" checked={newRecordar} onChange={(e) => { setNewRecordar(e.target.checked); if (e.target.checked && !newRecFecha) setNewRecFecha(toISODate(currentDate)); }} className="rounded border-zinc-300" />
+            🔔 Recordármelo por correo
+          </label>
+          {newRecordar && (
+            <div className="flex gap-3 items-center pl-6">
+              <input type="date" value={newRecFecha} onChange={(e) => setNewRecFecha(e.target.value)} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm" />
+              <input type="time" value={newRecHora} onChange={(e) => setNewRecHora(e.target.value)} className="rounded-lg border border-zinc-200 px-3 py-2 text-sm" />
+            </div>
           )}
           <div className="flex gap-2">
             <button type="submit" disabled={saving || !newTitle.trim()} className="rounded-lg bg-zinc-900 text-white px-4 py-2 text-sm font-medium hover:bg-zinc-800 disabled:opacity-50">
