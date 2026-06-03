@@ -14,6 +14,11 @@ import { Sparkles } from 'lucide-react';
 interface ListItem { id: string; nombre: string; cantidad: string; unidad?: string; comprado: boolean; categoria?: string; }
 interface ShoppingList { id: string; nombre: string; estado: string; created_at: string; fecha_cierre?: string; items: ListItem[]; }
 
+const CAT_LABELS: Record<string, string> = {
+  frutas: 'Frutas', verduras: 'Verduras', carnes: 'Carnes y Pescados', lacteos: 'Lácteos',
+  abarrotes: 'Abarrotes', bebidas: 'Bebidas', limpieza: 'Limpieza', mascotas: 'Mascotas', otros: 'Otros',
+};
+
 export default function ComprasPage() {
   const { profile } = useAuth();
   const empleadorId = profile?.empleador_id;
@@ -81,9 +86,10 @@ export default function ComprasPage() {
       const lista = await createListaCompras(empleadorId, nombre);
       if (lista) {
         const supabase = createClient();
-        await supabase.from('items_lista_compras').insert(
+        const { error: itemsErr } = await supabase.from('items_lista_compras').insert(
           items.map((it: any) => ({ lista_id: lista.id, nombre: it.nombre, cantidad: String(it.cantidad), unidad: it.unidad, categoria: it.categoria })),
         );
+        if (itemsErr) { alert('La lista se creó pero no se pudieron agregar los productos: ' + itemsErr.message); }
       }
       setSmartTexto(''); setSmartLugar(''); setShowSmart(false);
       await loadData();
@@ -347,7 +353,7 @@ export default function ComprasPage() {
               ).map(([cat, its]) => (
                 <div key={cat}>
                   {(list.items.some(i => i.categoria) ) && (
-                    <div className="px-5 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-500 bg-zinc-50/60">{cat}</div>
+                    <div className="px-5 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-500 bg-zinc-50/60">{CAT_LABELS[cat] || cat}</div>
                   )}
                   {its.map(item => (
                     <div key={item.id} className="px-5 py-2.5 flex items-center gap-3 hover:bg-zinc-50 transition group">

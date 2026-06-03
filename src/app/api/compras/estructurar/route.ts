@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 // Estructura una lista de compras en texto libre a items {nombre, cantidad, unidad, categoria}.
 // Usa Gemini si hay GEMINI_API_KEY; si no, cae a un parser heurístico.
 
+// Categorías válidas en la DB (CHECK de items_lista_compras.categoria), en lowercase.
 const CATEGORIAS = [
-  'Frutas y Verduras', 'Carnes y Pescados', 'Lácteos y Huevos', 'Abarrotes',
-  'Panadería', 'Bebidas', 'Limpieza', 'Aseo Personal', 'Mascotas', 'Otros',
+  'frutas', 'verduras', 'carnes', 'lacteos', 'abarrotes', 'bebidas', 'limpieza', 'mascotas', 'otros',
 ];
 
 interface ItemEstructurado {
@@ -16,15 +16,14 @@ interface ItemEstructurado {
 }
 
 const KEYWORDS: Record<string, string[]> = {
-  'Frutas y Verduras': ['manzana', 'platano', 'plátano', 'tomate', 'lechuga', 'palta', 'cebolla', 'papa', 'zanahoria', 'limon', 'limón', 'naranja', 'fruta', 'verdura', 'palta'],
-  'Carnes y Pescados': ['pollo', 'carne', 'vacuno', 'cerdo', 'pescado', 'salmon', 'salmón', 'pavo', 'molida', 'churrasco'],
-  'Lácteos y Huevos': ['leche', 'queso', 'yogur', 'yoghurt', 'mantequilla', 'huevo', 'crema'],
-  'Panadería': ['pan', 'marraqueta', 'hallulla', 'tostada', 'galleta'],
-  'Bebidas': ['agua', 'bebida', 'jugo', 'cerveza', 'vino', 'coca', 'cafe', 'café', 'te', 'té'],
-  'Limpieza': ['detergente', 'cloro', 'lavaloza', 'limpiador', 'esponja', 'toalla nova', 'confort', 'papel higienico', 'papel higiénico', 'bolsa basura'],
-  'Aseo Personal': ['shampoo', 'jabon', 'jabón', 'pasta dental', 'cepillo', 'desodorante'],
-  'Mascotas': ['perro', 'gato', 'mascota', 'croqueta'],
-  'Abarrotes': ['arroz', 'fideo', 'tallarin', 'tallarín', 'azucar', 'azúcar', 'sal', 'aceite', 'harina', 'atun', 'atún', 'conserva', 'salsa', 'lenteja', 'poroto'],
+  frutas: ['manzana', 'platano', 'plátano', 'naranja', 'limon', 'limón', 'fruta', 'frutilla', 'uva', 'pera', 'kiwi', 'palta'],
+  verduras: ['tomate', 'lechuga', 'cebolla', 'papa', 'zanahoria', 'verdura', 'choclo', 'zapallo', 'pepino', 'brocoli', 'espinaca', 'morron', 'ajo'],
+  carnes: ['pollo', 'carne', 'vacuno', 'cerdo', 'pescado', 'salmon', 'salmón', 'pavo', 'molida', 'churrasco', 'longaniza', 'jamon', 'jamón'],
+  lacteos: ['leche', 'queso', 'yogur', 'yoghurt', 'mantequilla', 'huevo', 'crema', 'manjar', 'mantecoso'],
+  bebidas: ['agua', 'bebida', 'jugo', 'cerveza', 'vino', 'coca', 'cafe', 'café', 'te', 'té', 'nectar', 'energetica'],
+  limpieza: ['detergente', 'cloro', 'lavaloza', 'limpiador', 'esponja', 'toalla nova', 'confort', 'papel higienico', 'papel higiénico', 'bolsa basura', 'shampoo', 'jabon', 'jabón', 'pasta dental', 'cepillo', 'desodorante', 'pañal', 'pañales'],
+  mascotas: ['perro', 'gato', 'mascota', 'croqueta', 'arena'],
+  abarrotes: ['arroz', 'fideo', 'tallarin', 'tallarín', 'azucar', 'azúcar', 'sal', 'aceite', 'harina', 'atun', 'atún', 'conserva', 'salsa', 'lenteja', 'poroto', 'pan', 'marraqueta', 'hallulla', 'galleta', 'cereal', 'mermelada'],
 };
 
 function categorizar(nombre: string): string {
@@ -34,7 +33,7 @@ function categorizar(nombre: string): string {
     // como "te" dentro de "detergente".
     if (kws.some((k) => new RegExp('(^|\\s)' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(n))) return cat;
   }
-  return 'Otros';
+  return 'otros';
 }
 
 // Parser heurístico: una línea por item, intenta extraer cantidad/unidad.
