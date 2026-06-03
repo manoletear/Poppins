@@ -16,7 +16,7 @@
     "NEXT_PUBLIC_SITE_URL": "https://poppins.tooxs-fperez.workers.dev",
     "NEXT_PUBLIC_APP_URL": "https://poppins.tooxs-fperez.workers.dev",
     "BUK_API_BASE_URL": "https://renearavena.buk.cl/api/v1/chile",
-    "FLOW_ENV": "sandbox",
+    "FLOW_ENV": "production",
     "USE_MOCK_DATA": "false"
   }
 }
