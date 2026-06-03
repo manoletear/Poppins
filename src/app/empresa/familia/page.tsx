@@ -167,6 +167,10 @@ export default function FamiliaPage() {
   };
 
   const saveFamiliar = async () => {
+    if (!familiarForm.nombre?.trim() || !familiarForm.apellido?.trim() || !familiarForm.fecha_nacimiento) {
+      alert('Nombre, apellido y fecha de nacimiento son obligatorios.');
+      return;
+    }
     setSavingFamiliar(true);
     try {
       const supabase = createClient();
@@ -320,7 +324,7 @@ export default function FamiliaPage() {
           <div className="rounded-lg bg-rose-50 p-2">
             <Heart className="h-5 w-5 text-rose-500" />
           </div>
-          <h2 className="text-lg font-semibold text-zinc-900">Conyuge</h2>
+          <h2 className="text-lg font-semibold text-zinc-900">Cónyuge / Pareja</h2>
         </div>
         {conyuges.length === 0 ? (
           <p className="text-sm text-zinc-400">No hay conyuge registrado.</p>
@@ -683,9 +687,9 @@ export default function FamiliaPage() {
                   onChange={(e) => setFamiliarForm({ ...familiarForm, tipo: e.target.value as Familiar['tipo'] })}
                   className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 >
-                  <option value="conyuge">Conyuge</option>
+                  <option value="conyuge">Cónyuge / Pareja</option>
                   <option value="hijo">Hijo/a</option>
-                  <option value="otro">Otro</option>
+                  <option value="otro">Otro familiar (vive en casa)</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
