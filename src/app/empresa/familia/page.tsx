@@ -4,6 +4,21 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Heart, User, Dog, Cat, Bird, Fish, Phone, Mail, Loader2, AlertCircle, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
+import { AvatarPicker } from '@/components/Avatar';
+
+const ROLES_POR_TIPO: Record<string, string[]> = {
+  conyuge: ['mama', 'papa'],
+  hijo: ['hijo', 'hija', 'bebe'],
+  otro: ['abuelo', 'abuela', 'mama', 'papa'],
+};
+
+const ROLES_MASCOTA: Record<string, string[]> = {
+  perro: ['perro'],
+  gato: ['gato'],
+  ave: ['mascota', 'perro', 'gato'],
+  pez: ['mascota', 'perro', 'gato'],
+  otro: ['perro', 'gato', 'conejo', 'mascota'],
+};
 
 interface Familiar {
   id: string;
@@ -692,6 +707,16 @@ export default function FamiliaPage() {
                   <option value="otro">Otro familiar (vive en casa)</option>
                 </select>
               </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Elegí un avatar</label>
+                <AvatarPicker
+                  roles={ROLES_POR_TIPO[familiarForm.tipo] || ['mama', 'papa']}
+                  familyId={empleadorId}
+                  memberId={editingFamiliarId || familiarForm.tipo}
+                  value={familiarForm.foto_url}
+                  onChange={(url) => setFamiliarForm({ ...familiarForm, foto_url: url })}
+                />
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-zinc-700 mb-1">Nombre</label>
@@ -824,6 +849,16 @@ export default function FamiliaPage() {
                   value={mascotaForm.nombre}
                   onChange={(e) => setMascotaForm({ ...mascotaForm, nombre: e.target.value })}
                   className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-2">Elegí un avatar</label>
+                <AvatarPicker
+                  roles={ROLES_MASCOTA[mascotaForm.tipo] || ['perro', 'gato', 'mascota']}
+                  familyId={empleadorId}
+                  memberId={editingMascotaId || mascotaForm.tipo}
+                  value={mascotaForm.foto_url}
+                  onChange={(url) => setMascotaForm({ ...mascotaForm, foto_url: url })}
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
