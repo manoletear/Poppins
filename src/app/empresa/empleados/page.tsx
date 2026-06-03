@@ -123,18 +123,22 @@ export default function EmpleadosPage() {
       return;
     }
     const supabase = createClient();
-    const { data: trab, error: trabErr } = await supabase.from('trabajadores').insert({
+    // id generado en cliente: evita .select() (RETURNING choca con la policy de SELECT
+    // porque el trabajador recién creado aún no tiene contrato que lo enlace).
+    const trabId = crypto.randomUUID();
+    const { error: trabErr } = await supabase.from('trabajadores').insert({
+      id: trabId,
       nombre: newEmp.nombre, apellido_paterno: newEmp.apellido_paterno,
       rut: newEmp.rut, email: newEmp.email || null, cargo: newEmp.cargo, estado: 'activo',
-    }).select().single();
-    if (trabErr || !trab) {
-      setEmpError(`No se pudo crear el empleado: ${trabErr?.message ?? 'error desconocido'}`);
+    });
+    if (trabErr) {
+      setEmpError(`No se pudo crear el empleado: ${trabErr.message}`);
       setSavingEmp(false);
       return;
     }
     const horasMap: Record<string, number> = { completa: 45, parcial: 30, art22: 45 };
     const { error: contErr } = await supabase.from('contratos').insert({
-      trabajador_id: trab.id, empleador_id: empleadorId,
+      trabajador_id: trabId, empleador_id: empleadorId,
       numero_contrato: `PA-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
       sueldo_base: Number(newEmp.sueldo_base) || 500000,
       tipo_contrato: 'indefinido', tipo_jornada: newEmp.tipo_jornada,
