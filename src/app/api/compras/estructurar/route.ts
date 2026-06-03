@@ -30,7 +30,9 @@ const KEYWORDS: Record<string, string[]> = {
 function categorizar(nombre: string): string {
   const n = nombre.toLowerCase();
   for (const [cat, kws] of Object.entries(KEYWORDS)) {
-    if (kws.some((k) => n.includes(k))) return cat;
+    // Match por palabra (inicio o tras espacio) para evitar falsos positivos
+    // como "te" dentro de "detergente".
+    if (kws.some((k) => new RegExp('(^|\\s)' + k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).test(n))) return cat;
   }
   return 'Otros';
 }
@@ -39,14 +41,16 @@ function categorizar(nombre: string): string {
 function parseHeuristico(texto: string): ItemEstructurado[] {
   return texto
     .split(/\n|,|;/)
-    .map((l) => l.replace(/^[\s\-•*✅⬜\d).]+/, '').trim())
+    // Quita viñetas/checkboxes y marcadores de lista "1)" "1." al inicio, pero NO una cantidad suelta.
+    .map((l) => l.replace(/^[\s\-•*✅⬜]+/, '').replace(/^\d+[).]\s*/, '').trim())
     .filter((l) => l.length > 1)
     .map((linea) => {
-      const m = linea.match(/(\d+(?:[.,]\d+)?)\s*(kg|kilos?|gr?|grs?|lt?|litros?|cc|ml|unidades?|un|paquetes?|docenas?)?/i);
+      const m = linea.match(/(\d+(?:[.,]\d+)?)\s*(kg|kilos?|gr?|grs?|lt?|litros?|cc|ml|unidades?|un|paquetes?|docenas?)?\b/i);
       const cantidad = m ? parseFloat(m[1].replace(',', '.')) : 1;
       const unidad = m && m[2] ? m[2].toLowerCase() : 'un';
-      const nombre = linea.replace(m ? m[0] : '', '').replace(/\s+/g, ' ').trim() || linea;
-      return { nombre: nombre.charAt(0).toUpperCase() + nombre.slice(1), cantidad: cantidad || 1, unidad, categoria: categorizar(nombre) };
+      let nombre = (m ? linea.replace(m[0], '') : linea).replace(/^\s*de\s+/i, '').replace(/\s+/g, ' ').trim() || linea;
+      nombre = nombre.charAt(0).toUpperCase() + nombre.slice(1);
+      return { nombre, cantidad: cantidad || 1, unidad, categoria: categorizar(nombre) };
     });
 }
 
