@@ -8,8 +8,10 @@ import {
   createListaCompras, createItemLista, deleteItemLista, deleteLista, cerrarLista,
   getPlantillasCompras, createListaFromPlantilla,
 } from '@/lib/supabase/employer-queries';
+import { createClient } from '@/lib/supabase/client';
+import { Sparkles } from 'lucide-react';
 
-interface ListItem { id: string; nombre: string; cantidad: string; unidad?: string; comprado: boolean; }
+interface ListItem { id: string; nombre: string; cantidad: string; unidad?: string; comprado: boolean; categoria?: string; }
 interface ShoppingList { id: string; nombre: string; estado: string; created_at: string; fecha_cierre?: string; items: ListItem[]; }
 
 export default function ComprasPage() {
@@ -30,6 +32,11 @@ export default function ComprasPage() {
   const [filterText, setFilterText] = useState('');
   const [sortBy, setSortBy] = useState<'nombre' | 'fecha'>('fecha');
   const [saving, setSaving] = useState(false);
+  const [showSmart, setShowSmart] = useState(false);
+  const [smartTexto, setSmartTexto] = useState('');
+  const [smartPeriodo, setSmartPeriodo] = useState('semanal');
+  const [smartLugar, setSmartLugar] = useState('');
+  const [smartSaving, setSmartSaving] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!empleadorId) return;
@@ -55,6 +62,34 @@ export default function ComprasPage() {
     setShowNewList(false);
     await loadData();
     setSaving(false);
+  };
+
+  // ── Lista inteligente: texto libre → estructurada (IA) → guardada por categoría ──
+  const handleSmartList = async () => {
+    if (!empleadorId || !smartTexto.trim()) return;
+    setSmartSaving(true);
+    try {
+      const res = await fetch('/api/compras/estructurar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto: smartTexto, periodicidad: smartPeriodo, lugar: smartLugar }),
+      });
+      const { items } = await res.json();
+      if (!items?.length) { setSmartSaving(false); return; }
+      const cap = smartPeriodo.charAt(0).toUpperCase() + smartPeriodo.slice(1);
+      const nombre = `Lista ${cap}${smartLugar ? ' · ' + smartLugar : ''}`;
+      const lista = await createListaCompras(empleadorId, nombre);
+      if (lista) {
+        const supabase = createClient();
+        await supabase.from('items_lista_compras').insert(
+          items.map((it: any) => ({ lista_id: lista.id, nombre: it.nombre, cantidad: String(it.cantidad), unidad: it.unidad, categoria: it.categoria })),
+        );
+      }
+      setSmartTexto(''); setSmartLugar(''); setShowSmart(false);
+      await loadData();
+    } finally {
+      setSmartSaving(false);
+    }
   };
 
   // ── Create from template ──
@@ -153,7 +188,10 @@ export default function ComprasPage() {
           <p className="text-sm text-zinc-500">{listas.length} lista{listas.length !== 1 ? 's' : ''} activa{listas.length !== 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowNewList(true)} className="flex items-center gap-2 bg-violet-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-violet-700 transition">
+          <button onClick={() => setShowSmart(true)} className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:opacity-90 transition">
+            <Sparkles className="w-4 h-4" /> Lista inteligente
+          </button>
+          <button onClick={() => setShowNewList(true)} className="flex items-center gap-2 bg-white border border-zinc-200 text-zinc-700 text-sm font-medium px-4 py-2 rounded-lg hover:bg-zinc-50 transition">
             <Plus className="w-4 h-4" /> Nueva Lista
           </button>
         </div>
@@ -169,6 +207,42 @@ export default function ComprasPage() {
           </div>
           <button onClick={handleCreateList} disabled={saving || !newListName.trim()} className="bg-violet-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">Crear</button>
           <button onClick={() => setShowNewList(false)} className="text-zinc-400 hover:text-zinc-600"><X className="w-5 h-5" /></button>
+        </div>
+      )}
+
+      {/* Smart list modal */}
+      {showSmart && (
+        <div className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-zinc-900 flex items-center gap-2"><Sparkles className="w-4 h-4 text-violet-600" /> Lista inteligente</h3>
+            <button onClick={() => setShowSmart(false)} className="text-zinc-400 hover:text-zinc-600"><X className="w-5 h-5" /></button>
+          </div>
+          <p className="text-xs text-zinc-500">Pegá tu lista como la escribís normalmente. La organizamos por categoría automáticamente.</p>
+          <textarea value={smartTexto} onChange={e => setSmartTexto(e.target.value)} rows={5}
+            placeholder={'Ej:\n2 kg de tomate\nleche\n1 pollo\ndetergente\n6 huevos, pan'}
+            className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+          <div className="flex gap-3 flex-wrap">
+            <div>
+              <label className="text-xs font-medium text-zinc-600 mb-1 block">¿Cada cuánto comprás?</label>
+              <select value={smartPeriodo} onChange={e => setSmartPeriodo(e.target.value)} className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="semanal">Semanal</option>
+                <option value="quincenal">Quincenal</option>
+                <option value="mensual">Mensual</option>
+              </select>
+            </div>
+            <div className="flex-1 min-w-[160px]">
+              <label className="text-xs font-medium text-zinc-600 mb-1 block">¿Dónde? (opcional)</label>
+              <input value={smartLugar} onChange={e => setSmartLugar(e.target.value)} placeholder="Ej: Jumbo, Líder..."
+                className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-violet-400" />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button onClick={() => setShowSmart(false)} className="text-sm text-zinc-500 px-3 py-2">Cancelar</button>
+            <button onClick={handleSmartList} disabled={smartSaving || !smartTexto.trim()}
+              className="flex items-center gap-2 bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+              {smartSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} {smartSaving ? 'Organizando...' : 'Crear lista'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -262,17 +336,30 @@ export default function ComprasPage() {
               </div>
             )}
 
-            {/* Items */}
+            {/* Items agrupados por categoría */}
             <div className="divide-y divide-zinc-50">
-              {list.items.map(item => (
-                <div key={item.id} className="px-5 py-2.5 flex items-center gap-3 hover:bg-zinc-50 transition group">
-                  <input type="checkbox" checked={item.comprado} onChange={() => handleToggleItem(list.id, item.id, item.comprado)}
-                    className="w-4 h-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-500" />
-                  <span className={`text-sm flex-1 ${item.comprado ? 'line-through text-zinc-400' : 'text-zinc-700'}`}>{item.nombre}</span>
-                  <span className="text-xs text-zinc-400">{item.cantidad}{item.unidad ? ` ${item.unidad}` : ''}</span>
-                  <button onClick={() => handleDeleteItem(list.id, item.id)} className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition">
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+              {Object.entries(
+                list.items.reduce((acc: Record<string, ListItem[]>, it) => {
+                  const c = it.categoria || 'Otros';
+                  (acc[c] = acc[c] || []).push(it);
+                  return acc;
+                }, {})
+              ).map(([cat, its]) => (
+                <div key={cat}>
+                  {(list.items.some(i => i.categoria) ) && (
+                    <div className="px-5 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-violet-500 bg-zinc-50/60">{cat}</div>
+                  )}
+                  {its.map(item => (
+                    <div key={item.id} className="px-5 py-2.5 flex items-center gap-3 hover:bg-zinc-50 transition group">
+                      <input type="checkbox" checked={item.comprado} onChange={() => handleToggleItem(list.id, item.id, item.comprado)}
+                        className="w-4 h-4 rounded border-zinc-300 text-violet-600 focus:ring-violet-500" />
+                      <span className={`text-sm flex-1 ${item.comprado ? 'line-through text-zinc-400' : 'text-zinc-700'}`}>{item.nombre}</span>
+                      <span className="text-xs text-zinc-400">{item.cantidad}{item.unidad ? ` ${item.unidad}` : ''}</span>
+                      <button onClick={() => handleDeleteItem(list.id, item.id)} className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-red-500 transition">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               ))}
               {list.items.length === 0 && (
