@@ -282,56 +282,7 @@ export default function RegisterPage() {
             </div>
           </div>
 
-          {/* Account Type */}
-          <div>
-            <label className="block text-sm font-medium text-zinc-700 mb-2">
-              Tipo de cuenta
-            </label>
-            <div className="space-y-2">
-              <label
-                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                  selectedRole === 'empleador'
-                    ? 'border-zinc-900 bg-zinc-50'
-                    : 'border-zinc-200 hover:border-zinc-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="role"
-                  value="empleador"
-                  checked={selectedRole === 'empleador'}
-                  onChange={() => setSelectedRole('empleador')}
-                  className="mt-0.5 h-4 w-4 border-zinc-300 text-zinc-900 focus:ring-zinc-900"
-                  disabled={loading}
-                />
-                <div>
-                  <span className="text-sm font-medium text-zinc-900">Empleador</span>
-                  <p className="text-xs text-zinc-500 mt-0.5">Gestiona tu hogar y empleados</p>
-                </div>
-              </label>
-              <label
-                className={`flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors ${
-                  selectedRole === 'empleado'
-                    ? 'border-zinc-900 bg-zinc-50'
-                    : 'border-zinc-200 hover:border-zinc-300'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="role"
-                  value="empleado"
-                  checked={selectedRole === 'empleado'}
-                  onChange={() => setSelectedRole('empleado')}
-                  className="mt-0.5 h-4 w-4 border-zinc-300 text-zinc-900 focus:ring-zinc-900"
-                  disabled={loading}
-                />
-                <div>
-                  <span className="text-sm font-medium text-zinc-900">Empleado</span>
-                  <p className="text-xs text-zinc-500 mt-0.5">Accede a tu portal de trabajo</p>
-                </div>
-              </label>
-            </div>
-          </div>
+          {/* Registro solo para Empleadores. Las trabajadoras entran por invitación. */}
 
           {/* Terms */}
           <label className="flex items-start gap-2 cursor-pointer">
