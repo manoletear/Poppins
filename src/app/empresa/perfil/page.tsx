@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
 import { validateRut, isValidEmail, isValidChileanMobile } from '@/lib/validators';
 import AddressAutocomplete from '@/components/AddressAutocomplete';
+import { AvatarPicker } from '@/components/Avatar';
 import {
   Pencil,
   Heart,
@@ -305,6 +306,14 @@ export default function PerfilEmpleadorPage() {
                     fetchData();
                   }} />
                 </label>
+              </div>
+              <div className="mt-3 w-full max-w-[220px]">
+                <p className="text-[11px] text-zinc-400 mb-1 text-center">o elegí un avatar Poppins</p>
+                <div className="flex justify-center">
+                  <AvatarPicker roles={['mama', 'papa']} familyId={empleador.id} memberId={empleador.id} value={empleador.foto_url}
+                    size={40}
+                    onChange={async (url) => { const supabase = createClient(); await supabase.from('empleadores').update({ foto_url: url }).eq('id', empleador.id); fetchData(); }} />
+                </div>
               </div>
               <h2 className="text-base font-bold text-zinc-900 mt-3">
                 {empleador.apellido && !(empleador.nombre || '').includes(empleador.apellido)
