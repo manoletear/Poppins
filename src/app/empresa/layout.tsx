@@ -9,6 +9,7 @@ import { NotificacionesDropdown } from '@/components/NotificacionesDropdown';
 import { PLANES } from '@/lib/pagos/plans';
 import type { PlanTipo, CicloFacturacion } from '@/lib/pagos/types';
 import SuscripcionBanner from './components/SuscripcionBanner';
+import PoppinsChat from '@/components/PoppinsChat';
 import {
   LayoutDashboard,
   CircleUser,
@@ -444,6 +445,7 @@ export default function EmpresaLayout({ children }: { children: React.ReactNode 
           {children}
         </main>
       </div>
+      <PoppinsChat />
     </div>
   );
 }
