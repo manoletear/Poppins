@@ -47,6 +47,28 @@ const gradientColors = [
   { from: 'from-amber-500', to: 'to-amber-600', bg: 'bg-amber-500' },
 ];
 
+const AFP_OPTIONS: { id: number; label: string }[] = [
+  { id: 1, label: 'AFP Capital' },
+  { id: 2, label: 'AFP Cuprum' },
+  { id: 3, label: 'AFP Habitat' },
+  { id: 4, label: 'AFP Modelo' },
+  { id: 5, label: 'AFP PlanVital' },
+  { id: 6, label: 'AFP Provida' },
+  { id: 7, label: 'AFP Uno' },
+];
+
+const ISAPRE_OPTIONS: { id: number; label: string }[] = [
+  { id: 8, label: 'Banmédica' },
+  { id: 9, label: 'Colmena Golden Cross' },
+  { id: 10, label: 'Consalud' },
+  { id: 11, label: 'Cruz Blanca' },
+  { id: 12, label: 'Nueva Masvida' },
+  { id: 32, label: 'Vida Tres' },
+  { id: 33, label: 'Esencial' },
+];
+
+const FONASA_SALUD_ID = 13;
+
 function getInitials(nombre: string, apellido: string): string {
   return `${nombre.charAt(0)}${apellido.charAt(0)}`.toUpperCase();
 }
@@ -72,7 +94,23 @@ export default function EmpleadosPage() {
   const [empleados, setEmpleados] = useState<Empleado[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newEmp, setNewEmp] = useState({ nombre: '', apellido_paterno: '', rut: '', email: '', cargo: 'asesora_hogar', sueldo_base: '', tipo_jornada: 'completa' });
+  const [newEmp, setNewEmp] = useState({
+    // Datos personales
+    nombre: '', apellido_paterno: '', apellido_materno: '', segundo_nombre: '',
+    rut: '', fecha_nacimiento: '', sexo: '', estado_civil: '', nacionalidad: 'Chilena',
+    // Contacto
+    email: '', telefono: '', direccion: '', comuna: '', region: '',
+    // Contrato
+    cargo: 'asesora_hogar', fecha_inicio: new Date().toISOString().split('T')[0],
+    tipo_contrato: 'indefinido', tipo_jornada: 'completa', sueldo_base: '',
+    tipo_gratificacion: 'art_50',
+    // Previsión
+    afp_id: '', salud_tipo: 'fonasa', salud_id: '', plan_salud_uf: '',
+    // Cargas familiares
+    cargas_simples: '0', cargas_maternales: '0', cargas_invalidez: '0',
+    // Datos de pago
+    banco: '', tipo_cuenta: '', numero_cuenta: '',
+  });
   const [savingEmp, setSavingEmp] = useState(false);
   const [empError, setEmpError] = useState<string | null>(null);
 
@@ -108,10 +146,36 @@ export default function EmpleadosPage() {
 
   const activos = empleados.filter((e: any) => e.estado !== 'inactivo');
 
+  const resetNewEmp = () => setNewEmp({
+    nombre: '', apellido_paterno: '', apellido_materno: '', segundo_nombre: '',
+    rut: '', fecha_nacimiento: '', sexo: '', estado_civil: '', nacionalidad: 'Chilena',
+    email: '', telefono: '', direccion: '', comuna: '', region: '',
+    cargo: 'asesora_hogar', fecha_inicio: new Date().toISOString().split('T')[0],
+    tipo_contrato: 'indefinido', tipo_jornada: 'completa', sueldo_base: '',
+    tipo_gratificacion: 'art_50',
+    afp_id: '', salud_tipo: 'fonasa', salud_id: '', plan_salud_uf: '',
+    cargas_simples: '0', cargas_maternales: '0', cargas_invalidez: '0',
+    banco: '', tipo_cuenta: '', numero_cuenta: '',
+  });
+
+  const requiredBasicsOk = !!(
+    newEmp.nombre && newEmp.apellido_paterno && newEmp.rut && newEmp.fecha_nacimiento &&
+    newEmp.cargo && newEmp.fecha_inicio && newEmp.tipo_jornada &&
+    Number(newEmp.sueldo_base) > 0 && newEmp.afp_id && newEmp.salud_tipo &&
+    (newEmp.salud_tipo === 'fonasa' || newEmp.salud_id)
+  );
+
   const handleAddEmpleado = async () => {
-    if (!empleadorId || !newEmp.nombre || !newEmp.apellido_paterno || !newEmp.rut) return;
+    if (!empleadorId) return;
     setSavingEmp(true);
     setEmpError(null);
+    // Validación obligatoria
+    if (!newEmp.nombre || !newEmp.apellido_paterno || !newEmp.rut || !newEmp.fecha_nacimiento ||
+        !newEmp.cargo || !newEmp.fecha_inicio || !newEmp.tipo_jornada) {
+      setEmpError('Completá los campos obligatorios (marcados con *).');
+      setSavingEmp(false);
+      return;
+    }
     if (!validateRut(newEmp.rut)) {
       setEmpError('RUT inválido — revisá el dígito verificador (ej: 12345678-5).');
       setSavingEmp(false);
@@ -122,14 +186,59 @@ export default function EmpleadosPage() {
       setSavingEmp(false);
       return;
     }
+    if (!(Number(newEmp.sueldo_base) > 0)) {
+      setEmpError('El sueldo base debe ser mayor a 0.');
+      setSavingEmp(false);
+      return;
+    }
+    if (!newEmp.afp_id) {
+      setEmpError('Seleccioná una AFP.');
+      setSavingEmp(false);
+      return;
+    }
+    if (newEmp.salud_tipo === 'isapre' && !newEmp.salud_id) {
+      setEmpError('Seleccioná una Isapre.');
+      setSavingEmp(false);
+      return;
+    }
+
+    const isIsapre = newEmp.salud_tipo === 'isapre';
+    const saludId = isIsapre ? Number(newEmp.salud_id) : FONASA_SALUD_ID;
+    const orNull = (v: string) => (v && v.trim() !== '' ? v.trim() : null);
+
     const supabase = createClient();
     // id generado en cliente: evita .select() (RETURNING choca con la policy de SELECT
     // porque el trabajador recién creado aún no tiene contrato que lo enlace).
     const trabId = crypto.randomUUID();
     const { error: trabErr } = await supabase.from('trabajadores').insert({
       id: trabId,
-      nombre: newEmp.nombre, apellido_paterno: newEmp.apellido_paterno,
-      rut: newEmp.rut, email: newEmp.email || null, cargo: newEmp.cargo, estado: 'activo',
+      nombre: newEmp.nombre,
+      apellido_paterno: newEmp.apellido_paterno,
+      apellido_materno: orNull(newEmp.apellido_materno),
+      segundo_nombre: orNull(newEmp.segundo_nombre),
+      rut: newEmp.rut,
+      fecha_nacimiento: newEmp.fecha_nacimiento,
+      sexo: orNull(newEmp.sexo),
+      estado_civil: orNull(newEmp.estado_civil),
+      nacionalidad: orNull(newEmp.nacionalidad),
+      email: orNull(newEmp.email),
+      telefono: orNull(newEmp.telefono),
+      direccion: orNull(newEmp.direccion),
+      comuna: orNull(newEmp.comuna),
+      region: orNull(newEmp.region),
+      afp_id: Number(newEmp.afp_id),
+      salud_id: saludId,
+      salud_tipo: newEmp.salud_tipo,
+      plan_salud_uf: isIsapre && newEmp.plan_salud_uf ? Number(newEmp.plan_salud_uf) : null,
+      cargas_simples: Number(newEmp.cargas_simples) || 0,
+      cargas_maternales: Number(newEmp.cargas_maternales) || 0,
+      cargas_invalidez: Number(newEmp.cargas_invalidez) || 0,
+      tipo_gratificacion: newEmp.tipo_gratificacion,
+      cargo: newEmp.cargo,
+      banco: orNull(newEmp.banco),
+      tipo_cuenta: orNull(newEmp.tipo_cuenta),
+      numero_cuenta: orNull(newEmp.numero_cuenta),
+      estado: 'activo',
     });
     if (trabErr) {
       setEmpError(`No se pudo crear el empleado: ${trabErr.message}`);
@@ -140,10 +249,13 @@ export default function EmpleadosPage() {
     const { error: contErr } = await supabase.from('contratos').insert({
       trabajador_id: trabId, empleador_id: empleadorId,
       numero_contrato: `PA-${new Date().getFullYear()}-${String(Math.floor(Math.random() * 9000) + 1000)}`,
-      sueldo_base: Number(newEmp.sueldo_base) || 500000,
-      tipo_contrato: 'indefinido', tipo_jornada: newEmp.tipo_jornada,
+      sueldo_base: Number(newEmp.sueldo_base),
+      tipo_contrato: newEmp.tipo_contrato,
+      tipo_jornada: newEmp.tipo_jornada,
       horas_semanales: horasMap[newEmp.tipo_jornada] || 45,
-      fecha_inicio: new Date().toISOString().split('T')[0],
+      fecha_inicio: newEmp.fecha_inicio,
+      tipo_gratificacion: newEmp.tipo_gratificacion,
+      tiene_gratificacion: newEmp.tipo_gratificacion !== 'sin',
       cargo: newEmp.cargo, estado: 'activo',
     });
     if (contErr) {
@@ -152,7 +264,7 @@ export default function EmpleadosPage() {
       loadEmpleados();
       return;
     }
-    setNewEmp({ nombre: '', apellido_paterno: '', rut: '', email: '', cargo: 'asesora_hogar', sueldo_base: '', tipo_jornada: 'completa' });
+    resetNewEmp();
     setShowAddForm(false);
     setSavingEmp(false);
     loadEmpleados();
@@ -178,42 +290,185 @@ export default function EmpleadosPage() {
 
       {/* Add employee form */}
       {showAddForm && (
-        <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-3">
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 space-y-6">
           <h3 className="text-sm font-semibold text-zinc-900">Nuevo Empleado</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <input placeholder="Nombre *" value={newEmp.nombre} onChange={e => setNewEmp(p => ({ ...p, nombre: e.target.value }))}
-              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
-            <input placeholder="Apellido Paterno *" value={newEmp.apellido_paterno} onChange={e => setNewEmp(p => ({ ...p, apellido_paterno: e.target.value }))}
-              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
-            <input placeholder="RUT (12345678-9) *" value={newEmp.rut} onChange={e => setNewEmp(p => ({ ...p, rut: e.target.value }))}
-              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
-            <input placeholder="Email (para invitar al portal)" type="email" value={newEmp.email} onChange={e => setNewEmp(p => ({ ...p, email: e.target.value }))}
-              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
-            <select value={newEmp.cargo} onChange={e => setNewEmp(p => ({ ...p, cargo: e.target.value }))}
-              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
-              <option value="asesora_hogar">Asesora del Hogar</option>
-              <option value="jardinero">Jardinero</option>
-              <option value="piscinero">Piscinero</option>
-              <option value="nana">Nana</option>
-              <option value="cocinera">Cocinera</option>
-              <option value="chofer">Chofer</option>
-              <option value="otro">Otro</option>
-            </select>
-            <input placeholder="Sueldo Base (CLP)" type="number" value={newEmp.sueldo_base} onChange={e => setNewEmp(p => ({ ...p, sueldo_base: e.target.value }))}
-              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
-            <select value={newEmp.tipo_jornada} onChange={e => setNewEmp(p => ({ ...p, tipo_jornada: e.target.value }))}
-              className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
-              <option value="completa">Jornada Completa (45h)</option>
-              <option value="parcial">Jornada Parcial</option>
-              <option value="art22">Art. 22</option>
-            </select>
-          </div>
+
+          {/* Datos personales */}
+          <section className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Datos personales</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input placeholder="Nombre *" value={newEmp.nombre} onChange={e => setNewEmp(p => ({ ...p, nombre: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <input placeholder="Segundo nombre" value={newEmp.segundo_nombre} onChange={e => setNewEmp(p => ({ ...p, segundo_nombre: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <input placeholder="Apellido paterno *" value={newEmp.apellido_paterno} onChange={e => setNewEmp(p => ({ ...p, apellido_paterno: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <input placeholder="Apellido materno" value={newEmp.apellido_materno} onChange={e => setNewEmp(p => ({ ...p, apellido_materno: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <input placeholder="RUT (12345678-9) *" value={newEmp.rut} onChange={e => setNewEmp(p => ({ ...p, rut: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <label className="flex flex-col text-xs text-zinc-500 gap-1">
+                Fecha de nacimiento *
+                <input type="date" value={newEmp.fecha_nacimiento} onChange={e => setNewEmp(p => ({ ...p, fecha_nacimiento: e.target.value }))}
+                  className="border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              </label>
+              <select value={newEmp.sexo} onChange={e => setNewEmp(p => ({ ...p, sexo: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">Sexo</option>
+                <option value="F">Femenino</option>
+                <option value="M">Masculino</option>
+                <option value="otro">Otro</option>
+              </select>
+              <select value={newEmp.estado_civil} onChange={e => setNewEmp(p => ({ ...p, estado_civil: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">Estado civil</option>
+                <option value="soltero">Soltero/a</option>
+                <option value="casado">Casado/a</option>
+                <option value="conviviente_civil">Conviviente civil</option>
+                <option value="divorciado">Divorciado/a</option>
+                <option value="viudo">Viudo/a</option>
+              </select>
+              <input placeholder="Nacionalidad" value={newEmp.nacionalidad} onChange={e => setNewEmp(p => ({ ...p, nacionalidad: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+            </div>
+          </section>
+
+          {/* Contacto */}
+          <section className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Contacto</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input placeholder="Email (para invitar al portal)" type="email" value={newEmp.email} onChange={e => setNewEmp(p => ({ ...p, email: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <input placeholder="Teléfono" value={newEmp.telefono} onChange={e => setNewEmp(p => ({ ...p, telefono: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <input placeholder="Dirección" value={newEmp.direccion} onChange={e => setNewEmp(p => ({ ...p, direccion: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <input placeholder="Comuna" value={newEmp.comuna} onChange={e => setNewEmp(p => ({ ...p, comuna: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <input placeholder="Región" value={newEmp.region} onChange={e => setNewEmp(p => ({ ...p, region: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+            </div>
+          </section>
+
+          {/* Contrato */}
+          <section className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Contrato</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <select value={newEmp.cargo} onChange={e => setNewEmp(p => ({ ...p, cargo: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="asesora_hogar">Asesora del Hogar</option>
+                <option value="jardinero">Jardinero</option>
+                <option value="piscinero">Piscinero</option>
+                <option value="nana">Nana</option>
+                <option value="cocinera">Cocinera</option>
+                <option value="chofer">Chofer</option>
+                <option value="otro">Otro</option>
+              </select>
+              <label className="flex flex-col text-xs text-zinc-500 gap-1">
+                Fecha de ingreso *
+                <input type="date" value={newEmp.fecha_inicio} onChange={e => setNewEmp(p => ({ ...p, fecha_inicio: e.target.value }))}
+                  className="border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              </label>
+              <select value={newEmp.tipo_contrato} onChange={e => setNewEmp(p => ({ ...p, tipo_contrato: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="indefinido">Indefinido</option>
+                <option value="plazo_fijo">Plazo fijo</option>
+                <option value="por_obra">Por obra o faena</option>
+              </select>
+              <select value={newEmp.tipo_jornada} onChange={e => setNewEmp(p => ({ ...p, tipo_jornada: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="completa">Jornada Completa (45h)</option>
+                <option value="parcial">Jornada Parcial</option>
+                <option value="art22">Art. 22</option>
+              </select>
+              <input placeholder="Sueldo base bruto (CLP) *" type="number" value={newEmp.sueldo_base} onChange={e => setNewEmp(p => ({ ...p, sueldo_base: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <select value={newEmp.tipo_gratificacion} onChange={e => setNewEmp(p => ({ ...p, tipo_gratificacion: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="art_50">Art. 50 (25%, tope 4,75 IMM)</option>
+                <option value="art_47">Art. 47 (utilidades)</option>
+                <option value="sin">Sin gratificación</option>
+              </select>
+            </div>
+          </section>
+
+          {/* Previsión */}
+          <section className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Previsión</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <select value={newEmp.afp_id} onChange={e => setNewEmp(p => ({ ...p, afp_id: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">AFP *</option>
+                {AFP_OPTIONS.map(a => <option key={a.id} value={a.id}>{a.label}</option>)}
+              </select>
+              <select value={newEmp.salud_tipo}
+                onChange={e => setNewEmp(p => ({ ...p, salud_tipo: e.target.value, salud_id: '', plan_salud_uf: '' }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="fonasa">FONASA</option>
+                <option value="isapre">ISAPRE</option>
+              </select>
+              {newEmp.salud_tipo === 'isapre' && (
+                <>
+                  <select value={newEmp.salud_id} onChange={e => setNewEmp(p => ({ ...p, salud_id: e.target.value }))}
+                    className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                    <option value="">Isapre *</option>
+                    {ISAPRE_OPTIONS.map(i => <option key={i.id} value={i.id}>{i.label}</option>)}
+                  </select>
+                  <input placeholder="Plan pactado (UF)" type="number" step="0.01" value={newEmp.plan_salud_uf} onChange={e => setNewEmp(p => ({ ...p, plan_salud_uf: e.target.value }))}
+                    className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+                </>
+              )}
+            </div>
+          </section>
+
+          {/* Cargas familiares */}
+          <section className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Cargas familiares</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <label className="flex flex-col text-xs text-zinc-500 gap-1">
+                Cargas simples
+                <input type="number" min="0" value={newEmp.cargas_simples} onChange={e => setNewEmp(p => ({ ...p, cargas_simples: e.target.value }))}
+                  className="border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              </label>
+              <label className="flex flex-col text-xs text-zinc-500 gap-1">
+                Cargas maternales
+                <input type="number" min="0" value={newEmp.cargas_maternales} onChange={e => setNewEmp(p => ({ ...p, cargas_maternales: e.target.value }))}
+                  className="border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              </label>
+              <label className="flex flex-col text-xs text-zinc-500 gap-1">
+                Cargas de invalidez
+                <input type="number" min="0" value={newEmp.cargas_invalidez} onChange={e => setNewEmp(p => ({ ...p, cargas_invalidez: e.target.value }))}
+                  className="border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              </label>
+            </div>
+            <p className="text-xs text-zinc-400">Afectan la asignación familiar.</p>
+          </section>
+
+          {/* Datos de pago */}
+          <section className="space-y-3">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Datos de pago (opcional)</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input placeholder="Banco" value={newEmp.banco} onChange={e => setNewEmp(p => ({ ...p, banco: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+              <select value={newEmp.tipo_cuenta} onChange={e => setNewEmp(p => ({ ...p, tipo_cuenta: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white">
+                <option value="">Tipo de cuenta</option>
+                <option value="corriente">Cuenta Corriente</option>
+                <option value="vista">Cuenta Vista</option>
+                <option value="rut">Cuenta RUT</option>
+                <option value="ahorro">Ahorro</option>
+              </select>
+              <input placeholder="Número de cuenta" value={newEmp.numero_cuenta} onChange={e => setNewEmp(p => ({ ...p, numero_cuenta: e.target.value }))}
+                className="border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-300" />
+            </div>
+          </section>
+
           {empError && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{empError}</p>
           )}
           <div className="flex gap-2 justify-end">
             <button onClick={() => setShowAddForm(false)} className="px-4 py-2 text-sm text-zinc-600 border border-zinc-200 rounded-lg hover:bg-zinc-50">Cancelar</button>
-            <button onClick={handleAddEmpleado} disabled={savingEmp || !newEmp.nombre || !newEmp.rut}
+            <button onClick={handleAddEmpleado} disabled={savingEmp || !requiredBasicsOk}
               className="px-4 py-2 text-sm bg-zinc-900 text-white rounded-lg hover:bg-zinc-800 disabled:opacity-50">
               {savingEmp ? 'Guardando...' : 'Guardar Empleado'}
             </button>
