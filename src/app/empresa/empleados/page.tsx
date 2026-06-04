@@ -113,6 +113,17 @@ export default function EmpleadosPage() {
   });
   const [savingEmp, setSavingEmp] = useState(false);
   const [empError, setEmpError] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/buk/import', { method: 'POST' });
+      const d = await res.json();
+      if (d.ok) { alert(d.imported > 0 ? `Se importaron ${d.imported} empleado(s).` : 'No hay empleados nuevos para importar.'); await loadEmpleados(); }
+      else alert('No se pudo sincronizar, intentá más tarde.');
+    } catch { alert('No se pudo sincronizar, intentá más tarde.'); }
+    finally { setSyncing(false); }
+  };
 
   const loadEmpleados = useCallback(async () => {
     if (!empleadorId) { setLoading(false); return; }
@@ -282,6 +293,9 @@ export default function EmpleadosPage() {
           <h1 className="text-2xl font-bold text-zinc-900">Mis Colaboradores</h1>
           <p className="text-sm text-zinc-500 mt-1">{activos.length} empleado{activos.length !== 1 ? 's' : ''} activo{activos.length !== 1 ? 's' : ''}</p>
         </div>
+        <button onClick={handleSync} disabled={syncing} className="inline-flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50 transition-colors">
+          {syncing ? 'Sincronizando...' : 'Sincronizar empleados'}
+        </button>
         <button onClick={() => setShowAddForm(!showAddForm)} className="inline-flex items-center gap-2 rounded-lg bg-zinc-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-zinc-800 transition-colors">
           <Plus className="h-4 w-4" />
           Agregar Empleado
