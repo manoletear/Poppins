@@ -98,7 +98,7 @@ export class EmployeesModule {
    * Obtener colaboradores activos solamente.
    */
   async listActive(page = 1, pageSize?: number): Promise<BukListResponse<BukEmployeeSummary>> {
-    return this.list({ status: 'active' }, page, pageSize);
+    return this.list({}, page, pageSize);
   }
 
   /**
