@@ -340,3 +340,15 @@ export async function getBenefits() {
 
   return [];
 }
+
+
+export async function getVacations(employeeId: number) {
+  const token = process.env.BUK_API_TOKEN || '';
+  const base = (process.env.BUK_API_BASE_URL || 'https://app.buk.cl/api/v1/chile').replace(//$/, '');
+  try {
+    const r = await fetch(`${base}/vacations?employee_id=${employeeId}`, { headers: { auth_token: token, Accept: 'application/json' } });
+    if (!r.ok) return [];
+    const j: any = await r.json();
+    return (j?.data || []).map((v: any) => ({ inicio: v.start_date, fin: v.end_date, dias: v.working_days ?? v.calendar_days, estado: v.status, tipo: v.type }));
+  } catch { return []; }
+}

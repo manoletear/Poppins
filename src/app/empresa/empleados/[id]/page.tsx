@@ -169,6 +169,7 @@ export default function EmpleadoDetallePage() {
   const [bukState, setBukState] = useState<'idle' | 'found' | 'notfound'>('idle');
   const [bukEmpleado, setBukEmpleado] = useState<any>(null);
   const [bukLiquidaciones, setBukLiquidaciones] = useState<any[]>([]);
+  const [bukVacaciones, setBukVacaciones] = useState<any[]>([]);
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
@@ -218,7 +219,7 @@ export default function EmpleadoDetallePage() {
       .then((r) => r.json())
       .then((d) => {
         if (cancel) return;
-        if (d?.found) { setBukState('found'); setBukEmpleado(d.empleado); setBukLiquidaciones(d.liquidaciones || []); }
+        if (d?.found) { setBukState('found'); setBukEmpleado(d.empleado); setBukLiquidaciones(d.liquidaciones || []); setBukVacaciones(d.vacaciones || []); }
         else { setBukState('notfound'); }
       })
       .catch(() => { if (!cancel) setBukState('notfound'); });
@@ -362,6 +363,9 @@ export default function EmpleadoDetallePage() {
                   <div><span className="text-zinc-400 text-xs block">Ingreso</span>{bukEmpleado.fechaIngreso || '—'}</div>
                   <div><span className="text-zinc-400 text-xs block">Estado</span>{bukEmpleado.estado || '—'}</div>
                 </div>
+                {bukVacaciones.length > 0 && (
+                  <p className="mt-3 text-xs text-emerald-700">Vacaciones registradas: {bukVacaciones.length} solicitud(es) · {bukVacaciones.reduce((sum: number, v: any) => sum + (Number(v.dias) || 0), 0)} días hábiles</p>
+                )}
               </div>
             )}
           </div>
