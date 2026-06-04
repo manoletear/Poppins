@@ -37,20 +37,36 @@ export async function POST(request: NextRequest) {
     parts: [{ text: String(m.text || '').slice(0, 4000) }],
   }));
 
+  const payload = JSON.stringify({
+    systemInstruction: { parts: [{ text: SYSTEM + (contexto ? `\n\nContexto de la cuenta:\n${contexto}` : '') }] },
+    contents,
+    generationConfig: { temperature: 0.7, maxOutputTokens: 700 },
+  });
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  const debug = new URL(request.url).searchParams.get('debug') === '1';
+
   try {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-      {
+    let res = await fetch(`${url}?key=${encodeURIComponent(key)}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload,
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      const res2 = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: SYSTEM + (contexto ? `\n\nContexto de la cuenta:\n${contexto}` : '') }] },
-          contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 700 },
-        }),
-      },
-    );
-    if (!res.ok) throw new Error(`Gemini ${res.status}`);
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key, 'Authorization': `Bearer ${key}` },
+        body: payload,
+      });
+      if (!res2.ok) {
+        const err2 = await res2.text().catch(() => '');
+        return NextResponse.json({
+          reply: debug
+            ? `query(${res.status}): ${errText.slice(0, 350)} || header(${res2.status}): ${err2.slice(0, 350)}`
+            : 'El asistente no pudo autenticar con Gemini (revisá la API key). 🔑',
+          accion: null,
+        });
+      }
+      res = res2;
+    }
     const data: any = await res.json();
     const raw: string = data?.candidates?.[0]?.content?.parts?.[0]?.text || 'No pude responder ahora, probá de nuevo.';
 
