@@ -102,26 +102,40 @@ export async function getEmployee(id: number) {
   }
 
   const sdk = getBukSDK();
-  const emp = await sdk.employees.get(id);
+  const e = (await sdk.employees.get(id)) as any;
+  const cj = e.current_job || {};
+  const str = (v: any) => (typeof v === 'string' ? v : v?.name) || '';
   return {
-    id: emp.id,
-    nombre: emp.first_name || '',
-    apellido: emp.last_name || '',
-    nombreCompleto: emp.full_name || `${emp.first_name} ${emp.last_name}`,
-    rut: emp.rut || '',
-    cargo: emp.current_job?.role?.name || 'Sin cargo',
-    fechaIngreso: emp.hire_date || emp.current_job?.start_date || '',
-    estado: emp.active ? 'activo' as const : 'inactivo' as const,
-    tipoContrato: emp.contract_type || 'Indefinido',
-    sueldoBase: emp.base_salary || 0,
-    afp: emp.afp?.name || '',
-    salud: emp.health_plan?.name || 'Fonasa',
-    email: emp.email || '',
-    telefono: emp.phone || '',
-    direccion: emp.address || '',
-    iniciales: `${(emp.first_name || ' ')[0]}${(emp.last_name || ' ')[0]}`.toUpperCase(),
-    color: `hsl(${((emp.first_name || '').charCodeAt(0) * 137) % 360}, 60%, 45%)`,
-    empleador: emp.current_job?.company?.name || '',
+    id: e.id,
+    nombre: e.first_name || '',
+    apellido: e.surname || e.last_name || '',
+    apellidoMaterno: e.second_surname || '',
+    nombreCompleto: e.full_name || `${e.first_name || ''} ${e.surname || ''}`.trim(),
+    rut: e.rut || e.document_number || '',
+    cargo: cj.role?.name || cj.position?.name || cj.area?.name || cj.name || 'Sin cargo',
+    fechaIngreso: e.active_since || e.hire_date || cj.start_date || '',
+    estado: (e.status === 'activo' || e.active === true || (!e.active_until && e.active_since)) ? 'activo' as const : 'inactivo' as const,
+    tipoContrato: cj.contract_type || cj.type || e.contract_type || 'Indefinido',
+    sueldoBase: Number(cj.base_wage ?? cj.liquid_wage ?? cj.salary ?? cj.base_salary ?? cj.assignable_salary ?? e.base_salary ?? 0) || 0,
+    afp: str(e.pension_fund) || str(e.afp),
+    salud: str(e.health_company) || str(e.health_plan) || 'Fonasa',
+    email: e.email || e.personal_email || '',
+    telefono: e.phone || e.office_phone || '',
+    direccion: e.address || e.street || '',
+    iniciales: `${(e.first_name || ' ')[0]}${(e.surname || ' ')[0]}`.toUpperCase(),
+    color: `hsl(${((e.first_name || '').charCodeAt(0) * 137) % 360}, 60%, 45%)`,
+    empleador: cj.company?.name || '',
+    // Extras para importación
+    sexo: e.gender || '',
+    fechaNacimiento: e.birthday || '',
+    estadoCivil: e.civil_status || '',
+    nacionalidad: e.nationality || '',
+    comuna: e.district || '',
+    region: e.region || '',
+    banco: str(e.bank),
+    tipoCuenta: e.account_type || '',
+    numeroCuenta: e.account_number || '',
+    cargas: Array.isArray(e.family_responsabilities) ? e.family_responsabilities.length : 0,
   };
 }
 
