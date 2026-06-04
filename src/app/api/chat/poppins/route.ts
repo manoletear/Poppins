@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
     contents,
     generationConfig: { temperature: 0.7, maxOutputTokens: 700 },
   });
-  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent';
+  const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
   const debug = new URL(request.url).searchParams.get('debug') === '1';
 
   try {
