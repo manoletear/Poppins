@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getEmployees, getEmployee, getPayrollItems } from '@/lib/buk';
+import { getEmployees, getEmployee, getPayrollItems, getVacations } from '@/lib/buk';
 import { cleanRut } from '@/lib/validators';
 
 export const runtime = 'nodejs';
@@ -36,7 +36,9 @@ export async function GET(request: Request) {
       liquidaciones = [];
     }
 
-    return NextResponse.json({ found: true, empleado, liquidaciones });
+    let vacaciones: unknown[] = [];
+    try { vacaciones = await getVacations(match.id); } catch { vacaciones = []; }
+    return NextResponse.json({ found: true, empleado, liquidaciones, vacaciones });
   } catch {
     // BUK puede estar caído: no propagamos 500 ni filtramos tokens/stack.
     return NextResponse.json({ found: false, error: 'buk_unavailable' });
