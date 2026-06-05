@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Clock, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, Palmtree, Download, FileText, Printer, Share2 } from 'lucide-react';
+import { Clock, Calendar, ChevronLeft, ChevronRight, ChevronDown, Loader2, Palmtree, Download, FileText, Printer, Share2, Wallet } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { createClient } from '@/lib/supabase/client';
 
+const fmtCLP = (n: number) => '$' + Math.round(Number(n) || 0).toLocaleString('es-CL');
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const DIAS_SEM = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
 
@@ -114,6 +115,7 @@ export default function HorariosPage() {
   const [empleadorData, setEmpleadorData] = useState<any>(null);
   const [trabajadorData, setTrabajadorData] = useState<any>(null);
   const [vacEmpleados, setVacEmpleados] = useState<any[]>([]);
+  const [liqEmpleados, setLiqEmpleados] = useState<any[]>([]);
 
   const loadMarcajes = useCallback(async () => {
     if (!empleadorId) return;
@@ -193,6 +195,7 @@ export default function HorariosPage() {
 
   useEffect(() => {
     fetch('/api/buk/vacaciones').then((r) => r.json()).then((d) => { if (d?.ok) setVacEmpleados(d.items || []); }).catch(() => {});
+    fetch('/api/buk/liquidaciones').then((r) => r.json()).then((d) => { if (d?.ok) setLiqEmpleados(d.items || []); }).catch(() => {});
   }, []);
 
   // Aggregate helpers
@@ -465,6 +468,40 @@ export default function HorariosPage() {
                         })}
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {liqEmpleados.some((e) => e.liquidaciones.length > 0) && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <Wallet className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-sm font-semibold text-zinc-900">Liquidaciones por empleado</h3>
+              </div>
+              <div className="space-y-4">
+                {liqEmpleados.filter((e) => e.liquidaciones.length > 0).map((emp) => (
+                  <div key={emp.trabajadorId} className="rounded-lg border border-zinc-100 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <p className="font-semibold text-zinc-900 text-sm">{emp.nombre}</p>
+                      <div className="flex flex-wrap gap-1.5 text-[11px]">
+                        <span className="px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700">{emp.resumen.cantidad} liquidaciones</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">Último: {fmtCLP(emp.resumen.ultimoLiquido)}</span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      {emp.liquidaciones.map((l: any, i: number) => (
+                        <div key={i} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                          <span className="text-zinc-500">{l.periodo}</span>
+                          <span className="flex flex-wrap items-center gap-2">
+                            <span className="text-zinc-400">Haberes {fmtCLP(l.totalHaberes)}</span>
+                            <span className="text-rose-400">Desc. {fmtCLP(l.totalDescuentos)}</span>
+                            <span className="text-zinc-900 font-semibold">Líquido {fmtCLP(l.liquido)}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
