@@ -113,6 +113,7 @@ export default function HorariosPage() {
   const [vacFilterMes, setVacFilterMes] = useState('todos');
   const [empleadorData, setEmpleadorData] = useState<any>(null);
   const [trabajadorData, setTrabajadorData] = useState<any>(null);
+  const [vacEmpleados, setVacEmpleados] = useState<any[]>([]);
 
   const loadMarcajes = useCallback(async () => {
     if (!empleadorId) return;
@@ -189,6 +190,10 @@ export default function HorariosPage() {
   }, [empleadorId, vista, year, month, weekStart, day]);
 
   useEffect(() => { loadMarcajes(); }, [loadMarcajes]);
+
+  useEffect(() => {
+    fetch('/api/buk/vacaciones').then((r) => r.json()).then((d) => { if (d?.ok) setVacEmpleados(d.items || []); }).catch(() => {});
+  }, []);
 
   // Aggregate helpers
   const totalHoras = marcajes.reduce((s, m) => s + (m.horas_trabajadas || 0), 0);
@@ -422,6 +427,47 @@ export default function HorariosPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {vacEmpleados.length > 0 && (
+            <div className="rounded-xl border border-zinc-200 bg-white p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <Palmtree className="w-5 h-5 text-violet-500" />
+                <h3 className="text-sm font-semibold text-zinc-900">Vacaciones por empleado</h3>
+              </div>
+              <div className="space-y-4">
+                {vacEmpleados.map((emp) => (
+                  <div key={emp.trabajadorId} className="rounded-lg border border-zinc-100 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <p className="font-semibold text-zinc-900 text-sm">{emp.nombre}</p>
+                      <div className="flex flex-wrap gap-1.5 text-[11px]">
+                        <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{emp.resumen.solicitadas} solicitadas</span>
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{emp.resumen.aprobadas} aprobadas</span>
+                        <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{emp.resumen.tomadas} tomadas ({emp.resumen.diasTomados}d)</span>
+                        <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">{emp.resumen.rechazadas} rechazadas</span>
+                      </div>
+                    </div>
+                    {emp.vacaciones.length === 0 ? (
+                      <p className="text-xs text-zinc-400">Sin vacaciones registradas</p>
+                    ) : (
+                      <div className="space-y-1">
+                        {emp.vacaciones.map((v, i) => {
+                          const c = v.estado === 'tomada' ? 'bg-blue-100 text-blue-700' : v.estado === 'aprobada' ? 'bg-emerald-100 text-emerald-700' : v.estado === 'rechazada' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700';
+                          return (
+                            <div key={i} className="flex flex-wrap items-center gap-2 text-xs">
+                              <span className={'px-2 py-0.5 rounded-full font-medium capitalize ' + c}>{v.estado}</span>
+                              <span className="text-zinc-700 font-medium">{v.dias} días</span>
+                              <span className="text-zinc-400">{v.desde || '—'} → {v.hasta || '—'}</span>
+                              {v.tipo && <span className="text-zinc-400">· {v.tipo}</span>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
