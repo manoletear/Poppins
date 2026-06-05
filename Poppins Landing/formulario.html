@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agenda tu demo · Poppins</title>
+  <meta name="description" content="Déjanos tus datos y te mostramos cómo Poppins gestiona tu hogar y empleo doméstico 100% legal, sin papeleo." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Poppins:wght@700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    :root{
+      --navy:#1B1564;
+      --navy-2:#2D25A0;
+      --pink:#F0197A;
+      --pink-2:#FF4FA3;
+    }
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{
+      font-family:'Inter',system-ui,sans-serif;
+      color:#1f2937;
+      background:radial-gradient(1200px 600px at 50% -10%, #2D25A0 0%, #1B1564 45%, #14123A 100%);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:32px 18px;
+    }
+    .wrap{
+      width:100%;
+      max-width:560px;
+    }
+    .card{
+      background:#fff;
+      border-radius:24px;
+      padding:38px 34px 34px;
+      box-shadow:0 40px 90px rgba(0,0,0,.45);
+    }
+    .brand{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin-bottom:24px;
+    }
+    .brand-mark{
+      width:38px;height:38px;border-radius:11px;
+      background:linear-gradient(135deg,var(--pink),var(--pink-2));
+      display:flex;align-items:center;justify-content:center;
+      box-shadow:0 8px 20px rgba(240,25,122,.4);
+    }
+    .brand-name{
+      font-family:'Poppins',sans-serif;
+      font-weight:800;
+      font-size:20px;
+      color:var(--navy);
+    }
+    .eyebrow{
+      display:inline-flex;align-items:center;gap:7px;
+      font-size:12px;font-weight:700;letter-spacing:.04em;
+      color:var(--pink);
+      background:rgba(240,25,122,.1);
+      padding:6px 12px;border-radius:999px;
+      margin-bottom:14px;
+    }
+    .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--pink);}
+    h1{
+      font-family:'Poppins',sans-serif;
+      font-size:clamp(24px,4vw,30px);
+      line-height:1.15;
+      color:var(--navy);
+      margin-bottom:10px;
+    }
+    h1 .grad{
+      background:linear-gradient(135deg,var(--pink),var(--pink-2));
+      -webkit-background-clip:text;background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+    .sub{
+      font-size:15px;
+      color:#6B7280;
+      line-height:1.55;
+      margin-bottom:26px;
+    }
+    .trust{
+      display:flex;flex-wrap:wrap;gap:8px 16px;
+      margin-top:26px;padding-top:20px;
+      border-top:1px solid #EEF1F6;
+    }
+    .trust-item{
+      display:inline-flex;align-items:center;gap:6px;
+      font-size:12.5px;font-weight:600;color:#4B5563;
+    }
+    .trust-item svg{width:15px;height:15px;stroke:var(--pink);}
+    .hs-form-frame{margin-top:6px;}
+    .foot{
+      text-align:center;
+      margin-top:22px;
+      font-size:12.5px;
+    }
+    .foot a{color:rgba(255,255,255,.75);text-decoration:none;font-weight:600;}
+    .foot a:hover{color:#fff;text-decoration:underline;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M23 12a11.05 11.05 0 0 0-22 0zM12 12v7a3 3 0 0 1-6 0"/></svg>
+        </div>
+        <span class="brand-name">Poppins</span>
+      </div>
+
+      <div class="eyebrow"><span class="dot"></span>Demo gratis · 30 días sin tarjeta</div>
+      <h1>Te mostramos cómo <span class="grad">funciona Poppins</span></h1>
+      <p class="sub">Déjanos tus datos y te contactamos para mostrarte cómo gestionar tu hogar y empleo doméstico 100% legal: contratos, liquidaciones automáticas, tareas y pagos — todo en un solo lugar.</p>
+
+      <!-- HubSpot Form -->
+      <script src="https://js.hsforms.net/forms/embed/24156430.js" defer></script>
+      <div class="hs-form-frame" data-region="na1" data-form-id="39c5f48b-1763-4a34-bf9f-68549014cc5e" data-portal-id="24156430"></div>
+
+      <div class="trust">
+        <span class="trust-item"><svg fill="none" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>100% legal</span>
+        <span class="trust-item"><svg fill="none" stroke-width="2.5" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>Datos protegidos</span>
+        <span class="trust-item"><svg fill="none" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Sin papeleo</span>
+      </div>
+    </div>
+
+    <div class="foot">
+      <a href="index.html" onclick="if(window.opener){window.close();return false;}">← Volver a la página</a>
+    </div>
+  </div>
+</body>
+</html>
