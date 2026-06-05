@@ -344,7 +344,7 @@ export async function getBenefits() {
 
 export async function getVacations(employeeId: number) {
   const token = process.env.BUK_API_TOKEN || '';
-  const base = (process.env.BUK_API_BASE_URL || 'https://app.buk.cl/api/v1/chile').replace(//$/, '');
+  const base = process.env.BUK_API_BASE_URL || 'https://app.buk.cl/api/v1/chile';
   try {
     const r = await fetch(`${base}/vacations?employee_id=${employeeId}`, { headers: { auth_token: token, Accept: 'application/json' } });
     if (!r.ok) return [];
