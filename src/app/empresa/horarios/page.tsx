@@ -452,7 +452,7 @@ export default function HorariosPage() {
                       <p className="text-xs text-zinc-400">Sin vacaciones registradas</p>
                     ) : (
                       <div className="space-y-1">
-                        {emp.vacaciones.map((v, i) => {
+                        {emp.vacaciones.map((v: any, i: number) => {
                           const c = v.estado === 'tomada' ? 'bg-blue-100 text-blue-700' : v.estado === 'aprobada' ? 'bg-emerald-100 text-emerald-700' : v.estado === 'rechazada' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700';
                           return (
                             <div key={i} className="flex flex-wrap items-center gap-2 text-xs">

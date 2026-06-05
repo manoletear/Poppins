@@ -518,7 +518,7 @@ export default function EmpleadoDetallePage() {
                   {bukLiquidaciones.slice(0, 12).map((l: any, i: number) => (
                     <div key={i} className="flex items-center justify-between text-sm bg-white rounded-lg px-3 py-2 border border-emerald-100">
                       <span className="text-zinc-700">{l.period || l.periodo || l.month || l.fecha || `Ítem ${i + 1}`}</span>
-                      <span className="font-medium text-zinc-900">{typeof l.amount === 'number' ? formatCLP(l.amount) : typeof l.monto === 'number' ? formatCLP(l.monto) : (l.name || l.concepto || '')}</span>
+                      <span className="font-medium text-zinc-900">{typeof l.liquido === 'number' ? formatCLP(l.liquido) : typeof l.amount === 'number' ? formatCLP(l.amount) : typeof l.monto === 'number' ? formatCLP(l.monto) : (l.name || l.concepto || '')}</span>
                     </div>
                   ))}
                 </div>

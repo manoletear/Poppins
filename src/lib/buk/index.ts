@@ -185,40 +185,61 @@ export async function getPayrollItems(employeeId?: number) {
     // Supabase no disponible
   }
 
-  // Fallback: BUK SDK
-  const sdk = getBukSDK();
-  const processes = await sdk.payroll.listAllProcesses();
-  const allItems = [];
-  for (const process of processes) {
-    const items = await sdk.payroll.listAllItems(
-      process.id,
-      employeeId ? { employee_id: employeeId } : undefined
-    );
-    allItems.push(...items);
+  // Fallback: BUK API /accounting?month&year — un grupo por empleado/mes con líneas contables.
+  // (El endpoint /payroll_processes no existe en estas instancias; /process solo trae cabecera.)
+  const token = process.env.BUK_API_TOKEN || '';
+  const base = process.env.BUK_API_BASE_URL || 'https://app.buk.cl/api/v1/chile';
+  const now = new Date();
+  const sum = (arr: { amount?: number }[]) => arr.reduce((a, x) => a + (Number(x.amount) || 0), 0);
+  const isEmployerCost = (d: string) => /empleador|mutual/i.test(d); // costos del empleador, no del trabajador
+  const out: Record<string, unknown>[] = [];
+
+  for (let i = 0; i < 12; i++) {
+    const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const month = dt.getMonth() + 1;
+    const year = dt.getFullYear();
+    let groups: { id: number; items?: { description: string; amount: number; entry_type: string }[] }[] = [];
+    try {
+      const r = await fetch(`${base}/accounting?month=${month}&year=${year}`, { headers: { auth_token: token, Accept: 'application/json' } });
+      if (!r.ok) continue;
+      const j = await r.json();
+      groups = j?.data || [];
+    } catch { continue; }
+
+    for (const g of groups) {
+      if (employeeId && g.id !== employeeId) continue;
+      const items = g.items || [];
+      const amt = (re: RegExp) => { const it = items.find(x => re.test(x.description) && x.entry_type === 'credit'); return it ? Number(it.amount) || 0 : 0; };
+      const haber = (re: RegExp) => { const it = items.find(x => re.test(x.description) && x.entry_type === 'debit'); return it ? Number(it.amount) || 0 : 0; };
+      const haberes = items.filter(x => x.entry_type === 'debit' && !isEmployerCost(x.description));
+      const descuentos = items.filter(x => x.entry_type === 'credit' && !/l[ií]quido/i.test(x.description) && !isEmployerCost(x.description));
+      const liquidoItem = items.find(x => /l[ií]quido/i.test(x.description));
+      const totalHaberes = sum(haberes);
+      const totalDescuentos = sum(descuentos);
+      out.push({
+        id: g.id * 100 + i,
+        empleadoId: g.id,
+        periodo: `${year}-${String(month).padStart(2, '0')}`,
+        sueldoBruto: totalHaberes,
+        sueldoBase: haber(/sueldo base/i),
+        horasExtra: haber(/hora.*extra|sobretiempo/i),
+        bonos: haber(/bono/i),
+        gratificacion: haber(/gratificaci/i),
+        descSalud: amt(/isapre|fonasa|salud/i),
+        descAfp: amt(/previsi|afp/i),
+        descCesantia: (items.find(x => x.entry_type === 'credit' && /cesant/i.test(x.description) && !isEmployerCost(x.description))?.amount) || 0,
+        impuestoUnico: amt(/impuesto/i),
+        otrosDescuentos: 0,
+        totalHaberes,
+        totalDescuentos,
+        liquido: liquidoItem ? Number(liquidoItem.amount) || 0 : totalHaberes - totalDescuentos,
+        estado: 'Pagado',
+        fechaPago: null,
+        items,
+      });
+    }
   }
-  const filtered = employeeId
-    ? allItems.filter(i => i.employee_id === employeeId)
-    : allItems;
-  return filtered.map(item => ({
-    id: item.id,
-    empleadoId: item.employee_id,
-    periodo: item.period,
-    sueldoBruto: item.total_earnings,
-    sueldoBase: item.base_salary,
-    horasExtra: item.overtime_amount,
-    bonos: item.bonuses,
-    gratificacion: item.gratification,
-    descSalud: item.health_amount,
-    descAfp: item.afp_amount,
-    descCesantia: item.unemployment_insurance,
-    impuestoUnico: item.tax_amount,
-    otrosDescuentos: item.other_deductions,
-    totalHaberes: item.total_earnings,
-    totalDescuentos: item.total_deductions,
-    liquido: item.net_salary,
-    estado: item.status === 'paid' ? 'Pagado' : 'Pendiente',
-    fechaPago: item.payment_date || null,
-  }));
+  return out;
 }
 
 // ── Absences ──
