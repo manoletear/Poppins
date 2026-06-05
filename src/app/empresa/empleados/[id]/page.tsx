@@ -364,7 +364,24 @@ export default function EmpleadoDetallePage() {
                   <div><span className="text-zinc-400 text-xs block">Estado</span>{bukEmpleado.estado || '—'}</div>
                 </div>
                 {bukVacaciones.length > 0 && (
-                  <p className="mt-3 text-xs text-emerald-700">Vacaciones registradas: {bukVacaciones.length} solicitud(es) · {bukVacaciones.reduce((sum: number, v: any) => sum + (Number(v.dias) || 0), 0)} días hábiles</p>
+                  <div className="mt-4">
+                    <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide mb-2">Vacaciones</p>
+                    <div className="space-y-1.5">
+                      {bukVacaciones.map((v, i) => {
+                        const st = String(v.estado || '').toLowerCase();
+                        const fin = v.fin ? new Date(v.fin + 'T00:00:00') : null;
+                        const e = st.includes('reject') || st.includes('rechaz') || st.includes('cancel') || st.includes('denied') ? 'rechazada' : (st.includes('approv') || st.includes('aprob') || st.includes('acept') ? (fin && fin < new Date() ? 'tomada' : 'aprobada') : 'solicitada');
+                        const c = e === 'tomada' ? 'bg-blue-100 text-blue-700' : e === 'aprobada' ? 'bg-emerald-100 text-emerald-700' : e === 'rechazada' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700';
+                        return (
+                          <div key={i} className="flex flex-wrap items-center gap-2 text-xs">
+                            <span className={'px-2 py-0.5 rounded-full font-medium capitalize ' + c}>{e}</span>
+                            <span className="text-zinc-700 font-medium">{Number(v.dias) || 0} días</span>
+                            <span className="text-zinc-400">{v.inicio || '—'} → {v.fin || '—'}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 )}
               </div>
             )}
