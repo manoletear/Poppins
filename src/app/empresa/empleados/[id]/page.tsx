@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth/context';
 import {
   ArrowLeft, FileText, Calendar, Clock, Mail, Phone, MapPin,
   Briefcase, Shield, DollarSign, Palmtree, Printer, Loader2, AlertCircle, User, Download, Camera,
-  CheckCircle2, Bell, Send, BadgeCheck,
+  CheckCircle2, Bell, Send, BadgeCheck, Plus, Trash2,
 } from 'lucide-react';
 
 type TabKey = 'resumen' | 'contrato' | 'liquidaciones' | 'vacaciones' | 'licencias' | 'asistencia';
@@ -207,6 +207,9 @@ export default function EmpleadoDetallePage() {
   const [expandedLiq, setExpandedLiq] = useState<string | null>(null);
   const [asistenciaPeriodo, setAsistenciaPeriodo] = useState<'semana' | 'mes' | 'todo'>('mes');
   const [allMarcajes, setAllMarcajes] = useState<any[]>([]);
+  const [showMarcajeForm, setShowMarcajeForm] = useState(false);
+  const [nuevoMarcaje, setNuevoMarcaje] = useState({ fecha: '', hora_entrada: '', hora_salida: '' });
+  const [savingMarcaje, setSavingMarcaje] = useState(false);
   // BUK enrichment by RUT
   const [bukState, setBukState] = useState<'idle' | 'found' | 'notfound'>('idle');
   const [bukEmpleado, setBukEmpleado] = useState<any>(null);
@@ -297,6 +300,43 @@ export default function EmpleadoDetallePage() {
       toque_enviado_at: new Date().toISOString(),
     }).eq('id', liqId);
     setLiquidaciones(prev => prev.map(l => l.id === liqId ? { ...l, toque_enviado: true, toque_enviado_at: new Date().toISOString() } : l));
+  };
+
+  // Marcajes manuales (Buk no expone asistencia por API → registro manual en Supabase)
+  const calcHoras = (entrada?: string, salida?: string) => {
+    if (!entrada || !salida) return null;
+    const [eh, em] = entrada.split(':').map(Number);
+    const [sh, sm] = salida.split(':').map(Number);
+    if ([eh, em, sh, sm].some(isNaN)) return null;
+    const diff = (sh * 60 + sm) - (eh * 60 + em);
+    return diff > 0 ? Math.round((diff / 60) * 10) / 10 : null;
+  };
+  const agregarMarcaje = async () => {
+    const empId = profile?.empleador_id || empleador?.id;
+    if (!nuevoMarcaje.fecha || !empId) return;
+    setSavingMarcaje(true);
+    const supabase = createClient();
+    const row = {
+      empleador_id: empId,
+      trabajador_id: id,
+      fecha: nuevoMarcaje.fecha,
+      hora_entrada: nuevoMarcaje.hora_entrada || null,
+      hora_salida: nuevoMarcaje.hora_salida || null,
+      horas_trabajadas: calcHoras(nuevoMarcaje.hora_entrada, nuevoMarcaje.hora_salida),
+      tipo: 'manual',
+    };
+    const { data, error } = await supabase.from('marcajes_horario').insert(row as never).select().single();
+    if (!error && data) {
+      setAllMarcajes(prev => [data, ...prev].sort((a, b) => String(b.fecha).localeCompare(String(a.fecha))));
+      setNuevoMarcaje({ fecha: '', hora_entrada: '', hora_salida: '' });
+      setShowMarcajeForm(false);
+    }
+    setSavingMarcaje(false);
+  };
+  const borrarMarcaje = async (mId: string) => {
+    const supabase = createClient();
+    await supabase.from('marcajes_horario').delete().eq('id', mId);
+    setAllMarcajes(prev => prev.filter(m => m.id !== mId));
   };
 
   // Upload worker photo
@@ -876,7 +916,7 @@ export default function EmpleadoDetallePage() {
             );
           }
 
-          // Normal attendance (asesora, etc.)
+          // Normal attendance (asesora, etc.) — Buk no expone marcajes por API; registro manual.
           return (
             <div>
               <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
@@ -890,6 +930,10 @@ export default function EmpleadoDetallePage() {
                       </button>
                     ))}
                   </div>
+                  <button onClick={() => setShowMarcajeForm(v => !v)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition">
+                    <Plus className="w-3.5 h-3.5" /> Marcaje
+                  </button>
                   {filteredMarcajes.length > 0 && (
                     <button onClick={() => openPrintWindow(generateAsistenciaHTML(worker, filteredMarcajes, empleador))}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-violet-700 transition">
@@ -898,6 +942,26 @@ export default function EmpleadoDetallePage() {
                   )}
                 </div>
               </div>
+              {showMarcajeForm && (
+                <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+                  <label className="flex flex-col text-xs text-zinc-500">Fecha
+                    <input type="date" value={nuevoMarcaje.fecha} onChange={e => setNuevoMarcaje(m => ({ ...m, fecha: e.target.value }))}
+                      className="mt-1 rounded-md border border-zinc-300 px-2 py-1 text-sm text-zinc-900" />
+                  </label>
+                  <label className="flex flex-col text-xs text-zinc-500">Entrada
+                    <input type="time" value={nuevoMarcaje.hora_entrada} onChange={e => setNuevoMarcaje(m => ({ ...m, hora_entrada: e.target.value }))}
+                      className="mt-1 rounded-md border border-zinc-300 px-2 py-1 text-sm text-zinc-900" />
+                  </label>
+                  <label className="flex flex-col text-xs text-zinc-500">Salida
+                    <input type="time" value={nuevoMarcaje.hora_salida} onChange={e => setNuevoMarcaje(m => ({ ...m, hora_salida: e.target.value }))}
+                      className="mt-1 rounded-md border border-zinc-300 px-2 py-1 text-sm text-zinc-900" />
+                  </label>
+                  <button onClick={agregarMarcaje} disabled={!nuevoMarcaje.fecha || savingMarcaje}
+                    className="rounded-lg bg-violet-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-violet-700 transition disabled:opacity-50">
+                    {savingMarcaje ? 'Guardando…' : 'Guardar'}
+                  </button>
+                </div>
+              )}
               {filteredMarcajes.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin marcajes en este período.</p> : (
                 <>
                   <table className="w-full text-sm">
@@ -906,14 +970,21 @@ export default function EmpleadoDetallePage() {
                       <th className="px-4 py-2 text-left font-medium text-zinc-500">Entrada</th>
                       <th className="px-4 py-2 text-left font-medium text-zinc-500">Salida</th>
                       <th className="px-4 py-2 text-left font-medium text-zinc-500">Horas</th>
+                      <th className="px-4 py-2"></th>
                     </tr></thead>
                     <tbody className="divide-y divide-zinc-100">
                       {filteredMarcajes.map(m => (
-                        <tr key={m.id} className="hover:bg-zinc-50">
+                        <tr key={m.id} className="hover:bg-zinc-50 group">
                           <td className="px-4 py-2">{new Date(m.fecha).toLocaleDateString('es-CL')}</td>
                           <td className="px-4 py-2">{m.hora_entrada || '-'}</td>
                           <td className="px-4 py-2">{m.hora_salida || '-'}</td>
                           <td className="px-4 py-2">{m.horas_trabajadas ? `${m.horas_trabajadas.toFixed(1)}h` : '-'}</td>
+                          <td className="px-4 py-2 text-right">
+                            <button onClick={() => borrarMarcaje(m.id)} title="Eliminar marcaje"
+                              className="p-1 rounded text-zinc-300 hover:text-red-600 hover:bg-red-50 transition opacity-0 group-hover:opacity-100">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
