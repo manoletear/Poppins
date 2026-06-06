@@ -401,3 +401,30 @@ export async function getVacations(employeeId: number) {
       .map((v: any) => ({ inicio: v.start_date, fin: v.end_date, dias: v.working_days ?? v.calendar_days, estado: v.status, tipo: v.type }));
   } catch { return []; }
 }
+
+export async function getMedicalLicenses(employeeId: number) {
+  const token = process.env.BUK_API_TOKEN || '';
+  const base = process.env.BUK_API_BASE_URL || 'https://app.buk.cl/api/v1/chile';
+  const esLicencia = (v: any) => {
+    const t = `${v.absence_type || ''} ${v.absence_subtype || ''} ${v.subtype || ''} ${v.type || ''} ${v.tipo || ''}`.toLowerCase();
+    return /licen|m[eé]dic|enferm|isapre|reposo|accident|salud/.test(t) || v.absence_type === 'license';
+  };
+  try {
+    const r = await fetch(`${base}/absences?employee_id=${employeeId}`, { headers: { auth_token: token, Accept: 'application/json' } });
+    if (!r.ok) return [];
+    const j: any = await r.json();
+    // El endpoint suele ignorar el filtro employee_id; filtramos client-side y nos quedamos con licencias.
+    return (j?.data || [])
+      .filter((v: any) => Number(v.employee_id) === Number(employeeId))
+      .filter(esLicencia)
+      .map((v: any) => ({
+        inicio: v.start_date || v.fecha_inicio || v.from || null,
+        fin: v.end_date || v.fecha_fin || v.to || null,
+        dias: Number(v.days ?? v.working_days ?? v.calendar_days ?? v.dias) || 0,
+        estado: v.status || v.estado || '',
+        tipo: v.absence_subtype || v.subtype || v.absence_type || v.type || v.tipo || 'Licencia médica',
+        folio: v.folio || v.number || v.numero || '',
+        observaciones: v.observations || v.observaciones || v.comment || '',
+      }));
+  } catch { return []; }
+}
