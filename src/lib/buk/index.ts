@@ -136,6 +136,30 @@ export async function getEmployee(id: number) {
     tipoCuenta: e.account_type || '',
     numeroCuenta: e.account_number || '',
     cargas: Array.isArray(e.family_responsabilities) ? e.family_responsabilities.length : 0,
+    // Datos previsionales / laborales adicionales (Buk)
+    apellidoPaterno: e.surname || '',
+    codigoFicha: e.code_sheet || '',
+    emailPersonal: e.personal_email || '',
+    regimenPrevisional: e.pension_regime || '',
+    seguroCesantia: e.afc || '',
+    metodoPago: e.payment_method || '',
+    periodoPago: e.payment_period || cj.periodicity || '',
+    anticipo: e.advance_payment || '',
+    monedaPago: e.payment_currency || cj.currency_code || 'CLP',
+    inicioVacacionesProgresivas: e.progressive_vacations_start || '',
+    jubilado: e.retired === true,
+    // Contrato (current_job)
+    horasSemanales: Number(cj.weekly_hours) || 0,
+    tipoJornada: cj.working_schedule_type || '',
+    fechaInicioContrato: cj.start_date || '',
+    fechaTerminoContrato: cj.end_date || cj.contract_finishing_date_1 || null,
+    fechaSuscripcion: cj.contract_subscription_date || '',
+    centroCosto: cj.cost_center || '',
+    jefe: cj.boss?.full_name || cj.boss?.rut || '',
+    gratificacionLegal: cj.reward === true,
+    diasTrabajo: Array.isArray(cj.days) ? cj.days.length : 0,
+    // Cargas familiares (tramo)
+    tramoAsignacion: (Array.isArray(e.family_responsabilities) && e.family_responsabilities[0]?.family_allowance_section) || '',
   };
 }
 
