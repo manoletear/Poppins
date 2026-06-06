@@ -467,6 +467,28 @@ export default function LiquidacionesEmpresaPage() {
         ))}
       </div>
 
+      {periodos.length > 0 && (
+        <div className="rounded-xl border border-zinc-200 bg-white p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="h-5 w-5 text-indigo-500" />
+            <h3 className="text-sm font-semibold text-zinc-900">Archivos Previred por período</h3>
+          </div>
+          <p className="text-xs text-zinc-500 mb-3">Planilla de cotizaciones (CSV) generada con los montos reales de cada proceso mensual.</p>
+          <div className="flex flex-wrap gap-2">
+            {periodos.map((p) => {
+              const [y, m] = p.split('-');
+              return (
+                <a key={p} href={`/api/buk/previred?month=${Number(m)}&year=${y}`}
+                  className="inline-flex items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-100 transition">
+                  <Download className="h-4 w-4" /> Previred {periodoLabel(p)}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+
       {/* ---- Table ---- */}
       <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
         <div className="overflow-x-auto">
