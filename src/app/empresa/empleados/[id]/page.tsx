@@ -12,7 +12,7 @@ import {
   CheckCircle2, Bell, Send, BadgeCheck,
 } from 'lucide-react';
 
-type TabKey = 'resumen' | 'contrato' | 'liquidaciones' | 'asistencia';
+type TabKey = 'resumen' | 'contrato' | 'liquidaciones' | 'vacaciones' | 'asistencia';
 
 function getTabsForCargo(cargo: string): { key: TabKey; label: string }[] {
   const c = (cargo || '').toLowerCase();
@@ -21,6 +21,7 @@ function getTabsForCargo(cargo: string): { key: TabKey; label: string }[] {
       { key: 'resumen', label: 'Resumen' },
       { key: 'contrato', label: 'Contrato de Servicios' },
       { key: 'liquidaciones', label: 'Servicios' },
+      { key: 'vacaciones', label: 'Vacaciones' },
       { key: 'asistencia', label: 'Asistencia' },
     ];
   }
@@ -28,6 +29,7 @@ function getTabsForCargo(cargo: string): { key: TabKey; label: string }[] {
     { key: 'resumen', label: 'Resumen' },
     { key: 'contrato', label: 'Contrato' },
     { key: 'liquidaciones', label: 'Liquidaciones' },
+    { key: 'vacaciones', label: 'Vacaciones' },
     { key: 'asistencia', label: 'Asistencia' },
   ];
 }
@@ -115,6 +117,43 @@ ${liq.asignacion_familiar > 0 ? `<tr><td>Asignación Familiar</td><td class="amt
 ${liq.impuesto_unico > 0 ? `<tr><td>Impuesto Único</td><td class="amt">${formatCLP(liq.impuesto_unico)}</td></tr>` : ''}
 <tr class="tot"><td>Total Descuentos</td><td class="amt">${formatCLP(liq.total_descuentos)}</td></tr></tbody></table>
 <table><tbody><tr class="final"><td>SUELDO LÍQUIDO A PAGAR</td><td class="amt">${formatCLP(liq.liquido_pagar)}</td></tr></tbody></table>
+</body></html>`;
+}
+
+// ── Liquidación PDF generator (datos de Buk: lista todos los conceptos crudos) ──
+function generateBukLiquidacionHTML(worker: any, liq: any, empleador: any) {
+  const isEmployerCost = (d: string) => /empleador|mutual/i.test(d);
+  const items: any[] = Array.isArray(liq.items) ? liq.items : [];
+  const haberes = items.filter((x) => x.entry_type === 'debit' && !isEmployerCost(x.description));
+  const descuentos = items.filter((x) => x.entry_type === 'credit' && !/l[ií]quido/i.test(x.description) && !isEmployerCost(x.description));
+  const r = (lab: string, val: number) => `<tr><td>${lab}</td><td class="amt">${formatCLP(val)}</td></tr>`;
+  const haberesRows = haberes.length ? haberes.map((x) => r(x.description, Number(x.amount) || 0)).join('') : r('Sueldo Base', liq.sueldoBase || 0) + r('Gratificación', liq.gratificacion || 0);
+  const descRows = descuentos.length ? descuentos.map((x) => r(x.description, Number(x.amount) || 0)).join('') : r('AFP', liq.descAfp || 0) + r('Salud', liq.descSalud || 0) + r('Cesantía', liq.descCesantia || 0) + r('Impuesto', liq.impuestoUnico || 0);
+  return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Liquidación ${liq.periodo}</title>
+<style>body{font-family:Arial,sans-serif;max-width:700px;margin:30px auto;padding:30px;color:#1a1a1a;font-size:13px}
+h1{text-align:center;font-size:18px;margin-bottom:4px}.sub{text-align:center;color:#666;margin-bottom:24px;font-size:14px}
+.info{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px;padding:16px;background:#f9fafb;border-radius:8px}
+.info div{font-size:13px}.info strong{color:#333}
+table{width:100%;border-collapse:collapse;margin-bottom:20px}
+th{background:#f3f4f6;text-align:left;padding:8px 12px;font-size:12px;text-transform:uppercase;color:#666;border-bottom:2px solid #e5e7eb}
+td{padding:8px 12px;border-bottom:1px solid #e5e7eb}.amt{text-align:right;font-variant-numeric:tabular-nums}
+.tot{font-weight:bold;background:#f9fafb}.final{font-size:16px;font-weight:bold;background:#ecfdf5}
+.sec{font-weight:bold;font-size:14px;margin:20px 0 8px;color:#333}
+@media print{body{margin:0;padding:20px}}</style></head><body>
+<h1>LIQUIDACIÓN DE SUELDO</h1><p class="sub">${liq.periodo}</p>
+<div class="info"><div><strong>Empleador:</strong> ${empleador?.nombre || ''} ${empleador?.apellido || ''}</div>
+<div><strong>RUT Empleador:</strong> ${empleador?.rut || ''}</div>
+<div><strong>Trabajador(a):</strong> ${worker.nombre} ${worker.apellido_paterno || ''}</div>
+<div><strong>RUT:</strong> ${worker.rut}</div>
+<div><strong>Cargo:</strong> ${worker.cargo || ''}</div></div>
+<p class="sec">Haberes</p><table><thead><tr><th>Concepto</th><th class="amt">Monto</th></tr></thead><tbody>
+${haberesRows}
+<tr class="tot"><td>Total Haberes</td><td class="amt">${formatCLP(liq.totalHaberes || 0)}</td></tr></tbody></table>
+<p class="sec">Descuentos</p><table><thead><tr><th>Concepto</th><th class="amt">Monto</th></tr></thead><tbody>
+${descRows}
+<tr class="tot"><td>Total Descuentos</td><td class="amt">${formatCLP(liq.totalDescuentos || 0)}</td></tr></tbody></table>
+<table><tbody><tr class="final"><td>SUELDO LÍQUIDO A PAGAR</td><td class="amt">${formatCLP(liq.liquido || 0)}</td></tr></tbody></table>
+<script>window.onload=function(){window.print()}</script>
 </body></html>`;
 }
 
@@ -573,9 +612,19 @@ export default function EmpleadoDetallePage() {
                 <p className="text-xs font-semibold text-emerald-800 uppercase mb-2 flex items-center gap-1"><BadgeCheck className="w-3.5 h-3.5" /> Liquidaciones anteriores</p>
                 <div className="space-y-1.5">
                   {bukLiquidaciones.slice(0, 12).map((l: any, i: number) => (
-                    <div key={i} className="flex items-center justify-between text-sm bg-white rounded-lg px-3 py-2 border border-emerald-100">
-                      <span className="text-zinc-700">{l.period || l.periodo || l.month || l.fecha || `Ítem ${i + 1}`}</span>
-                      <span className="font-medium text-zinc-900">{typeof l.liquido === 'number' ? formatCLP(l.liquido) : typeof l.amount === 'number' ? formatCLP(l.amount) : typeof l.monto === 'number' ? formatCLP(l.monto) : (l.name || l.concepto || '')}</span>
+                    <div key={i} onClick={() => openPrintWindow(generateBukLiquidacionHTML(worker, l, empleador))} title="Ver liquidación en PDF"
+                      className="flex items-center justify-between text-sm bg-white rounded-lg px-3 py-2 border border-emerald-100 hover:bg-emerald-50 cursor-pointer transition">
+                      <div className="flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-emerald-500" />
+                        <span className="text-zinc-700">{l.periodo || l.period || `Ítem ${i + 1}`}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-zinc-900">{typeof l.liquido === 'number' ? formatCLP(l.liquido) : (typeof l.amount === 'number' ? formatCLP(l.amount) : '')}</span>
+                        <button onClick={(e) => { e.stopPropagation(); openPrintWindow(generateBukLiquidacionHTML(worker, l, empleador)); }}
+                          className="p-1.5 rounded-lg hover:bg-emerald-100 text-emerald-600 transition" title="Descargar PDF">
+                          <Download className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -644,6 +693,66 @@ export default function EmpleadoDetallePage() {
               ))
             )}
           </div>
+          );
+        })()}
+
+        {/* VACACIONES */}
+        {activeTab === 'vacaciones' && (() => {
+          const clasif = (v: any) => {
+            const st = String(v.estado || '').toLowerCase();
+            const fin = v.fin ? new Date(v.fin + 'T00:00:00') : null;
+            if (st.includes('reject') || st.includes('rechaz') || st.includes('cancel') || st.includes('denied')) return 'rechazada';
+            if (st.includes('approv') || st.includes('aprob') || st.includes('acept')) return (fin && fin < new Date()) ? 'tomada' : 'aprobada';
+            return 'por_aprobar';
+          };
+          const vac = bukVacaciones.map((v: any) => ({ ...v, _e: clasif(v) }));
+          const dias = (e: string) => vac.filter((v: any) => v._e === e).reduce((s: number, v: any) => s + (Number(v.dias) || 0), 0);
+          const cnt = (e: string) => vac.filter((v: any) => v._e === e).length;
+          const ingreso = bukEmpleado?.fechaIngreso || contrato?.fecha_inicio;
+          const meses = ingreso ? Math.max(0, (new Date().getFullYear() - new Date(ingreso).getFullYear()) * 12 + (new Date().getMonth() - new Date(ingreso).getMonth())) : 0;
+          const acumuladas = Math.round(meses * 1.25 * 10) / 10;
+          const tomadas = dias('tomada');
+          const reservadas = dias('aprobada');
+          const disponibles = Math.round((acumuladas - tomadas - reservadas) * 10) / 10;
+          const cards: [string, string, string][] = [
+            ['Acumuladas', `${acumuladas} días`, 'bg-violet-50 text-violet-700'],
+            ['Tomadas', `${tomadas} días`, 'bg-blue-50 text-blue-700'],
+            ['Disponibles', `${disponibles} días`, 'bg-emerald-50 text-emerald-700'],
+            ['Por aprobar', `${cnt('por_aprobar')} (${dias('por_aprobar')}d)`, 'bg-amber-50 text-amber-700'],
+            ['Aprobadas', `${cnt('aprobada')} (${reservadas}d)`, 'bg-teal-50 text-teal-700'],
+            ['Rechazadas', `${cnt('rechazada')}`, 'bg-rose-50 text-rose-700'],
+          ];
+          const badgeCls: Record<string, string> = { tomada: 'bg-blue-100 text-blue-700', aprobada: 'bg-teal-100 text-teal-700', rechazada: 'bg-rose-100 text-rose-700', por_aprobar: 'bg-amber-100 text-amber-700' };
+          const badgeLbl: Record<string, string> = { tomada: 'Tomada', aprobada: 'Aprobada', rechazada: 'Rechazada', por_aprobar: 'Por aprobar' };
+          return (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-zinc-900">Vacaciones</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {cards.map(([label, val, cls]) => (
+                  <div key={label} className={'rounded-xl p-4 ' + cls}>
+                    <p className="text-2xl font-bold">{val}</p>
+                    <p className="text-xs font-medium opacity-80">{label}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-zinc-400">Acumuladas estimadas según antigüedad (1,25 días hábiles/mes · Art. 67). Disponibles = acumuladas − tomadas − aprobadas.</p>
+              {bukState !== 'found' ? (
+                <p className="text-sm text-zinc-500 text-center py-6">No sincronizado con Buk.</p>
+              ) : vac.length === 0 ? (
+                <p className="text-sm text-zinc-500 text-center py-6">Sin vacaciones registradas.</p>
+              ) : (
+                <div className="space-y-2">
+                  {vac.sort((a: any, b: any) => String(b.inicio || '').localeCompare(String(a.inicio || ''))).map((v: any, i: number) => (
+                    <div key={i} className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 px-4 py-3 text-sm">
+                      <span className={'px-2 py-0.5 rounded-full text-xs font-medium ' + (badgeCls[v._e] || 'bg-zinc-100 text-zinc-700')}>{badgeLbl[v._e] || v._e}</span>
+                      <span className="font-semibold text-zinc-900">{Number(v.dias) || 0} días</span>
+                      <span className="text-zinc-500">{v.inicio || '—'} → {v.fin || '—'}</span>
+                      {v.tipo && <span className="text-zinc-400">· {v.tipo}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           );
         })()}
 
