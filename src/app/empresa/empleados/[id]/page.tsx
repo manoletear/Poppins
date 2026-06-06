@@ -12,7 +12,7 @@ import {
   CheckCircle2, Bell, Send, BadgeCheck,
 } from 'lucide-react';
 
-type TabKey = 'resumen' | 'contrato' | 'liquidaciones' | 'vacaciones' | 'asistencia';
+type TabKey = 'resumen' | 'contrato' | 'liquidaciones' | 'vacaciones' | 'licencias' | 'asistencia';
 
 function getTabsForCargo(cargo: string): { key: TabKey; label: string }[] {
   const c = (cargo || '').toLowerCase();
@@ -22,6 +22,8 @@ function getTabsForCargo(cargo: string): { key: TabKey; label: string }[] {
       { key: 'contrato', label: 'Contrato de Servicios' },
       { key: 'liquidaciones', label: 'Servicios' },
       { key: 'vacaciones', label: 'Vacaciones' },
+    { key: 'licencias', label: 'Licencias' },
+      { key: 'licencias', label: 'Licencias' },
       { key: 'asistencia', label: 'Asistencia' },
     ];
   }
@@ -30,6 +32,7 @@ function getTabsForCargo(cargo: string): { key: TabKey; label: string }[] {
     { key: 'contrato', label: 'Contrato' },
     { key: 'liquidaciones', label: 'Liquidaciones' },
     { key: 'vacaciones', label: 'Vacaciones' },
+    { key: 'licencias', label: 'Licencias' },
     { key: 'asistencia', label: 'Asistencia' },
   ];
 }
@@ -209,6 +212,7 @@ export default function EmpleadoDetallePage() {
   const [bukEmpleado, setBukEmpleado] = useState<any>(null);
   const [bukLiquidaciones, setBukLiquidaciones] = useState<any[]>([]);
   const [bukVacaciones, setBukVacaciones] = useState<any[]>([]);
+  const [bukLicencias, setBukLicencias] = useState<any[]>([]);
 
   const loadData = useCallback(async () => {
     const supabase = createClient();
@@ -258,7 +262,7 @@ export default function EmpleadoDetallePage() {
       .then((r) => r.json())
       .then((d) => {
         if (cancel) return;
-        if (d?.found) { setBukState('found'); setBukEmpleado(d.empleado); setBukLiquidaciones(d.liquidaciones || []); setBukVacaciones(d.vacaciones || []); }
+        if (d?.found) { setBukState('found'); setBukEmpleado(d.empleado); setBukLiquidaciones(d.liquidaciones || []); setBukVacaciones(d.vacaciones || []); setBukLicencias(d.licencias || []); }
         else { setBukState('notfound'); }
       })
       .catch(() => { if (!cancel) setBukState('notfound'); });
@@ -748,6 +752,43 @@ export default function EmpleadoDetallePage() {
                       <span className="font-semibold text-zinc-900">{Number(v.dias) || 0} días</span>
                       <span className="text-zinc-500">{v.inicio || '—'} → {v.fin || '—'}</span>
                       {v.tipo && <span className="text-zinc-400">· {v.tipo}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })()}
+
+        {/* LICENCIAS MÉDICAS */}
+        {activeTab === 'licencias' && (() => {
+          const estadoCls = (e: string) => { const s = String(e).toLowerCase(); return s.includes('approv') || s.includes('aprob') ? 'bg-emerald-100 text-emerald-700' : s.includes('reject') || s.includes('rechaz') ? 'bg-rose-100 text-rose-700' : s.includes('cancel') ? 'bg-zinc-100 text-zinc-600' : 'bg-amber-100 text-amber-700'; };
+          const estadoLbl = (e: string) => { const s = String(e).toLowerCase(); return s.includes('approv') || s.includes('aprob') ? 'Aprobada' : s.includes('reject') || s.includes('rechaz') ? 'Rechazada' : s.includes('cancel') ? 'Cancelada' : 'Pendiente'; };
+          const totalDias = bukLicencias.reduce((s: number, l: any) => s + (Number(l.dias) || 0), 0);
+          return (
+            <div className="space-y-6">
+              <h3 className="text-lg font-semibold text-zinc-900">Licencias médicas</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="rounded-xl p-4 bg-rose-50 text-rose-700"><p className="text-2xl font-bold">{bukLicencias.length}</p><p className="text-xs font-medium opacity-80">Licencias</p></div>
+                <div className="rounded-xl p-4 bg-amber-50 text-amber-700"><p className="text-2xl font-bold">{totalDias} días</p><p className="text-xs font-medium opacity-80">Días totales</p></div>
+                <div className="rounded-xl p-4 bg-emerald-50 text-emerald-700"><p className="text-2xl font-bold">{bukLicencias.filter((l: any) => String(l.estado).toLowerCase().includes('aprob') || String(l.estado).toLowerCase().includes('approv')).length}</p><p className="text-xs font-medium opacity-80">Aprobadas</p></div>
+              </div>
+              {bukState !== 'found' ? (
+                <p className="text-sm text-zinc-500 text-center py-6">No sincronizado con Buk.</p>
+              ) : bukLicencias.length === 0 ? (
+                <p className="text-sm text-zinc-500 text-center py-6">Sin licencias médicas registradas en Buk.</p>
+              ) : (
+                <div className="space-y-2">
+                  {bukLicencias.sort((a: any, b: any) => String(b.inicio || '').localeCompare(String(a.inicio || ''))).map((l: any, i: number) => (
+                    <div key={i} className="rounded-lg border border-zinc-200 px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-3 text-sm">
+                        <span className={'px-2 py-0.5 rounded-full text-xs font-medium ' + estadoCls(l.estado)}>{estadoLbl(l.estado)}</span>
+                        <span className="font-semibold text-zinc-900">{l.tipo || 'Licencia médica'}</span>
+                        <span className="text-zinc-700">{Number(l.dias) || 0} días</span>
+                        <span className="text-zinc-500">{l.inicio || '—'} → {l.fin || '—'}</span>
+                        {l.folio && <span className="text-zinc-400">· Folio {l.folio}</span>}
+                      </div>
+                      {l.observaciones && <p className="mt-1 text-xs text-zinc-500">{l.observaciones}</p>}
                     </div>
                   ))}
                 </div>
