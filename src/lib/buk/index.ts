@@ -370,6 +370,10 @@ export async function getVacations(employeeId: number) {
     const r = await fetch(`${base}/vacations?employee_id=${employeeId}`, { headers: { auth_token: token, Accept: 'application/json' } });
     if (!r.ok) return [];
     const j: any = await r.json();
-    return (j?.data || []).map((v: any) => ({ inicio: v.start_date, fin: v.end_date, dias: v.working_days ?? v.calendar_days, estado: v.status, tipo: v.type }));
+    // El endpoint de Buk IGNORA el filtro employee_id (devuelve todas las vacaciones de la empresa),
+    // asi que filtramos client-side por el employee_id real de cada registro.
+    return (j?.data || [])
+      .filter((v: any) => Number(v.employee_id) === Number(employeeId))
+      .map((v: any) => ({ inicio: v.start_date, fin: v.end_date, dias: v.working_days ?? v.calendar_days, estado: v.status, tipo: v.type }));
   } catch { return []; }
 }
