@@ -715,8 +715,20 @@ export default function EmpleadoDetallePage() {
           const dias = (e: string) => vac.filter((v: any) => v._e === e).reduce((s: number, v: any) => s + (Number(v.dias) || 0), 0);
           const cnt = (e: string) => vac.filter((v: any) => v._e === e).length;
           const ingreso = bukEmpleado?.fechaIngreso || contrato?.fecha_inicio;
-          const meses = ingreso ? Math.max(0, (new Date().getFullYear() - new Date(ingreso).getFullYear()) * 12 + (new Date().getMonth() - new Date(ingreso).getMonth())) : 0;
-          const acumuladas = Math.round(meses * 1.25 * 10) / 10;
+          const mesesEntre = (desde?: string) => {
+            if (!desde) return 0;
+            const d = new Date(desde); if (isNaN(d.getTime())) return 0;
+            const n = new Date();
+            return Math.max(0, (n.getFullYear() - d.getFullYear()) * 12 + (n.getMonth() - d.getMonth()));
+          };
+          const meses = mesesEntre(ingreso);
+          const basicas = meses * 1.25; // 15 días hábiles/año (Art. 67) = 1,25/mes
+          // Feriado progresivo (Art. 68): +1 día hábil/año por cada 3 años desde que aplica. Buk: progressive_vacations_start.
+          let progresivas = 0;
+          let mp = mesesEntre(bukEmpleado?.inicioVacacionesProgresivas);
+          for (let k = 0; mp > 0; k++) { const m = Math.min(mp, 36); progresivas += (k + 1) * (m / 12); mp -= m; }
+          progresivas = Math.round(progresivas * 10) / 10;
+          const acumuladas = Math.round((basicas + progresivas) * 10) / 10;
           const tomadas = dias('tomada');
           const reservadas = dias('aprobada');
           const disponibles = Math.round((acumuladas - tomadas - reservadas) * 10) / 10;
@@ -741,7 +753,7 @@ export default function EmpleadoDetallePage() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-zinc-400">Acumuladas estimadas según antigüedad (1,25 días hábiles/mes · Art. 67). Disponibles = acumuladas − tomadas − aprobadas.</p>
+              <p className="text-xs text-zinc-400">Acumuladas estimadas según antigüedad: 1,25 días hábiles/mes (Art. 67){progresivas > 0 ? ` + ${progresivas}d progresivos (Art. 68)` : ''}. Disponibles = acumuladas − tomadas − aprobadas. Buk no expone el saldo por API; es una estimación legal.</p>
               {bukState !== 'found' ? (
                 <p className="text-sm text-zinc-500 text-center py-6">No sincronizado con Buk.</p>
               ) : vac.length === 0 ? (
