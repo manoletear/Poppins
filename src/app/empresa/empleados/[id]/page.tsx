@@ -356,12 +356,42 @@ export default function EmpleadoDetallePage() {
                   <BadgeCheck className="w-4 h-4" /> Datos sincronizados
                 </h3>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-zinc-800">
-                  <div><span className="text-zinc-400 text-xs block">Cargo</span>{bukEmpleado.cargo || '—'}</div>
-                  <div><span className="text-zinc-400 text-xs block">Sueldo Base</span>{bukEmpleado.sueldoBase > 0 ? formatCLP(bukEmpleado.sueldoBase) : '—'}</div>
-                  <div><span className="text-zinc-400 text-xs block">AFP</span>{bukEmpleado.afp || '—'}</div>
-                  <div><span className="text-zinc-400 text-xs block">Salud</span>{bukEmpleado.salud || '—'}</div>
-                  <div><span className="text-zinc-400 text-xs block">Ingreso</span>{bukEmpleado.fechaIngreso || '—'}</div>
-                  <div><span className="text-zinc-400 text-xs block">Estado</span>{bukEmpleado.estado || '—'}</div>
+                  {([
+                    ['RUT', bukEmpleado.rut],
+                    ['Cargo', bukEmpleado.cargo],
+                    ['Estado', bukEmpleado.estado],
+                    ['Sueldo Base', bukEmpleado.sueldoBase > 0 ? formatCLP(bukEmpleado.sueldoBase) : ''],
+                    ['Tipo Contrato', bukEmpleado.tipoContrato],
+                    ['Ingreso', bukEmpleado.fechaIngreso],
+                    ['Horas/Sem', bukEmpleado.horasSemanales ? `${bukEmpleado.horasSemanales}h` : ''],
+                    ['Tipo Jornada', bukEmpleado.tipoJornada],
+                    ['Gratificación', bukEmpleado.gratificacionLegal ? 'Sí' : ''],
+                    ['AFP / Fondo', bukEmpleado.afp],
+                    ['Régimen Previsional', bukEmpleado.regimenPrevisional],
+                    ['Salud', bukEmpleado.salud],
+                    ['Seguro Cesantía', bukEmpleado.seguroCesantia],
+                    ['Email', bukEmpleado.email],
+                    ['Email Personal', bukEmpleado.emailPersonal],
+                    ['Teléfono', bukEmpleado.telefono],
+                    ['Dirección', bukEmpleado.direccion],
+                    ['Comuna', bukEmpleado.comuna],
+                    ['Región', bukEmpleado.region],
+                    ['Nacionalidad', bukEmpleado.nacionalidad],
+                    ['Estado Civil', bukEmpleado.estadoCivil],
+                    ['Sexo', bukEmpleado.sexo],
+                    ['Nacimiento', bukEmpleado.fechaNacimiento],
+                    ['Banco', bukEmpleado.banco],
+                    ['Tipo Cuenta', bukEmpleado.tipoCuenta],
+                    ['N° Cuenta', bukEmpleado.numeroCuenta],
+                    ['Método Pago', bukEmpleado.metodoPago],
+                    ['Cargas', bukEmpleado.cargas != null ? `${bukEmpleado.cargas}${bukEmpleado.tramoAsignacion ? ` (tramo ${bukEmpleado.tramoAsignacion})` : ''}` : ''],
+                    ['Código Ficha', bukEmpleado.codigoFicha],
+                    ['Centro Costo', bukEmpleado.centroCosto],
+                    ['Jefe', bukEmpleado.jefe],
+                    ['Vac. Progresivas', bukEmpleado.inicioVacacionesProgresivas],
+                  ] as [string, any][]).filter(([, v]) => v !== '' && v != null).map(([label, val]) => (
+                    <div key={label}><span className="text-zinc-400 text-xs block">{label}</span>{String(val)}</div>
+                  ))}
                 </div>
                 {bukVacaciones.length > 0 && (
                   <div className="mt-4">
@@ -456,7 +486,34 @@ export default function EmpleadoDetallePage() {
             </div>
           </div>
         )}
-        {activeTab === 'contrato' && !contrato && <p className="text-sm text-zinc-500 text-center py-8">Sin contrato activo.</p>}
+        {activeTab === 'contrato' && !contrato && bukState === 'found' && bukEmpleado && (
+          <div className="space-y-6">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
+              <h3 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide mb-3 flex items-center gap-1.5">
+                <BadgeCheck className="w-4 h-4" /> Contrato (datos de Buk)
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                {([
+                  ['Tipo Contrato', bukEmpleado.tipoContrato],
+                  ['Cargo', bukEmpleado.cargo],
+                  ['Sueldo Base', bukEmpleado.sueldoBase > 0 ? formatCLP(bukEmpleado.sueldoBase) : ''],
+                  ['Jornada', bukEmpleado.tipoJornada ? `${bukEmpleado.tipoJornada} (${bukEmpleado.horasSemanales}h/sem)` : (bukEmpleado.horasSemanales ? `${bukEmpleado.horasSemanales}h/sem` : '')],
+                  ['Fecha Inicio', bukEmpleado.fechaInicioContrato],
+                  ['Fecha Suscripcion', bukEmpleado.fechaSuscripcion],
+                  ['Fecha Termino', bukEmpleado.fechaTerminoContrato],
+                  ['Gratificacion Legal', bukEmpleado.gratificacionLegal ? 'Si' : 'No'],
+                  ['Centro de Costo', bukEmpleado.centroCosto],
+                  ['Jefatura', bukEmpleado.jefe],
+                  ['Dias de Trabajo', bukEmpleado.diasTrabajo ? `${bukEmpleado.diasTrabajo} dias/sem` : ''],
+                  ['Estado', bukEmpleado.estado],
+                ] as [string, any][]).filter(([, v]) => v !== '' && v != null).map(([label, val]) => (
+                  <CField key={label} label={label} value={String(val)} />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+        {activeTab === 'contrato' && !contrato && bukState !== 'found' && <p className="text-sm text-zinc-500 text-center py-8">Sin contrato activo.</p>}
 
         {/* LIQUIDACIONES / SERVICIOS */}
         {activeTab === 'liquidaciones' && (() => {
