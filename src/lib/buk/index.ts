@@ -216,9 +216,8 @@ export async function getPayrollItems(employeeId?: number) {
   const now = new Date();
   const sum = (arr: { amount?: number }[]) => arr.reduce((a, x) => a + (Number(x.amount) || 0), 0);
   const isEmployerCost = (d: string) => /empleador|mutual/i.test(d); // costos del empleador, no del trabajador
-  const out: Record<string, unknown>[] = [];
-
-  for (let i = 0; i < 12; i++) {
+  // Los 12 meses en paralelo (cada uno pagina /accounting). ~12× más rápido que en serie.
+  const porMes = await Promise.all(Array.from({ length: 12 }, async (_unused, i) => {
     const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const month = dt.getMonth() + 1;
     const year = dt.getFullYear();
@@ -234,8 +233,9 @@ export async function getPayrollItems(employeeId?: number) {
         totalPages = Number(j?.pagination?.total_pages) || 1;
         page++;
       } while (page <= totalPages);
-    } catch { continue; }
+    } catch { return []; }
 
+    const mesOut: Record<string, unknown>[] = [];
     for (const g of groups) {
       if (employeeId && g.id !== employeeId) continue;
       const items = g.items || [];
@@ -246,7 +246,7 @@ export async function getPayrollItems(employeeId?: number) {
       const liquidoItem = items.find(x => /l[ií]quido/i.test(x.description));
       const totalHaberes = sum(haberes);
       const totalDescuentos = sum(descuentos);
-      out.push({
+      mesOut.push({
         id: g.id * 100 + i,
         empleadoId: g.id,
         periodo: `${year}-${String(month).padStart(2, '0')}`,
@@ -268,8 +268,9 @@ export async function getPayrollItems(employeeId?: number) {
         items,
       });
     }
-  }
-  return out;
+    return mesOut;
+  }));
+  return porMes.flat();
 }
 
 // ── Absences ──
