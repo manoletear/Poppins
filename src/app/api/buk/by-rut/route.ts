@@ -27,21 +27,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ found: false });
     }
 
-    const empleado = await getEmployee(match.id);
-
-    let liquidaciones: unknown[] = [];
-    try {
-      liquidaciones = await getPayrollItems(match.id);
-    } catch {
-      liquidaciones = [];
-    }
-
-    let vacaciones: unknown[] = [];
-    try { vacaciones = await getVacations(match.id); } catch { vacaciones = []; }
-
-    let licencias: unknown[] = [];
-    try { licencias = await getMedicalLicenses(match.id); } catch { licencias = []; }
-    return NextResponse.json({ found: true, empleado, liquidaciones, vacaciones, licencias });
+    // Empleado + liquidaciones + vacaciones + licencias en paralelo (cada una tolera su propio error).
+    const [empleado, liquidaciones, vacaciones, licencias] = await Promise.all([
+      getEmployee(match.id),
+      getPayrollItems(match.id).catch(() => []),
+      getVacations(match.id).catch(() => []),
+      getMedicalLicenses(match.id).catch(() => []),
+    ]);
+    return NextResponse.json(
+      { found: true, empleado, liquidaciones, vacaciones, licencias },
+      // Cache por-usuario 10 min: reaperturas de la ficha son instantáneas; revalida 5 min más en background.
+      { headers: { 'Cache-Control': 'private, max-age=600, stale-while-revalidate=300' } },
+    );
   } catch {
     // BUK puede estar caído: no propagamos 500 ni filtramos tokens/stack.
     return NextResponse.json({ found: false, error: 'buk_unavailable' });
