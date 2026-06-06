@@ -18,8 +18,17 @@ type Payroll = Record<string, any>;
 type Absence = Record<string, any>;
 type Benefit = Record<string, any>;
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 
 const useMock = process.env.USE_MOCK_DATA === 'true';
+
+/** Cliente service-role para la caché de Buk (bypassa RLS). null si falta env. */
+function bukCacheClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !key) return null;
+  return createServiceClient(url, key);
+}
 
 // ── Helper: mapear BukEmployeeSummary → PoppinsEmployee shape ──
 
@@ -173,40 +182,19 @@ export async function getPayrollItems(employeeId?: number) {
     return mapBukPayrollItems(items);
   }
 
-  // Intentar Supabase
-  try {
-    const supabase = await createClient();
-    let query = supabase.from('payroll').select('*').order('periodo', { ascending: false });
-    if (employeeId) {
-      query = query.eq('employee_id', employeeId);
-    }
-    const { data, error } = await query;
-
-    const rows = data as unknown as Payroll[] | null;
-    if (!error && rows && rows.length > 0) {
-      return rows.map(p => ({
-        id: p.buk_id ?? 0,
-        empleadoId: 0,
-        periodo: p.periodo,
-        sueldoBruto: p.total_haberes,
-        sueldoBase: p.sueldo_base,
-        horasExtra: p.monto_horas_extra,
-        bonos: p.bonos,
-        gratificacion: p.gratificacion,
-        descSalud: p.desc_salud,
-        descAfp: p.desc_afp,
-        descCesantia: p.desc_cesantia,
-        impuestoUnico: p.impuesto_unico,
-        otrosDescuentos: p.otros_descuentos,
-        totalHaberes: p.total_haberes,
-        totalDescuentos: p.total_descuentos,
-        liquido: p.sueldo_liquido,
-        estado: p.estado,
-        fechaPago: p.fecha_pago,
-      }));
-    }
-  } catch {
-    // Supabase no disponible
+  // Caché Supabase (buk_payroll_cache): rápida y resiliente si Buk cae. Frescura 12h.
+  const cache = bukCacheClient();
+  const TTL_MS = 12 * 60 * 60 * 1000;
+  if (cache) {
+    try {
+      let q = cache.from('buk_payroll_cache').select('data, synced_at').order('periodo', { ascending: false });
+      if (employeeId) q = q.eq('employee_id', employeeId);
+      const { data, error } = await q;
+      if (!error && data && data.length > 0) {
+        const fresca = data.every((r: { synced_at: string }) => Date.now() - new Date(r.synced_at).getTime() < TTL_MS);
+        if (fresca) return data.map((r: { data: unknown }) => r.data);
+      }
+    } catch { /* caché no disponible, seguir con Buk */ }
   }
 
   // Fallback: BUK API /accounting?month&year — un grupo por empleado/mes con líneas contables.
@@ -237,7 +225,7 @@ export async function getPayrollItems(employeeId?: number) {
 
     const mesOut: Record<string, unknown>[] = [];
     for (const g of groups) {
-      if (employeeId && g.id !== employeeId) continue;
+      // No filtramos por employeeId aquí: procesamos todos para calentar la caché completa en un barrido.
       const items = g.items || [];
       const amt = (re: RegExp) => { const it = items.find(x => re.test(x.description) && x.entry_type === 'credit'); return it ? Number(it.amount) || 0 : 0; };
       const haber = (re: RegExp) => { const it = items.find(x => re.test(x.description) && x.entry_type === 'debit'); return it ? Number(it.amount) || 0 : 0; };
@@ -270,7 +258,22 @@ export async function getPayrollItems(employeeId?: number) {
     }
     return mesOut;
   }));
-  return porMes.flat();
+  const result = porMes.flat();
+
+  // Persistir el barrido completo en la caché (no bloquea el return si falla).
+  if (cache && result.length > 0) {
+    try {
+      const rows = result.map((l) => ({
+        employee_id: Number(l.empleadoId),
+        periodo: String(l.periodo),
+        data: l,
+        synced_at: new Date().toISOString(),
+      }));
+      await cache.from('buk_payroll_cache').upsert(rows, { onConflict: 'employee_id,periodo' });
+    } catch { /* persistencia best-effort */ }
+  }
+
+  return employeeId ? result.filter((l) => Number(l.empleadoId) === employeeId) : result;
 }
 
 // ── Absences ──
