@@ -72,12 +72,21 @@ export async function GET(request: Request) {
   } catch { /* */ }
 
   // Asientos contables del período (montos reales por empleado)
-  let groups: any[] = [];
+  const groups: any[] = [];
   try {
-    const r = await fetch(`${base}/accounting?month=${month}&year=${year}`, { headers: H });
-    if (!r.ok) return NextResponse.json({ ok: false, error: 'buk_accounting_error', status: r.status }, { status: 502 });
-    const j = await r.json();
-    groups = j?.data || [];
+    // /accounting pagina: recorrer todas las páginas o se pierden los empleados de la pág. 2+.
+    let page = 1, totalPages = 1;
+    do {
+      const r = await fetch(`${base}/accounting?month=${month}&year=${year}&page=${page}&page_size=100`, { headers: H });
+      if (!r.ok) {
+        if (page === 1) return NextResponse.json({ ok: false, error: 'buk_accounting_error', status: r.status }, { status: 502 });
+        break;
+      }
+      const j = await r.json();
+      if (Array.isArray(j?.data)) groups.push(...j.data);
+      totalPages = Number(j?.pagination?.total_pages) || 1;
+      page++;
+    } while (page <= totalPages);
   } catch {
     return NextResponse.json({ ok: false, error: 'buk_unreachable' }, { status: 502 });
   }

@@ -222,12 +222,18 @@ export async function getPayrollItems(employeeId?: number) {
     const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const month = dt.getMonth() + 1;
     const year = dt.getFullYear();
-    let groups: { id: number; items?: { description: string; amount: number; entry_type: string }[] }[] = [];
+    const groups: { id: number; items?: { description: string; amount: number; entry_type: string }[] }[] = [];
     try {
-      const r = await fetch(`${base}/accounting?month=${month}&year=${year}`, { headers: { auth_token: token, Accept: 'application/json' } });
-      if (!r.ok) continue;
-      const j = await r.json();
-      groups = j?.data || [];
+      // /accounting pagina: hay que recorrer todas las páginas o se pierden los empleados de la pág. 2+.
+      let page = 1, totalPages = 1;
+      do {
+        const r = await fetch(`${base}/accounting?month=${month}&year=${year}&page=${page}&page_size=100`, { headers: { auth_token: token, Accept: 'application/json' } });
+        if (!r.ok) break;
+        const j = await r.json();
+        if (Array.isArray(j?.data)) groups.push(...j.data);
+        totalPages = Number(j?.pagination?.total_pages) || 1;
+        page++;
+      } while (page <= totalPages);
     } catch { continue; }
 
     for (const g of groups) {

@@ -634,7 +634,9 @@ export default function EmpleadoDetallePage() {
                 </div>
               </div>
             )}
-            {liquidaciones.length === 0 ? <p className="text-sm text-zinc-500 text-center py-8">Sin liquidaciones.</p> : (
+            {liquidaciones.length === 0 ? (
+              !(bukState === 'found' && bukLiquidaciones.length > 0) && <p className="text-sm text-zinc-500 text-center py-8">Sin liquidaciones.</p>
+            ) : (
               liquidaciones.map(liq => (
                 <div key={liq.id} className="rounded-lg border border-zinc-200 overflow-hidden">
                   <div className="px-4 py-3 flex items-center justify-between hover:bg-zinc-50 transition cursor-pointer" onClick={() => setExpandedLiq(expandedLiq === liq.id ? null : liq.id)}>
