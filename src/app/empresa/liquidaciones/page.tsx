@@ -48,6 +48,7 @@ interface Liquidacion {
   liquido_pagar: number;
   estado: string;
   created_at: string;
+  items?: { description: string; amount: number; entry_type: string }[];
   trabajadores: Trabajador;
 }
 
@@ -103,6 +104,20 @@ function downloadLiquidacionPDF(liq: Liquidacion, trabajador: Trabajador, return
   const row = (label: string, value: number) =>
     `<tr><td style="padding:6px 12px;border-bottom:1px solid #e4e4e7">${label}</td><td style="padding:6px 12px;border-bottom:1px solid #e4e4e7;text-align:right">${fmt(value)}</td></tr>`;
 
+  // Si vienen los conceptos crudos de Buk (/accounting), se listan todos; si no, se usan los campos fijos.
+  const isEmployerCost = (d: string) => /empleador|mutual/i.test(d);
+  const items = liq.items || [];
+  const haberesItems = items.filter((x) => x.entry_type === 'debit' && !isEmployerCost(x.description));
+  const descItems = items.filter((x) => x.entry_type === 'credit' && !/l[ií]quido/i.test(x.description) && !isEmployerCost(x.description));
+
+  const haberesRows = haberesItems.length
+    ? haberesItems.map((x) => row(x.description, Number(x.amount) || 0)).join('')
+    : row('Sueldo Base', liq.sueldo_base) + row('Gratificación Legal', liq.gratificacion_legal) + row('Horas Extras 50%', liq.horas_extras_50) + row('Bonos Imponibles', liq.bonos_imponibles ?? 0) + row('Colación (no imponible)', liq.colacion ?? 0) + row('Movilización (no imponible)', liq.movilizacion ?? 0);
+
+  const descRows = descItems.length
+    ? descItems.map((x) => row(x.description, Number(x.amount) || 0)).join('')
+    : row('AFP Trabajador', liq.afp_trabajador) + row('Salud Trabajador', liq.salud_trabajador) + row('AFC Trabajador (Cesantía)', liq.afc_trabajador) + row('Impuesto Único', liq.impuesto_unico);
+
   const html = `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -148,12 +163,7 @@ function downloadLiquidacionPDF(liq: Liquidacion, trabajador: Trabajador, return
 <table>
   <thead><tr><th>Concepto</th><th>Monto</th></tr></thead>
   <tbody>
-    ${row('Sueldo Base', liq.sueldo_base)}
-    ${row('Gratificación Legal', liq.gratificacion_legal)}
-    ${row('Horas Extras 50%', liq.horas_extras_50)}
-    ${row('Bonos Imponibles', liq.bonos_imponibles ?? 0)}
-    ${row('Colación (no imponible)', liq.colacion ?? 0)}
-    ${row('Movilización (no imponible)', liq.movilizacion ?? 0)}
+    ${haberesRows}
     <tr class="total-row"><td style="padding:10px 12px">Total Haberes</td><td style="padding:10px 12px;text-align:right">${fmt(liq.total_haberes)}</td></tr>
   </tbody>
 </table>
@@ -162,10 +172,7 @@ function downloadLiquidacionPDF(liq: Liquidacion, trabajador: Trabajador, return
 <table>
   <thead><tr><th>Concepto</th><th>Monto</th></tr></thead>
   <tbody>
-    ${row('AFP Trabajador', liq.afp_trabajador)}
-    ${row('Salud Trabajador', liq.salud_trabajador)}
-    ${row('AFC Trabajador (Cesantía)', liq.afc_trabajador)}
-    ${row('Impuesto Único', liq.impuesto_unico)}
+    ${descRows}
     <tr class="total-row"><td style="padding:10px 12px">Total Descuentos</td><td style="padding:10px 12px;text-align:right">${fmt(liq.total_descuentos)}</td></tr>
   </tbody>
 </table>
@@ -218,7 +225,43 @@ export default function LiquidacionesEmpresaPage() {
           .order('periodo', { ascending: false });
 
         if (err) throw err;
-        setLiquidaciones((data as Liquidacion[]) ?? []);
+        const supaRows = (data as Liquidacion[]) ?? [];
+
+        // Liquidaciones reales desde Buk (/accounting). Se anteponen las de Supabase si existe el mismo período.
+        let bukRows: Liquidacion[] = [];
+        try {
+          const res = await fetch('/api/buk/liquidaciones');
+          const j = await res.json();
+          if (j?.ok) {
+            bukRows = (j.items as any[]).flatMap((emp) =>
+              (emp.liquidaciones as any[]).map((l) => ({
+                id: `buk-${emp.trabajadorId}-${l.periodo}`,
+                trabajador_id: emp.trabajadorId,
+                periodo: l.periodo,
+                sueldo_base: l.sueldoBase || 0,
+                gratificacion_legal: l.gratificacion || 0,
+                horas_extras_50: l.horasExtra || 0,
+                bonos_imponibles: l.bonos || 0,
+                total_haberes: l.totalHaberes || 0,
+                afp_trabajador: l.descAfp || 0,
+                salud_trabajador: l.descSalud || 0,
+                afc_trabajador: l.descCesantia || 0,
+                impuesto_unico: l.impuestoUnico || 0,
+                total_descuentos: l.totalDescuentos || 0,
+                liquido_pagar: l.liquido || 0,
+                estado: 'pagada',
+                created_at: '',
+                items: l.items || [],
+                trabajadores: { id: emp.trabajadorId, nombre: emp.nombre, apellido_paterno: '', cargo: emp.cargo || '', rut: emp.rut || '' },
+              })),
+            );
+          }
+        } catch { /* Buk no disponible: solo Supabase */ }
+
+        const supaKeys = new Set(supaRows.map((l) => `${l.trabajador_id}-${l.periodo}`));
+        const merged = [...supaRows, ...bukRows.filter((l) => !supaKeys.has(`${l.trabajador_id}-${l.periodo}`))];
+        merged.sort((a, b) => String(b.periodo).localeCompare(String(a.periodo)));
+        setLiquidaciones(merged);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Error al cargar liquidaciones');
       } finally {
@@ -458,8 +501,13 @@ export default function LiquidacionesEmpresaPage() {
                 </tr>
               )}
               {filtered.map((l) => (
-                <tr key={l.id} className="hover:bg-zinc-50 transition-colors">
-                  <td className="px-4 py-3">
+                <tr
+                  key={l.id}
+                  onClick={() => downloadLiquidacionPDF(l, l.trabajadores)}
+                  title="Ver liquidación en PDF"
+                  className="hover:bg-emerald-50/40 transition-colors cursor-pointer"
+                >
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
                       checked={selected.has(l.id)}
@@ -487,7 +535,7 @@ export default function LiquidacionesEmpresaPage() {
                       {estadoLabel(l.estado)}
                     </span>
                   </td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-center gap-1">
                       <button
                         onClick={() => setDetalle(l)}
@@ -550,14 +598,17 @@ export default function LiquidacionesEmpresaPage() {
                 <div>
                   <h3 className="text-sm font-semibold text-zinc-900 mb-3">Haberes</h3>
                   <div className="space-y-2 text-sm">
-                    {[
-                      ['Sueldo Base', detalle.sueldo_base],
-                      ['Gratificación Legal', detalle.gratificacion_legal],
-                      ['Horas Extras 50%', detalle.horas_extras_50],
-                      ['Bonos Imponibles', detalle.bonos_imponibles ?? 0],
-                      ['Colación (no imponible)', detalle.colacion ?? 0],
-                      ['Movilización (no imponible)', detalle.movilizacion ?? 0],
-                    ].map(([label, val]) => (
+                    {(detalle.items && detalle.items.length
+                      ? detalle.items.filter((x) => x.entry_type === 'debit' && !/empleador|mutual/i.test(x.description)).map((x) => [x.description, x.amount] as [string, number])
+                      : [
+                          ['Sueldo Base', detalle.sueldo_base],
+                          ['Gratificación Legal', detalle.gratificacion_legal],
+                          ['Horas Extras 50%', detalle.horas_extras_50],
+                          ['Bonos Imponibles', detalle.bonos_imponibles ?? 0],
+                          ['Colación (no imponible)', detalle.colacion ?? 0],
+                          ['Movilización (no imponible)', detalle.movilizacion ?? 0],
+                        ] as [string, number][]
+                    ).map(([label, val]) => (
                       <div key={label as string} className="flex justify-between py-1.5 border-b border-zinc-50">
                         <span className="text-zinc-600">{label as string}</span>
                         <span className="text-zinc-900 font-medium">{fmt(val as number)}</span>
@@ -574,12 +625,15 @@ export default function LiquidacionesEmpresaPage() {
                 <div>
                   <h3 className="text-sm font-semibold text-zinc-900 mb-3">Descuentos</h3>
                   <div className="space-y-2 text-sm">
-                    {[
-                      ['AFP Trabajador', detalle.afp_trabajador],
-                      ['Salud Trabajador', detalle.salud_trabajador],
-                      ['AFC Trabajador (Cesantía)', detalle.afc_trabajador],
-                      ['Impuesto Único', detalle.impuesto_unico],
-                    ].map(([label, val]) => (
+                    {(detalle.items && detalle.items.length
+                      ? detalle.items.filter((x) => x.entry_type === 'credit' && !/l[ií]quido/i.test(x.description) && !/empleador|mutual/i.test(x.description)).map((x) => [x.description, x.amount] as [string, number])
+                      : [
+                          ['AFP Trabajador', detalle.afp_trabajador],
+                          ['Salud Trabajador', detalle.salud_trabajador],
+                          ['AFC Trabajador (Cesantía)', detalle.afc_trabajador],
+                          ['Impuesto Único', detalle.impuesto_unico],
+                        ] as [string, number][]
+                    ).map(([label, val]) => (
                       <div key={label as string} className="flex justify-between py-1.5 border-b border-zinc-50">
                         <span className="text-zinc-600">{label as string}</span>
                         <span className="text-zinc-900 font-medium">{fmt(val as number)}</span>

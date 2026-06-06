@@ -19,12 +19,12 @@ export async function GET() {
 
   const { data: contratos } = await supabase
     .from('contratos')
-    .select('trabajadores(id, nombre, apellido_paterno, buk_employee_id)')
+    .select('cargo, trabajadores(id, nombre, apellido_paterno, rut, buk_employee_id)')
     .eq('empleador_id', empleadorId)
     .eq('estado', 'activo');
 
   const trabajadores = (contratos || [])
-    .map((c: any) => c.trabajadores)
+    .map((c: any) => (c.trabajadores ? { ...c.trabajadores, cargo: c.cargo } : null))
     .filter((t: any) => t && t.buk_employee_id);
 
   // Un solo barrido de /accounting (12 meses, todos los empleados) y agrupar por empleadoId.
@@ -44,6 +44,9 @@ export async function GET() {
     return {
       trabajadorId: t.id,
       nombre: `${t.nombre || ''} ${t.apellido_paterno || ''}`.trim(),
+      apellidoPaterno: t.apellido_paterno || '',
+      cargo: t.cargo || '',
+      rut: t.rut || '',
       liquidaciones: liqs,
       resumen: {
         cantidad: liqs.length,
