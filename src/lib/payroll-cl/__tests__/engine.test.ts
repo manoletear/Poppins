@@ -404,7 +404,36 @@ describe('Caso 9 — sueldo bajo mínimo TCP', () => {
 });
 
 // ─────────────────────────────────────────────────────────────
-// INVARIANTE — Coherencia contable del resultado
+// CASO 10 — Clasificación no imponible: aguinaldo y pérdida de caja
+// No deben afectar base AFP/salud/impuesto.
+// ─────────────────────────────────────────────────────────────
+describe('Caso 10 — aguinaldo y asignación pérdida de caja (no imponibles)', () => {
+  const resultBase = calculatePayroll(baseInput());
+  const resultConItems = calculatePayroll(baseInput({
+    variableItems: [
+      { conceptCode: 'AGUINALDO', amount: 50000 },
+      { conceptCode: 'ASIGNACION_PERDIDA_CAJA', amount: 20000 },
+    ],
+  }));
+
+  it('aguinaldo marcado como no imponible', () => {
+    const c = resultConItems.concepts.find(c => c.conceptCode === 'AGUINALDO');
+    expect(c?.imponible).toBe(false);
+    expect(c?.taxable).toBe(false);
+  });
+  it('pérdida de caja marcada como no imponible', () => {
+    const c = resultConItems.concepts.find(c => c.conceptCode === 'ASIGNACION_PERDIDA_CAJA');
+    expect(c?.imponible).toBe(false);
+    expect(c?.taxable).toBe(false);
+  });
+  it('base AFP/salud no cambia al agregar $70.000 no imponibles', () => {
+    expect(resultConItems.taxableIncome).toBe(resultBase.taxableIncome);
+    expect(resultConItems.pensionBase).toBe(resultBase.pensionBase);
+  });
+  it('neto aumenta en exactamente $70.000 (pasan directo al bolsillo)', () => {
+    expect(resultConItems.netPay - resultBase.netPay).toBe(70000);
+  });
+});
 // grossIncome + asignacionFamiliar - sum(descuentos) = netPay
 // ─────────────────────────────────────────────────────────────
 describe('Invariante — coherencia contable', () => {
