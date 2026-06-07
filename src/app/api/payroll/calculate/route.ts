@@ -88,12 +88,79 @@ export async function POST(request: Request) {
   // Calcular
   const result = calculatePayroll(body);
 
-  // TODO(payroll-cl §16): cuando mode==='final', persistir en payroll_results y
-  // payroll_concept_results (requiere migración Supabase).
+  // mode=final: persistir en payroll_results + payroll_concept_results
+  let savedResultId: string | undefined;
+  if (body.mode === 'final') {
+    const { data: inserted, error: insErr } = await supabase
+      .from('payroll_results')
+      .insert({
+        payroll_period:        body.payrollPeriod,
+        contract_id:           result.contractId,
+        worker_id:             result.workerId,
+        empleador_id:          empleadorId,
+        indicator_snapshot_id: result.indicatorSnapshotId,
+        gross_income:          result.grossIncome,
+        taxable_income:        result.taxableIncome,
+        pension_base:          result.pensionBase,
+        health_base:           result.healthBase,
+        afc_base:              result.afcBase,
+        mutual_base:           result.mutualBase,
+        income_tax_base:       result.incomeTaxBase,
+        deduction_afp10:       result.employeeDeductions.afp10,
+        deduction_afp_commission: result.employeeDeductions.afpCommission,
+        deduction_health7:     result.employeeDeductions.health7,
+        deduction_income_tax:  result.employeeDeductions.incomeTax,
+        deduction_advances:    result.employeeDeductions.advances,
+        deduction_other:       result.employeeDeductions.other,
+        contribution_sis:      result.employerContributions.sis,
+        contribution_afc_employer: result.employerContributions.afcEmployer,
+        contribution_cai111:   result.employerContributions.cai111,
+        contribution_mutual:   result.employerContributions.mutual,
+        net_pay:               result.netPay,
+        total_employer_cost:   result.totalEmployerCost,
+        warnings:              result.warnings,
+        calculation_trace:     result.calculationTrace,
+        created_by:            user.id,
+      })
+      .select('id')
+      .single();
+
+    if (insErr) {
+      return NextResponse.json({ ok: false, error: 'persist_failed', detail: insErr.message }, { status: 500 });
+    }
+
+    savedResultId = inserted.id as string;
+
+    if (result.concepts.length > 0) {
+      const conceptRows = result.concepts.map(c => ({
+        payroll_result_id: savedResultId,
+        concept_code:      c.conceptCode,
+        concept_name:      c.conceptName,
+        concept_type:      c.conceptType,
+        amount:            c.amount,
+        base_amount:       c.baseAmount ?? null,
+        rate:              c.rate ?? null,
+        taxable:           c.taxable,
+        imponible:         c.imponible,
+        legal:             c.legal,
+        visible_in_payslip: c.visibleInPayslip,
+        calculation_order: c.calculationOrder,
+      }));
+
+      const { error: concErr } = await supabase
+        .from('payroll_concept_results')
+        .insert(conceptRows);
+
+      if (concErr) {
+        return NextResponse.json({ ok: false, error: 'persist_concepts_failed', detail: concErr.message }, { status: 500 });
+      }
+    }
+  }
 
   return NextResponse.json({
     ok: true,
     result,
+    ...(savedResultId && { savedResultId }),
     ...(horasExtraInfo && { horasExtraInfo }),
   });
 }
