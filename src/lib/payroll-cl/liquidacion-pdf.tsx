@@ -1,8 +1,12 @@
 // Template React-PDF para liquidación de sueldo (TCP Chile)
 import React from 'react';
+import path from 'path';
 import {
-  Document, Page, Text, View, StyleSheet, Font,
+  Document, Page, Text, View, StyleSheet, Font, Image,
 } from '@react-pdf/renderer';
+
+// Ruta absoluta al logo — funciona en Node (API route)
+const LOGO_PATH = path.join(process.cwd(), 'public', 'landing', 'logo-poppins.png');
 
 Font.register({
   family: 'Helvetica',
@@ -85,10 +89,14 @@ export function LiquidacionDocument({ data }: { data: LiquidacionData }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
-        <Text style={styles.title}>Liquidación de Sueldo</Text>
-        <Text style={styles.subtitle}>Período: {periodoLabel}</Text>
-
+        {/* Header — título + logo */}
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+          <View>
+            <Text style={styles.title}>Liquidación de Sueldo</Text>
+            <Text style={styles.subtitle}>Período: {periodoLabel}</Text>
+          </View>
+          <Image src={LOGO_PATH} style={{ width: 90, height: 'auto', objectFit: 'contain' }} />
+        </View>
         <View style={styles.twoCol}>
           {/* Empleador */}
           <View style={styles.col}>
