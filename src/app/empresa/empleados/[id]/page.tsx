@@ -919,6 +919,7 @@ export default function EmpleadoDetallePage() {
           // Normal attendance (asesora, etc.) — Buk no expone marcajes por API; registro manual.
           return (
             <div>
+              <HorarioSemanal trabajadorId={id} empleadorId={empleador?.id || profile?.empleador_id} />
               <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
                 <h3 className="text-lg font-semibold text-zinc-900">Registro de Asistencia</h3>
                 <div className="flex items-center gap-2">
@@ -1040,6 +1041,75 @@ function DocsList({ trabajadorId }: { trabajadorId: string }) {
           <FileText className="w-4 h-4" /> {d.nombre}
         </a>
       ))}
+    </div>
+  );
+}
+
+// Horario semanal esperado (base para recordatorios de marcaje). 1=Lun .. 7=Dom.
+function HorarioSemanal({ trabajadorId, empleadorId }: { trabajadorId: string; empleadorId?: string }) {
+  const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  type Fila = { hora_entrada: string; hora_salida: string; activo: boolean };
+  const [rows, setRows] = useState<Record<number, Fila>>(() => {
+    const init: Record<number, Fila> = {};
+    for (let d = 1; d <= 7; d++) init[d] = { hora_entrada: '', hora_salida: '', activo: d <= 5 };
+    return init;
+  });
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    const sb = createClient();
+    sb.from('turnos_trabajador').select('*').eq('trabajador_id', trabajadorId).then(({ data }: any) => {
+      if (data && data.length) {
+        setRows(prev => {
+          const n = { ...prev };
+          data.forEach((t: any) => { n[t.dia_semana] = { hora_entrada: (t.hora_entrada || '').slice(0, 5), hora_salida: (t.hora_salida || '').slice(0, 5), activo: t.activo }; });
+          return n;
+        });
+      }
+    });
+  }, [trabajadorId]);
+
+  const upd = (d: number, patch: Partial<Fila>) => { setSaved(false); setRows(prev => ({ ...prev, [d]: { ...prev[d], ...patch } })); };
+
+  const guardar = async () => {
+    if (!empleadorId) return;
+    setSaving(true);
+    const sb = createClient();
+    const payload = Object.entries(rows).map(([d, v]) => ({
+      empleador_id: empleadorId, trabajador_id: trabajadorId, dia_semana: Number(d),
+      hora_entrada: v.hora_entrada || null, hora_salida: v.hora_salida || null, activo: v.activo,
+    }));
+    const { error } = await sb.from('turnos_trabajador').upsert(payload as never, { onConflict: 'trabajador_id,dia_semana' });
+    setSaving(false);
+    if (!error) { setSaved(true); }
+  };
+
+  return (
+    <div className="mb-6 rounded-xl border border-zinc-200 p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h4 className="text-sm font-semibold text-zinc-900">Horario semanal esperado</h4>
+        <button onClick={guardar} disabled={saving || !empleadorId}
+          className="rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-zinc-700 transition disabled:opacity-50">
+          {saving ? 'Guardando…' : saved ? 'Guardado ✓' : 'Guardar horario'}
+        </button>
+      </div>
+      <p className="text-xs text-zinc-400 mb-3">Se usa para recordar al trabajador que debe marcar. Dejá un día inactivo si no trabaja.</p>
+      <div className="space-y-1.5">
+        {([1, 2, 3, 4, 5, 6, 7] as const).map(d => (
+          <div key={d} className={`flex items-center gap-3 text-sm rounded-lg px-3 py-1.5 ${rows[d].activo ? 'bg-zinc-50' : 'opacity-50'}`}>
+            <label className="flex items-center gap-2 w-32 shrink-0">
+              <input type="checkbox" checked={rows[d].activo} onChange={e => upd(d, { activo: e.target.checked })} className="rounded" />
+              <span className="text-zinc-700">{DIAS[d - 1]}</span>
+            </label>
+            <input type="time" value={rows[d].hora_entrada} disabled={!rows[d].activo} onChange={e => upd(d, { hora_entrada: e.target.value })}
+              className="rounded-md border border-zinc-300 px-2 py-1 text-sm disabled:bg-zinc-100" />
+            <span className="text-zinc-400">→</span>
+            <input type="time" value={rows[d].hora_salida} disabled={!rows[d].activo} onChange={e => upd(d, { hora_salida: e.target.value })}
+              className="rounded-md border border-zinc-300 px-2 py-1 text-sm disabled:bg-zinc-100" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
