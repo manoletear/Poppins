@@ -288,6 +288,16 @@ export default function MarcajePage() {
 
       // Refresh state
       await Promise.all([fetchTodayMarcaje(), fetchWeekMarcajes()]);
+
+      // Push WhatsApp de confirmación (fire-and-forget — no bloquea la UI)
+      const tipoMap: Record<Step, string> = {
+        1: 'entrada', 2: 'salida_colacion', 3: 'regreso_colacion', 4: 'salida', 5: 'salida',
+      };
+      fetch('/api/marcaje/confirmar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trabajadorId, hora, tipo: tipoMap[step] }),
+      }).catch(() => { /* silencioso — la UI no depende del WhatsApp */ });
     } finally {
       setActionLoading(false);
     }
