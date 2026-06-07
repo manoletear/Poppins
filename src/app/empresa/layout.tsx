@@ -24,6 +24,7 @@ import {
   Bell,
   CreditCard,
   Receipt,
+  DollarSign,
   Newspaper,
   Menu,
   X,
@@ -66,6 +67,7 @@ const navSections = [
     items: [
       { name: 'Pagos y Puntos', href: '/empresa/pagos', icon: CreditCard },
       { name: 'Liquidaciones', href: '/empresa/liquidaciones', icon: Receipt },
+      { name: 'Remuneraciones', href: '/empresa/remuneraciones', icon: DollarSign },
     ],
   },
   {
