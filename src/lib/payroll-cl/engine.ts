@@ -89,6 +89,8 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
   const NON_TAXABLE_CODES = new Set([
     'ASIGNACION_MOVILIZACION', 'ASIGNACION_COLACION', 'VIATICO',
     'REEMBOLSO_GASTOS', 'BONO_NO_IMPONIBLE',
+    'AGUINALDO',              // graciable (Fiestas Patrias/Navidad) — no imponible
+    'ASIGNACION_PERDIDA_CAJA', // no imponible por ley
   ]);
   let variablesImponibles = 0;
   let variablesNoImponibles = 0;
