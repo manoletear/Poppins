@@ -17,13 +17,13 @@ const PROCESOS_ABIERTO = [
 ];
 
 const PROCESOS_CERRADO = [
-  { key: 'anticipos',         label: 'Anticipos',          Icon: CreditCard      },
-  { key: 'sueldos',           label: 'Sueldos',            Icon: Calculator      },
-  { key: 'liquidaciones_pdf', label: 'Liquidaciones en PDF', Icon: FileText      },
-  { key: 'libros',            label: 'Libros',             Icon: BookOpen        },
-  { key: 'contabilidad',      label: 'Contabilidad',       Icon: FileSpreadsheet },
-  { key: 'previred',          label: 'Previred',           Icon: Shield          },
-  { key: 'libro_electronico', label: 'Libro Electrónico',  Icon: Receipt         },
+  { key: 'anticipos',         label: 'Anticipos',            Icon: CreditCard,      download: null       },
+  { key: 'sueldos',           label: 'Sueldos',              Icon: Calculator,      download: 'sueldos'  },
+  { key: 'liquidaciones_pdf', label: 'Liquidaciones PDF',    Icon: FileText,        download: null       },
+  { key: 'libros',            label: 'Libro Remuneraciones', Icon: BookOpen,        download: 'libro'    },
+  { key: 'contabilidad',      label: 'Contabilidad',         Icon: FileSpreadsheet, download: null       },
+  { key: 'previred',          label: 'Previred',             Icon: Shield,          download: 'previred' },
+  { key: 'libro_electronico', label: 'Libro Electrónico',    Icon: Receipt,         download: null       },
 ];
 
 const TIPOS_LICENCIA = [
@@ -62,6 +62,7 @@ interface PeriodSummary {
 
 interface ProcessResult {
   workerName: string;
+  workerId: string;
   netPay: number;
   grossIncome: number;
   warnings: string[];
@@ -344,9 +345,27 @@ export default function RemuneracionesPage() {
     a.click();
   };
 
+  const handleDownload = (path: string, filename: string) => {
+    const a = document.createElement('a');
+    a.href = path;
+    a.download = filename;
+    a.click();
+  };
+
   const handleReopenPeriod = async (period: string) => {
-    alert('Funcionalidad de reabrir período próximamente.');
+    if (!confirm(`¿Reabrir el período ${periodoLabel(period)}? Se anularán todos los resultados calculados.`)) return;
     setMasAcciones(null);
+    const res = await fetch('/api/payroll/reabrir-periodo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ period }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      await fetchSummaries();
+    } else {
+      alert(data.error ?? 'Error al reabrir período');
+    }
   };
 
   if (loading) {
@@ -421,11 +440,19 @@ export default function RemuneracionesPage() {
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {PROCESOS_CERRADO.map(({ key, label, Icon }) => (
+                      {PROCESOS_CERRADO.map(({ key, label, Icon, download }) => {
+                        const onClickFn = download === 'previred'
+                          ? () => handleDownload(`/api/payroll/previred?period=${period}`, `previred_${period.replace('-','')}.txt`)
+                          : download === 'sueldos'
+                          ? () => handleDownload(`/api/payroll/sueldos?period=${period}`, `sueldos_${period.replace('-','')}.csv`)
+                          : download === 'libro'
+                          ? () => handleDownload(`/api/payroll/libro-remuneraciones?period=${period}`, `libro_remuneraciones_${period.replace('-','')}.csv`)
+                          : undefined;
+                        return (
                         <button
                           key={key}
-                          onClick={key === 'previred' ? () => handleDownloadPrevired(period) : undefined}
-                          className="flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-3 hover:border-[#1a2e6e]/40 hover:shadow-sm transition text-left"
+                          onClick={onClickFn}
+                          className={`flex items-center justify-between rounded-xl border border-zinc-200 bg-white px-3 py-3 transition text-left ${onClickFn ? 'hover:border-[#1a2e6e]/40 hover:shadow-sm cursor-pointer' : 'cursor-default opacity-60'}`}
                         >
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full bg-[#1a2e6e] flex items-center justify-center shrink-0">
@@ -436,9 +463,10 @@ export default function RemuneracionesPage() {
                               <p className="text-[10px] text-zinc-400">Actualizado</p>
                             </div>
                           </div>
-                          <Download className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                          <Download className={`w-3.5 h-3.5 shrink-0 ${onClickFn ? 'text-zinc-400' : 'text-zinc-200'}`} />
                         </button>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
@@ -461,9 +489,21 @@ export default function RemuneracionesPage() {
                       <div className="rounded-xl bg-blue-50 border border-blue-200 p-4 space-y-2">
                         <p className="text-xs font-semibold text-blue-800">Vista previa — {preview.length} trabajador{preview.length !== 1 ? 'es' : ''}</p>
                         {preview.map((r, i) => (
-                          <div key={i} className="flex justify-between text-xs text-blue-700">
+                          <div key={i} className="flex justify-between items-center text-xs text-blue-700">
                             <span>{r.workerName}</span>
-                            <span className="font-medium">${r.netPay.toLocaleString('es-CL')} neto</span>
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">${r.netPay.toLocaleString('es-CL')} neto</span>
+                              <button
+                                onClick={() => handleDownload(
+                                  `/api/payroll/liquidacion-pdf?period=${period}&workerId=${r.workerId}`,
+                                  `liquidacion_${period.replace('-','')}_${r.workerId.slice(0,8)}.pdf`
+                                )}
+                                className="text-blue-500 hover:text-blue-700 transition"
+                                title="Descargar liquidación PDF"
+                              >
+                                <FileText className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </div>
                         ))}
                         {preview.some(r => r.warnings.length > 0) && (
