@@ -84,6 +84,7 @@ function baseInput(overrides: Partial<PayrollEngineInput> = {}): PayrollEngineIn
       afpCode: 'capital',
       healthType: HealthType.FONASA,
       isPensioner: false,
+      workerTypePrevired: '31',
     },
     periodEvents: { workedDays: 31 },
     snapshot: SNAPSHOT,
@@ -185,6 +186,7 @@ describe('Caso 3 — ISAPRE plan 1,5 UF ($58.200 > mínimo $49.000)', () => {
       healthType: HealthType.ISAPRE,
       isaprePlanUf: 1.5,
       isPensioner: false,
+      workerTypePrevired: '31',
     },
   }));
 
@@ -216,6 +218,7 @@ describe('Caso 4 — pensionado FONASA', () => {
       afpCode: 'capital',
       healthType: HealthType.FONASA,
       isPensioner: true,
+      workerTypePrevired: '31',
     },
   }));
 
@@ -333,6 +336,7 @@ describe('Caso 7 — asignación familiar 2 cargas (tramo C)', () => {
       healthType: HealthType.FONASA,
       isPensioner: false,
       familyAllowanceCount: 2,
+      workerTypePrevired: '31',
     },
   }));
 
@@ -440,9 +444,9 @@ describe('Invariante — coherencia contable', () => {
   const cases: [string, PayrollEngineInput][] = [
     ['mes completo FONASA',  baseInput()],
     ['proporcional 21d',     baseInput({ periodEvents: { workedDays: 21 } })],
-    ['ISAPRE diferencia',    baseInput({ worker: { rut: '1', afpCode: 'capital', healthType: HealthType.ISAPRE, isaprePlanUf: 1.5, isPensioner: false } })],
-    ['pensionado',           baseInput({ worker: { rut: '1', afpCode: 'capital', healthType: HealthType.FONASA, isPensioner: true } })],
-    ['con 2 cargas AF',      baseInput({ worker: { rut: '1', afpCode: 'capital', healthType: HealthType.FONASA, isPensioner: false, familyAllowanceCount: 2 } })],
+    ['ISAPRE diferencia',    baseInput({ worker: { rut: '1', afpCode: 'capital', healthType: HealthType.ISAPRE, isaprePlanUf: 1.5, isPensioner: false, workerTypePrevired: '31' } })],
+    ['pensionado',           baseInput({ worker: { rut: '1', afpCode: 'capital', healthType: HealthType.FONASA, isPensioner: true, workerTypePrevired: '31' } })],
+    ['con 2 cargas AF',      baseInput({ worker: { rut: '1', afpCode: 'capital', healthType: HealthType.FONASA, isPensioner: false, familyAllowanceCount: 2, workerTypePrevired: '31' } })],
     ['tope imponible $3.5M', baseInput({ contract: { contractId:'c-1', workerId:'w-1', legalProfileType:'TCP_PUERTAS_AFUERA', startDate:'2024-01-01', baseSalary:3500000, weeklyHours:45, workScheduleType:'PUERTAS_AFUERA' } })],
   ];
 
