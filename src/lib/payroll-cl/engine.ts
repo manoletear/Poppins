@@ -9,8 +9,11 @@ import type {
 } from './types/payroll';
 import { ConceptType, HealthType } from './types/enums';
 
-// Tasa mutual base; el snapshot no expone campo propio. ACHS básica.
+// Tasa mutual base mínima (ACHS básica). El snapshot no expone campo propio.
 const MUTUAL_BASE_RATE = 0.0093;
+// AFC trabajador TCP: 0,6% primeros 10 años, 1,4% desde año 11 (Ley 21.585, 2023).
+const AFC_WORKER_RATE_YEARS_1_10 = 0.006;
+const AFC_WORKER_RATE_YEARS_11_PLUS = 0.014;
 
 export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
   const { contract, worker, periodEvents, variableItems = [], snapshot } = input;
@@ -52,13 +55,21 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
   }
 
   // ── 1. Sueldo base proporcional ──
+  // Base de días: días del mes (aplica tanto puertas afuera como adentro).
+  // Licencia médica y permiso sin goce reducen días efectivos pagados por empleador.
   const [y, m] = input.payrollPeriod.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
-  const workedDays = Math.min(periodEvents.workedDays, daysInMonth);
-  const sueldoBase = contract.baseSalary * (workedDays / daysInMonth);
+  const medicalLeaveDays = periodEvents.medicalLeaveDays ?? 0;
+  const unpaidLeaveDays = periodEvents.unpaidLeaveDays ?? 0;
+  // Días que el empleador efectivamente paga (excluye licencia y permiso sin goce).
+  const paidDays = Math.min(
+    Math.max(0, periodEvents.workedDays - medicalLeaveDays - unpaidLeaveDays),
+    daysInMonth
+  );
+  const sueldoBase = contract.baseSalary * (paidDays / daysInMonth);
   t('SUELDO_BASE', 'Sueldo base proporcional', sueldoBase,
-    'baseSalary * (workedDays / daysInMonth)',
-    { baseSalary: contract.baseSalary, workedDays, daysInMonth });
+    'baseSalary * (paidDays / daysInMonth)',
+    { baseSalary: contract.baseSalary, paidDays, daysInMonth, medicalLeaveDays, unpaidLeaveDays });
   c('SUELDO_BASE', 'Sueldo Base', ConceptType.HABER, sueldoBase,
     { baseAmount: contract.baseSalary, calculationOrder: 1 });
 
@@ -81,10 +92,16 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
   ]);
   let variablesImponibles = 0;
   let variablesNoImponibles = 0;
+  let anticipos = 0;
   for (const item of variableItems) {
     const imponible = !NON_TAXABLE_CODES.has(item.conceptCode);
-    if (imponible) variablesImponibles += item.amount;
-    else variablesNoImponibles += item.amount;
+    if (item.conceptCode === 'ANTICIPO_SUELDO' || item.conceptCode === 'PRESTAMO_EMPLEADOR') {
+      anticipos += item.amount;
+    } else if (imponible) {
+      variablesImponibles += item.amount;
+    } else {
+      variablesNoImponibles += item.amount;
+    }
     c(item.conceptCode, item.conceptCode, ConceptType.HABER, item.amount,
       { imponible, taxable: imponible });
   }
@@ -116,16 +133,44 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
       { baseAmount: pensionBase, rate: afpCommissionRate, calculationOrder: 11 });
   }
 
-  // ── 6. Salud ──
+  // ── 6. Validación sueldo mínimo TCP ──
+  if (contract.baseSalary < snapshot.minimumIncomeHouseholdWorker) {
+    warnings.push(
+      `Sueldo base $${contract.baseSalary} es menor al mínimo TCP $${snapshot.minimumIncomeHouseholdWorker}. Infracción DT.`
+    );
+  }
+
+  // ── 7. Asignación familiar ──
+  let asignacionFamiliar = 0;
+  const familyCount = worker.familyAllowanceCount ?? 0;
+  if (familyCount > 0 && snapshot.familyAllowanceTranches.length > 0) {
+    const tranche = snapshot.familyAllowanceTranches.find(tr =>
+      remuneracionImponible >= tr.incomeFrom &&
+      (tr.incomeTo === null || remuneracionImponible <= tr.incomeTo)
+    );
+    if (tranche) {
+      asignacionFamiliar = tranche.amount * familyCount;
+      t('ASIGNACION_FAMILIAR', 'Asignación familiar', asignacionFamiliar,
+        'trancheAmount * familyCount',
+        { trancheAmount: tranche.amount, familyCount, tranche: tranche.trancheCode });
+      c('ASIGNACION_FAMILIAR', 'Asignación Familiar', ConceptType.HABER, asignacionFamiliar,
+        { imponible: false, taxable: false, calculationOrder: 5 });
+    } else {
+      warnings.push(`Sin tramo asignación familiar para renta $${remuneracionImponible}.`);
+    }
+  }
+
+  // ── 8. Salud ──
   const salud7Minimo = Math.round(healthBase * snapshot.healthLegalRate);
   let salud7 = salud7Minimo;
+  let isapreDiferencia = 0;
   if (worker.healthType === HealthType.ISAPRE && worker.isaprePlanUf) {
     const planClp = Math.round(worker.isaprePlanUf * snapshot.ufPeriodEndValue);
     if (planClp > salud7Minimo) {
-      const diferencia = planClp - salud7Minimo;
+      isapreDiferencia = planClp - salud7Minimo;
       c('SALUD_7', 'Cotización Salud ISAPRE (7% mínimo)', ConceptType.DESCUENTO, salud7,
         { baseAmount: healthBase, rate: snapshot.healthLegalRate, calculationOrder: 12 });
-      c('ISAPRE_DIFERENCIA_PLAN', 'Diferencia Plan ISAPRE', ConceptType.DESCUENTO, diferencia,
+      c('ISAPRE_DIFERENCIA_PLAN', 'Diferencia Plan ISAPRE', ConceptType.DESCUENTO, isapreDiferencia,
         { baseAmount: planClp, calculationOrder: 13 });
     } else {
       c('SALUD_7', 'Cotización Salud ISAPRE (7%)', ConceptType.DESCUENTO, salud7,
@@ -136,13 +181,31 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
       { baseAmount: healthBase, rate: snapshot.healthLegalRate, calculationOrder: 12 });
   }
 
-  // ── 7. Base impuesto único ──
+  // ── 9. AFC del trabajador (Ley 21.585, 2023) ──
+  // Pensionados y trabajadores con >65 años no cotizan AFC.
+  let afcTrabajador = 0;
+  if (!worker.isPensioner) {
+    const startYear = parseInt(contract.startDate.substring(0, 4));
+    const periodYearNum = parseInt(input.payrollPeriod.substring(0, 4));
+    const yearsOfService = periodYearNum - startYear;
+    const afcWorkerRate = yearsOfService >= 10
+      ? AFC_WORKER_RATE_YEARS_11_PLUS
+      : AFC_WORKER_RATE_YEARS_1_10;
+    afcTrabajador = Math.round(afcBase * afcWorkerRate);
+    t('AFC_TRABAJADOR', 'AFC trabajador TCP (Ley 21.585)', afcTrabajador,
+      'afcBase * rate',
+      { afcBase, rate: afcWorkerRate, yearsOfService });
+    c('AFC_TRABAJADOR', 'AFC Trabajador TCP', ConceptType.DESCUENTO, afcTrabajador,
+      { baseAmount: afcBase, rate: afcWorkerRate, calculationOrder: 14 });
+  }
+
+  // ── 10. Base impuesto único ──
   const incomeTaxBase = remuneracionImponible - afp10 - afpCommission - salud7;
   t('BASE_IMPUESTO', 'Base imponible impuesto único', incomeTaxBase,
     'remuneracionImponible - afp10 - afpCommission - salud7',
     { remuneracionImponible, afp10, afpCommission, salud7 });
 
-  // ── 8. Impuesto único 2ª categoría ──
+  // ── 11. Impuesto único 2ª categoría ──
   let incomeTax = 0;
   const bracket = snapshot.taxBrackets.find(b =>
     incomeTaxBase >= b.fromAmount && (b.toAmount === null || incomeTaxBase <= b.toAmount)
@@ -158,7 +221,7 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
       { baseAmount: incomeTaxBase, rate: bracket?.factor, calculationOrder: 20 });
   }
 
-  // ── 9. Descuento ausencias injustificadas ──
+  // ── 12. Descuento ausencias injustificadas ──
   let descuentoAusencia = 0;
   if ((periodEvents.unjustifiedAbsenceDays ?? 0) > 0) {
     descuentoAusencia = Math.round(
@@ -168,24 +231,27 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
       descuentoAusencia, { baseAmount: contract.baseSalary, calculationOrder: 25 });
   }
 
-  // ── 10. Aportes empleador ──
-  const sis = Math.round(pensionBase * snapshot.sisRate);
-  const afcEmpleador = Math.round(afcBase * snapshot.afcTcpEmployerRate);
-  const cai = Math.round(remuneracionImponible * snapshot.caiTcpRate);
+  // ── 13. Aportes empleador (exentos para pensionados) ──
+  const sis = worker.isPensioner ? 0 : Math.round(pensionBase * snapshot.sisRate);
+  const afcEmpleador = worker.isPensioner ? 0 : Math.round(afcBase * snapshot.afcTcpEmployerRate);
+  const cai = worker.isPensioner ? 0 : Math.round(remuneracionImponible * snapshot.caiTcpRate);
   const mutual = Math.round(mutualBase * MUTUAL_BASE_RATE);
 
-  c('SIS', 'Seguro de Invalidez y Sobrevivencia (SIS)', ConceptType.APORTE_EMPLEADOR, sis,
-    { baseAmount: pensionBase, rate: snapshot.sisRate, visibleInPayslip: false, calculationOrder: 50 });
-  c('AFC_EMPLEADOR_TCP_3', 'AFC Empleador TCP (3%)', ConceptType.APORTE_EMPLEADOR, afcEmpleador,
-    { baseAmount: afcBase, rate: snapshot.afcTcpEmployerRate, visibleInPayslip: false, calculationOrder: 51 });
-  c('CAI_INDEMNIZACION_TODO_EVENTO_1_11', 'CAI Todo Evento (1,11%)', ConceptType.APORTE_EMPLEADOR, cai,
-    { baseAmount: remuneracionImponible, rate: snapshot.caiTcpRate, visibleInPayslip: false, calculationOrder: 52 });
+  if (!worker.isPensioner) {
+    c('SIS', 'Seguro de Invalidez y Sobrevivencia (SIS)', ConceptType.APORTE_EMPLEADOR, sis,
+      { baseAmount: pensionBase, rate: snapshot.sisRate, visibleInPayslip: false, calculationOrder: 50 });
+    c('AFC_EMPLEADOR_TCP_3', 'AFC Empleador TCP (3%)', ConceptType.APORTE_EMPLEADOR, afcEmpleador,
+      { baseAmount: afcBase, rate: snapshot.afcTcpEmployerRate, visibleInPayslip: false, calculationOrder: 51 });
+    c('CAI_INDEMNIZACION_TODO_EVENTO_1_11', 'CAI Todo Evento (1,11%)', ConceptType.APORTE_EMPLEADOR, cai,
+      { baseAmount: remuneracionImponible, rate: snapshot.caiTcpRate, visibleInPayslip: false, calculationOrder: 52 });
+  }
   c('MUTUAL_ACCIDENTES_TRABAJO', 'Mutual Accidentes del Trabajo', ConceptType.APORTE_EMPLEADOR, mutual,
     { baseAmount: mutualBase, rate: MUTUAL_BASE_RATE, visibleInPayslip: false, calculationOrder: 53 });
 
-  // ── 11. Totales ──
-  const totalDescuentos = afp10 + afpCommission + salud7 + incomeTax + descuentoAusencia;
-  const netPay = Math.round(grossIncome - totalDescuentos);
+  // ── 14. Totales ──
+  const totalDescuentos = afp10 + afpCommission + salud7 + isapreDiferencia
+    + afcTrabajador + incomeTax + descuentoAusencia + anticipos;
+  const netPay = Math.round(grossIncome + asignacionFamiliar - totalDescuentos);
   const totalEmployerCost = Math.round(remuneracionImponible + sis + afcEmpleador + cai + mutual);
 
   return {
@@ -205,8 +271,8 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
       afpCommission,
       health7: salud7,
       incomeTax,
-      advances: 0,
-      other: descuentoAusencia,
+      advances: anticipos,
+      other: descuentoAusencia + afcTrabajador + isapreDiferencia,
     },
     employerContributions: {
       sis,
