@@ -86,6 +86,23 @@ export async function POST(request: Request) {
   const lastDay  = new Date(y, m, 0).toISOString().slice(0, 10);
   const daysInMonth = new Date(y, m, 0).getDate();
 
+  // Licencias médicas del período indexadas por trabajador_id
+  const { data: licencias } = await supabase
+    .from('licencias_medicas')
+    .select('trabajador_id, fecha_inicio, fecha_fin')
+    .eq('empleador_id', empleadorId)
+    .eq('periodo', period);
+
+  const licenciasDiasByTrabajador: Record<string, number> = {};
+  for (const lic of licencias ?? []) {
+    if (!lic.fecha_inicio || !lic.fecha_fin) continue;
+    const dias = Math.round(
+      (new Date(lic.fecha_fin).getTime() - new Date(lic.fecha_inicio).getTime()) / 86400000
+    ) + 1;
+    licenciasDiasByTrabajador[lic.trabajador_id] =
+      (licenciasDiasByTrabajador[lic.trabajador_id] ?? 0) + dias;
+  }
+
   const results = [];
   const errors  = [];
 
@@ -133,6 +150,9 @@ export async function POST(request: Request) {
       periodEvents: {
         workedDays: daysInMonth,
         ...(extraHours != null && { extraHours }),
+        ...(licenciasDiasByTrabajador[contrato.trabajador_id] != null && {
+          medicalLeaveDays: licenciasDiasByTrabajador[contrato.trabajador_id],
+        }),
       },
       snapshot,
       mode,
