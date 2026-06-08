@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server';
 import { renderToBuffer } from '@react-pdf/renderer';
 import React from 'react';
 import { LiquidacionDocument } from '@/lib/payroll-cl/liquidacion-pdf';
+import { buildSnapshotForPeriod } from '@/lib/payroll-cl/snapshot-builder';
 
 export const runtime = 'nodejs';
 
@@ -42,12 +43,10 @@ export async function GET(request: Request) {
   }
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'no_empleador' }, { status: 403 });
 
-  // Obtener datos del empleador
-  const { data: empData } = await supabase
-    .from('empleadores')
-    .select('nombre, apellido, rut')
-    .eq('id', empleadorId)
-    .single();
+  const [empData, snapshot] = await Promise.all([
+    supabase.from('empleadores').select('nombre, apellido, rut').eq('id', empleadorId).single().then(r => r.data),
+    buildSnapshotForPeriod(period),
+  ]);
 
   // Obtener resultado de nómina
   const { data: result, error } = await supabase
@@ -115,6 +114,7 @@ export async function GET(request: Request) {
     saludNombre: trab.salud_tipo === 'isapre'
       ? (SALUD_NOMBRES[trab.salud_id] ?? 'Isapre')
       : 'FONASA',
+    ufValor: snapshot.ufPeriodEndValue,
   };
 
   const buffer = await renderToBuffer(
