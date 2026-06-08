@@ -252,9 +252,13 @@ export async function POST(request: Request) {
         contractId:  contrato.id,
         workerId:    contrato.trabajador_id,
         workerName:  `${trab.nombre} ${trab.apellido_paterno}`.trim(),
+        workerRut:   trab.rut,
         netPay:      result.netPay,
         grossIncome: result.grossIncome,
         warnings:    result.warnings,
+        concepts:    result.concepts
+          .filter(c => c.visibleInPayslip)
+          .map(c => ({ code: c.conceptCode, name: c.conceptName, type: c.conceptType, amount: c.amount })),
       });
     } catch (e: any) {
       errors.push({ contractId: contrato.id, error: e?.message ?? 'error_calculo' });

@@ -20,7 +20,7 @@ const PROCESOS_ABIERTO = [
 
 const PROCESOS_CERRADO = [
   { key: 'sueldos',           label: 'Sueldos',              Icon: Calculator,      download: 'sueldos'  },
-  { key: 'liquidaciones_pdf', label: 'Liquidaciones PDF',    Icon: FileText,        download: null       },
+  { key: 'liquidaciones_pdf', label: 'Liquidaciones PDF',    Icon: FileText,        download: 'liquidaciones' },
   { key: 'libros',            label: 'Libro Remuneraciones', Icon: BookOpen,        download: 'libro'    },
   { key: 'contabilidad',      label: 'Contabilidad',         Icon: FileSpreadsheet, download: null       },
   { key: 'previred',          label: 'Previred',             Icon: Shield,          download: 'previred' },
@@ -98,12 +98,21 @@ interface PeriodSummary {
   totalNetPay: number;
 }
 
+interface ConceptPreview {
+  code: string;
+  name: string;
+  type: string;
+  amount: number;
+}
+
 interface ProcessResult {
   workerName: string;
+  workerRut?: string;
   workerId: string;
   netPay: number;
   grossIncome: number;
   warnings: string[];
+  concepts?: ConceptPreview[];
 }
 
 interface Trabajador {
@@ -610,6 +619,94 @@ function TrabajadoresTable({ period, onOpenNovedades }: TrabajadoresTableProps) 
   );
 }
 
+// ── Modal Detalle Liquidación (preview) ─────────────────────────────────────
+
+function LiquidacionPreviewModal({ result, period, onClose }: {
+  result: ProcessResult;
+  period: string;
+  onClose: () => void;
+}) {
+  const haberes   = (result.concepts ?? []).filter(c => c.type === 'HABER');
+  const descuentos = (result.concepts ?? []).filter(c => c.type === 'DESCUENTO');
+  const totalDesc = descuentos.reduce((s, c) => s + c.amount, 0);
+
+  return (
+    <>
+      <div className="fixed inset-0 z-50 bg-black/40" onClick={onClose} />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md pointer-events-auto flex flex-col max-h-[85vh]">
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-200 shrink-0">
+            <div>
+              <p className="text-sm font-semibold text-zinc-800">{result.workerName}</p>
+              <p className="text-xs text-zinc-400">{result.workerRut} · {periodoLabel(period)} · Vista previa</p>
+            </div>
+            <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 transition">
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+            {/* Haberes */}
+            <div>
+              <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide mb-2">Haberes</p>
+              <div className="space-y-1">
+                {haberes.map(c => (
+                  <div key={c.code} className="flex justify-between text-xs">
+                    <span className="text-zinc-600">{c.name}</span>
+                    <span className="font-medium text-zinc-800">${fmt(c.amount)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between text-xs font-semibold border-t border-zinc-100 pt-1 mt-1">
+                  <span className="text-zinc-700">Total bruto</span>
+                  <span className="text-zinc-900">${fmt(result.grossIncome)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Descuentos */}
+            {descuentos.length > 0 && (
+              <div>
+                <p className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wide mb-2">Descuentos</p>
+                <div className="space-y-1">
+                  {descuentos.map(c => (
+                    <div key={c.code} className="flex justify-between text-xs">
+                      <span className="text-zinc-600">{c.name}</span>
+                      <span className="font-medium text-red-600">−${fmt(c.amount)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between text-xs font-semibold border-t border-zinc-100 pt-1 mt-1">
+                    <span className="text-zinc-700">Total descuentos</span>
+                    <span className="text-red-600">−${fmt(totalDesc)}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Líquido */}
+            <div className="rounded-xl bg-[#1a2e6e] px-4 py-3 flex justify-between items-center">
+              <span className="text-sm font-semibold text-white">Líquido a pagar</span>
+              <span className="text-lg font-bold text-white">${fmt(result.netPay)}</span>
+            </div>
+
+            {/* Advertencias */}
+            {result.warnings.length > 0 && (
+              <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 space-y-1">
+                {result.warnings.map((w, i) => (
+                  <div key={i} className="flex items-start gap-1.5">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-[11px] text-amber-700">{w}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 
 export default function RemuneracionesPage() {
@@ -622,6 +719,7 @@ export default function RemuneracionesPage() {
   const [loading,      setLoading]      = useState(true);
   const [licenciasModal, setLicenciasModal] = useState<string | null>(null);
   const [novedadesModal, setNovedadesModal] = useState<{ period: string; trabajador: Trabajador } | null>(null);
+  const [liquidacionPreview, setLiquidacionPreview] = useState<{ result: ProcessResult; period: string } | null>(null);
 
   const [processing,  setProcessing]  = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<Map<string, ProcessResult[]>>(new Map());
@@ -820,22 +918,17 @@ export default function RemuneracionesPage() {
                           Vista previa — {preview.length} trabajador{preview.length !== 1 ? 'es' : ''}
                         </p>
                         {preview.map((r, i) => (
-                          <div key={i} className="flex justify-between items-center text-xs text-blue-700">
-                            <span>{r.workerName}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">${fmt(r.netPay)} neto</span>
-                              <button
-                                onClick={() => handleDownload(
-                                  `/api/payroll/liquidacion-pdf?period=${period}&workerId=${r.workerId}`,
-                                  `liquidacion_${period.replace('-','')}_${r.workerId.slice(0,8)}.pdf`
-                                )}
-                                className="text-blue-500 hover:text-blue-700 transition"
-                                title="Descargar liquidación PDF"
-                              >
-                                <FileText className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
+                          <button
+                            key={i}
+                            onClick={() => setLiquidacionPreview({ result: r, period })}
+                            className="w-full flex justify-between items-center text-xs text-blue-700 hover:bg-blue-100 rounded-lg px-2 py-1 -mx-2 transition"
+                          >
+                            <span className="flex items-center gap-1">
+                              <FileText className="w-3 h-3 shrink-0" />
+                              {r.workerName}
+                            </span>
+                            <span className="font-medium">${fmt(r.netPay)} neto</span>
+                          </button>
                         ))}
                         {preview.some(r => r.warnings.length > 0) && (
                           <div className="flex items-center gap-1.5 mt-1">
@@ -902,6 +995,13 @@ export default function RemuneracionesPage() {
           period={novedadesModal.period}
           trabajador={novedadesModal.trabajador}
           onClose={() => setNovedadesModal(null)}
+        />
+      )}
+      {liquidacionPreview && (
+        <LiquidacionPreviewModal
+          result={liquidacionPreview.result}
+          period={liquidacionPreview.period}
+          onClose={() => setLiquidacionPreview(null)}
         />
       )}
     </div>
