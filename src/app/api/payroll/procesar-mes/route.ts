@@ -61,7 +61,7 @@ export async function POST(request: Request) {
       trabajadores (
         id, rut, nombre, apellido_paterno, apellido_materno,
         afp_id, salud_id, salud_tipo, cargas_simples,
-        fecha_nacimiento, email, is_pensioner
+        fecha_nacimiento, email, es_pensionado
       )
     `)
     .eq('empleador_id', empleadorId)
@@ -101,6 +101,20 @@ export async function POST(request: Request) {
     ) + 1;
     licenciasDiasByTrabajador[lic.trabajador_id] =
       (licenciasDiasByTrabajador[lic.trabajador_id] ?? 0) + dias;
+  }
+
+  // Novedades variables del período (haberes/descuentos + eventos manuales)
+  const { data: novedades } = await supabase
+    .from('payroll_novedades')
+    .select('trabajador_id, concept_code, amount')
+    .eq('empleador_id', empleadorId)
+    .eq('periodo', period);
+
+  // Agrupar novedades por trabajador
+  const novedadesByTrabajador: Record<string, Array<{ concept_code: string; amount: number }>> = {};
+  for (const n of novedades ?? []) {
+    if (!novedadesByTrabajador[n.trabajador_id]) novedadesByTrabajador[n.trabajador_id] = [];
+    novedadesByTrabajador[n.trabajador_id].push({ concept_code: n.concept_code, amount: Number(n.amount) });
   }
 
   const results = [];
@@ -143,17 +157,32 @@ export async function POST(request: Request) {
         rut:               trab.rut,
         afpCode,
         healthType,
-        isPensioner:       trab.is_pensioner ?? false,
+        isPensioner:       trab.es_pensionado ?? false,
         workerTypePrevired: '31',
         familyAllowanceCount: trab.cargas_simples ?? 0,
       },
       periodEvents: {
-        workedDays: daysInMonth,
+        workedDays: novedadesByTrabajador[contrato.trabajador_id]
+          ?.find(n => n.concept_code === '_DIAS_TRABAJADOS')?.amount ?? daysInMonth,
         ...(extraHours != null && { extraHours }),
         ...(licenciasDiasByTrabajador[contrato.trabajador_id] != null && {
           medicalLeaveDays: licenciasDiasByTrabajador[contrato.trabajador_id],
         }),
+        ...((() => {
+          const n = novedadesByTrabajador[contrato.trabajador_id] ?? [];
+          const ausencia = n.find(x => x.concept_code === '_DIAS_AUSENCIA')?.amount;
+          const vacaciones = n.find(x => x.concept_code === '_DIAS_VACACIONES')?.amount;
+          const heManual = n.find(x => x.concept_code === '_HORAS_EXTRA')?.amount;
+          return {
+            ...(ausencia   != null && { unjustifiedAbsenceDays: ausencia }),
+            ...(vacaciones != null && { vacationDays: vacaciones }),
+            ...(heManual   != null && extraHours == null && { extraHours: heManual }),
+          };
+        })()),
       },
+      variableItems: (novedadesByTrabajador[contrato.trabajador_id] ?? [])
+        .filter(n => !n.concept_code.startsWith('_'))
+        .map(n => ({ conceptCode: n.concept_code, amount: n.amount })),
       snapshot,
       mode,
     };
