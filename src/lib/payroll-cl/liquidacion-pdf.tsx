@@ -74,6 +74,7 @@ export interface LiquidacionData {
   daysInMonth: number;
   afpNombre: string;
   saludNombre: string;
+  ufValor?: number;
 }
 
 export function LiquidacionDocument({ data }: { data: LiquidacionData }) {
@@ -246,7 +247,7 @@ export function LiquidacionDocument({ data }: { data: LiquidacionData }) {
         </View>
 
         <Text style={styles.footer}>
-          Documento generado por Poppins · {new Date().toLocaleDateString('es-CL')}
+          Documento generado por Poppins · {new Date().toLocaleDateString('es-CL')}{data.ufValor ? ` · UF $${data.ufValor.toLocaleString('es-CL')}` : ''}
         </Text>
       </Page>
     </Document>
