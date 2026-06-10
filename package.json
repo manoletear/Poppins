@@ -10,7 +10,7 @@
     "cf:build": "node -e \"['.next','.open-next'].forEach(d=>require('fs').rmSync(d,{recursive:true,force:true}))\" && next build --webpack && opennextjs-cloudflare build --skipBuild",
     "cf:preview": "npm run cf:build && opennextjs-cloudflare preview",
     "cf:deploy": "npm run cf:build && opennextjs-cloudflare deploy",
-    "postinstall": "node -e \"require('fs').copyFileSync('node_modules/@react-pdf/pdfkit/lib/pdfkit.browser.js','node_modules/@react-pdf/pdfkit/lib/pdfkit.js')\""
+    "postinstall": "node scripts/cf-patch.js"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.11",
