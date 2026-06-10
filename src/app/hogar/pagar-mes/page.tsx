@@ -46,7 +46,9 @@ export default function PagarMesWizard() {
         if (d.ok) {
           setPeriods(d.data ?? []);
           const firstOpen = (d.data ?? []).find((p: any) => !p.closed);
-          if (firstOpen) setSelectedPeriod(firstOpen.period);
+          const now = new Date();
+          const currentPeriod = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+          setSelectedPeriod(firstOpen?.period ?? currentPeriod);
         }
       })
       .finally(() => setLoadingPeriods(false));

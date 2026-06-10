@@ -49,5 +49,5 @@ export async function GET() {
     totalNetPay: byPeriod.get(period)?.total ?? 0,
   }));
 
-  return NextResponse.json({ ok: true, periods: result });
+  return NextResponse.json({ ok: true, data: result });
 }
