@@ -398,11 +398,6 @@ export default function EmpleadoDetallePage() {
             <div>
               <h1 className="text-xl font-bold text-white">{nombre}</h1>
               <p className="text-rose-100">{worker.cargo || 'Empleado'}</p>
-              {bukState === 'found' && (
-                <span className="mt-1 inline-flex items-center gap-1 rounded-full bg-emerald-400/90 px-2 py-0.5 text-[11px] font-semibold text-white">
-                  <BadgeCheck className="w-3 h-3" /> Datos sincronizados
-                </span>
-              )}
             </div>
           </div>
         </div>
@@ -502,71 +497,6 @@ export default function EmpleadoDetallePage() {
                 )}
               </div>
             </div>
-            {bukState === 'found' && bukEmpleado && (
-              <div className="md:col-span-2 rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
-                <h3 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                  <BadgeCheck className="w-4 h-4" /> Datos sincronizados
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm text-zinc-800">
-                  {([
-                    ['RUT', bukEmpleado.rut],
-                    ['Cargo', bukEmpleado.cargo],
-                    ['Estado', bukEmpleado.estado],
-                    ['Sueldo Base', bukEmpleado.sueldoBase > 0 ? formatCLP(bukEmpleado.sueldoBase) : ''],
-                    ['Tipo Contrato', bukEmpleado.tipoContrato],
-                    ['Ingreso', bukEmpleado.fechaIngreso],
-                    ['Horas/Sem', bukEmpleado.horasSemanales ? `${bukEmpleado.horasSemanales}h` : ''],
-                    ['Tipo Jornada', bukEmpleado.tipoJornada],
-                    ['Gratificación', bukEmpleado.gratificacionLegal ? 'Sí' : ''],
-                    ['AFP / Fondo', bukEmpleado.afp],
-                    ['Régimen Previsional', bukEmpleado.regimenPrevisional],
-                    ['Salud', bukEmpleado.salud],
-                    ['Seguro Cesantía', bukEmpleado.seguroCesantia],
-                    ['Email', bukEmpleado.email],
-                    ['Email Personal', bukEmpleado.emailPersonal],
-                    ['Teléfono', bukEmpleado.telefono],
-                    ['Dirección', bukEmpleado.direccion],
-                    ['Comuna', bukEmpleado.comuna],
-                    ['Región', bukEmpleado.region],
-                    ['Nacionalidad', bukEmpleado.nacionalidad],
-                    ['Estado Civil', bukEmpleado.estadoCivil],
-                    ['Sexo', bukEmpleado.sexo],
-                    ['Nacimiento', bukEmpleado.fechaNacimiento],
-                    ['Banco', bukEmpleado.banco],
-                    ['Tipo Cuenta', bukEmpleado.tipoCuenta],
-                    ['N° Cuenta', bukEmpleado.numeroCuenta],
-                    ['Método Pago', bukEmpleado.metodoPago],
-                    ['Cargas', bukEmpleado.cargas != null ? `${bukEmpleado.cargas}${bukEmpleado.tramoAsignacion ? ` (tramo ${bukEmpleado.tramoAsignacion})` : ''}` : ''],
-                    ['Código Ficha', bukEmpleado.codigoFicha],
-                    ['Centro Costo', bukEmpleado.centroCosto],
-                    ['Jefe', bukEmpleado.jefe],
-                    ['Vac. Progresivas', bukEmpleado.inicioVacacionesProgresivas],
-                  ] as [string, any][]).filter(([, v]) => v !== '' && v != null).map(([label, val]) => (
-                    <div key={label}><span className="text-zinc-400 text-xs block">{label}</span>{String(val)}</div>
-                  ))}
-                </div>
-                {bukVacaciones.length > 0 && (
-                  <div className="mt-4">
-                    <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide mb-2">Vacaciones</p>
-                    <div className="space-y-1.5">
-                      {bukVacaciones.map((v, i) => {
-                        const st = String(v.estado || '').toLowerCase();
-                        const fin = v.fin ? new Date(v.fin + 'T00:00:00') : null;
-                        const e = st.includes('reject') || st.includes('rechaz') || st.includes('cancel') || st.includes('denied') ? 'rechazada' : (st.includes('approv') || st.includes('aprob') || st.includes('acept') ? (fin && fin < new Date() ? 'tomada' : 'aprobada') : 'solicitada');
-                        const c = e === 'tomada' ? 'bg-blue-100 text-blue-700' : e === 'aprobada' ? 'bg-emerald-100 text-emerald-700' : e === 'rechazada' ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700';
-                        return (
-                          <div key={i} className="flex flex-wrap items-center gap-2 text-xs">
-                            <span className={'px-2 py-0.5 rounded-full font-medium capitalize ' + c}>{e}</span>
-                            <span className="text-zinc-700 font-medium">{Number(v.dias) || 0} días</span>
-                            <span className="text-zinc-400">{v.inicio || '—'} → {v.fin || '—'}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         )}
 
@@ -651,34 +581,7 @@ export default function EmpleadoDetallePage() {
             </div>
           </div>
         )}
-        {activeTab === 'contrato' && !contrato && bukState === 'found' && bukEmpleado && (
-          <div className="space-y-6">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-4">
-              <h3 className="text-sm font-semibold text-emerald-800 uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                <BadgeCheck className="w-4 h-4" /> Contrato (datos de Buk)
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                {([
-                  ['Tipo Contrato', bukEmpleado.tipoContrato],
-                  ['Cargo', bukEmpleado.cargo],
-                  ['Sueldo Base', bukEmpleado.sueldoBase > 0 ? formatCLP(bukEmpleado.sueldoBase) : ''],
-                  ['Jornada', bukEmpleado.tipoJornada ? `${bukEmpleado.tipoJornada} (${bukEmpleado.horasSemanales}h/sem)` : (bukEmpleado.horasSemanales ? `${bukEmpleado.horasSemanales}h/sem` : '')],
-                  ['Fecha Inicio', bukEmpleado.fechaInicioContrato],
-                  ['Fecha Suscripcion', bukEmpleado.fechaSuscripcion],
-                  ['Fecha Termino', bukEmpleado.fechaTerminoContrato],
-                  ['Gratificacion Legal', bukEmpleado.gratificacionLegal ? 'Si' : 'No'],
-                  ['Centro de Costo', bukEmpleado.centroCosto],
-                  ['Jefatura', bukEmpleado.jefe],
-                  ['Dias de Trabajo', bukEmpleado.diasTrabajo ? `${bukEmpleado.diasTrabajo} dias/sem` : ''],
-                  ['Estado', bukEmpleado.estado],
-                ] as [string, any][]).filter(([, v]) => v !== '' && v != null).map(([label, val]) => (
-                  <CField key={label} label={label} value={String(val)} />
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-        {activeTab === 'contrato' && !contrato && bukState !== 'found' && <p className="text-sm text-zinc-500 text-center py-8">Sin contrato activo.</p>}
+        {activeTab === 'contrato' && !contrato && <p className="text-sm text-zinc-500 text-center py-8">Sin contrato activo.</p>}
 
         {/* LIQUIDACIONES / SERVICIOS */}
         {activeTab === 'liquidaciones' && (() => {
@@ -875,10 +778,8 @@ export default function EmpleadoDetallePage() {
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-zinc-400">Acumuladas estimadas según antigüedad: 1,25 días hábiles/mes (Art. 67){progresivas > 0 ? ` + ${progresivas}d progresivos (Art. 68)` : ''}. Disponibles = acumuladas − tomadas − aprobadas. Buk no expone el saldo por API; es una estimación legal.</p>
-              {bukState !== 'found' ? (
-                <p className="text-sm text-zinc-500 text-center py-6">No sincronizado con Buk.</p>
-              ) : vac.length === 0 ? (
+              <p className="text-xs text-zinc-400">Acumuladas estimadas según antigüedad: 1,25 días hábiles/mes (Art. 67){progresivas > 0 ? ` + ${progresivas}d progresivos (Art. 68)` : ''}. Disponibles = acumuladas − tomadas − aprobadas.</p>
+              {vac.length === 0 ? (
                 <p className="text-sm text-zinc-500 text-center py-6">Sin vacaciones registradas.</p>
               ) : (
                 <div className="space-y-2">
@@ -909,10 +810,8 @@ export default function EmpleadoDetallePage() {
                 <div className="rounded-xl p-4 bg-amber-50 text-amber-700"><p className="text-2xl font-bold">{totalDias} días</p><p className="text-xs font-medium opacity-80">Días totales</p></div>
                 <div className="rounded-xl p-4 bg-emerald-50 text-emerald-700"><p className="text-2xl font-bold">{bukLicencias.filter((l: any) => String(l.estado).toLowerCase().includes('aprob') || String(l.estado).toLowerCase().includes('approv')).length}</p><p className="text-xs font-medium opacity-80">Aprobadas</p></div>
               </div>
-              {bukState !== 'found' ? (
-                <p className="text-sm text-zinc-500 text-center py-6">No sincronizado con Buk.</p>
-              ) : bukLicencias.length === 0 ? (
-                <p className="text-sm text-zinc-500 text-center py-6">Sin licencias médicas registradas en Buk.</p>
+              {bukLicencias.length === 0 ? (
+                <p className="text-sm text-zinc-500 text-center py-6">Sin licencias médicas registradas.</p>
               ) : (
                 <div className="space-y-2">
                   {bukLicencias.sort((a: any, b: any) => String(b.inicio || '').localeCompare(String(a.inicio || ''))).map((l: any, i: number) => (
