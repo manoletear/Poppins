@@ -136,6 +136,7 @@ function AnticiposSection({ empleadorId }: { empleadorId: string }) {
   const [uploadTargetId, setUploadTargetId] = useState<string | null>(null);
 
   const loadAnticipos = useCallback(async () => {
+    if (!empleadorId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
@@ -476,6 +477,7 @@ export default function SolicitudesPage() {
   const [processingId, setProcessingId] = useState<string | null>(null);
 
   const loadSolicitudes = useCallback(async () => {
+    if (!empleadorId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
