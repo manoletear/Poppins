@@ -1,9 +1,20 @@
 import type { NextConfig } from "next";
+import path from "path";
 // Cloudflare Workers (OpenNext): habilita bindings/env en `next dev`.
 import { initOpenNextCloudflareForDev } from "@opennextjs/cloudflare";
 
 const nextConfig: NextConfig = {
   output: "standalone", // requerido por OpenNext (build webpack + --skipBuild)
+  webpack: (config) => {
+    // CF Workers prohíbe WebAssembly dinámico. @react-pdf/pdfkit server bundle usa
+    // blake3-wasm → new WebAssembly.Module(bytes) que falla. El bundle browser usa
+    // noble-hashes (puro JS). Forzamos el alias para server-side también.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@react-pdf/pdfkit': path.resolve('./node_modules/@react-pdf/pdfkit/lib/pdfkit.browser.js'),
+    };
+    return config;
+  },
   reactCompiler: true,
   poweredByHeader: false,
   images: {
