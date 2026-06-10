@@ -5,16 +5,14 @@ import React from 'react';
 import {
   Document, Page, Text, View, StyleSheet, Image, Font,
 } from '@react-pdf/renderer';
-import { poppinsRegularB64, poppinsMediumB64, poppinsBoldB64, logoB64 } from '@/lib/pdf-assets';
-
-const LOGO_SRC = `data:image/png;base64,${logoB64}`;
+import { FONT_REGULAR, FONT_MEDIUM, FONT_BOLD, LOGO_URL } from '@/lib/pdf-fonts';
 
 Font.register({
   family: 'Poppins',
   fonts: [
-    { src: `data:font/truetype;base64,${poppinsRegularB64}`, fontWeight: 'normal' },
-    { src: `data:font/truetype;base64,${poppinsMediumB64}`,  fontWeight: 'medium' },
-    { src: `data:font/truetype;base64,${poppinsBoldB64}`,    fontWeight: 'bold' },
+    { src: FONT_REGULAR, fontWeight: 'normal' },
+    { src: FONT_MEDIUM,  fontWeight: 'medium' },
+    { src: FONT_BOLD,    fontWeight: 'bold' },
   ],
 });
 
@@ -173,7 +171,7 @@ export function LiquidacionDocument({ data }: { data: LiquidacionData }) {
               {periodoLabel}
             </Text>
           </View>
-          <Image src={LOGO_SRC} style={styles.logo} />
+          <Image src={LOGO_URL} style={styles.logo} />
         </View>
 
         {/* Info grid: trabajador / contrato / previsión */}
