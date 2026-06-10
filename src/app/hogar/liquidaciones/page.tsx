@@ -121,11 +121,12 @@ async function downloadLiquidacionPDF(
       `/api/payroll/liquidacion-pdf?period=${liq.periodo}&workerId=${trabajador.id}`,
     );
     if (!r.ok) {
-      alert(
-        r.status === 404
-          ? 'No hay liquidación calculada para este trabajador en este período.'
-          : `No se pudo generar el PDF (HTTP ${r.status}).`,
-      );
+      if (r.status === 404) {
+        alert('No hay liquidación calculada para este trabajador en este período.');
+      } else {
+        const body = await r.json().catch(() => ({}));
+        alert(`Error PDF (${r.status}): ${body.error ?? 'sin detalle'}\n${body.stack?.slice(0, 300) ?? ''}`);
+      }
       return;
     }
     const blob = await r.blob();
