@@ -2,31 +2,19 @@
 // Layout estilo Buk/DT: tablas paralelas haberes/descuentos + líquido destacado.
 // Fuente: Poppins (registrada desde public/fonts). Colores: negro + grises.
 import React from 'react';
-import path from 'path';
-import fs from 'fs';
 import {
   Document, Page, Text, View, StyleSheet, Image, Font,
 } from '@react-pdf/renderer';
+import { poppinsRegularB64, poppinsMediumB64, poppinsBoldB64, logoB64 } from '@/lib/pdf-assets';
 
-// Cargamos el logo como Buffer al importar el módulo. Esto evita que react-pdf
-// intente resolver una ruta de string en Windows (con espacios + backslashes),
-// que falla silenciosamente y deja el header sin logo.
-const LOGO_BUFFER: Buffer | null = (() => {
-  try {
-    return fs.readFileSync(path.join(process.cwd(), 'public', 'Poppins.png'));
-  } catch {
-    return null;
-  }
-})();
-
-const FONT_DIR = path.join(process.cwd(), 'public', 'fonts');
+const LOGO_SRC = `data:image/png;base64,${logoB64}`;
 
 Font.register({
   family: 'Poppins',
   fonts: [
-    { src: path.join(FONT_DIR, 'Poppins-Regular.ttf'), fontWeight: 'normal' },
-    { src: path.join(FONT_DIR, 'Poppins-Medium.ttf'),  fontWeight: 'medium' },
-    { src: path.join(FONT_DIR, 'Poppins-Bold.ttf'),    fontWeight: 'bold' },
+    { src: `data:font/truetype;base64,${poppinsRegularB64}`, fontWeight: 'normal' },
+    { src: `data:font/truetype;base64,${poppinsMediumB64}`,  fontWeight: 'medium' },
+    { src: `data:font/truetype;base64,${poppinsBoldB64}`,    fontWeight: 'bold' },
   ],
 });
 
@@ -185,7 +173,7 @@ export function LiquidacionDocument({ data }: { data: LiquidacionData }) {
               {periodoLabel}
             </Text>
           </View>
-          {LOGO_BUFFER && <Image src={LOGO_BUFFER} style={styles.logo} />}
+          <Image src={LOGO_SRC} style={styles.logo} />
         </View>
 
         {/* Info grid: trabajador / contrato / previsión */}
