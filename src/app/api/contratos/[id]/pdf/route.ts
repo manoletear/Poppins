@@ -103,7 +103,12 @@ export async function GET(
     fechaFirmaTrabajador: c.fecha_firma_trabajador ?? null,
   };
 
-  const buffer = await renderToBuffer(React.createElement(ContratoDocument, { data }) as any);
+  let buffer: Buffer;
+  try {
+    buffer = await renderToBuffer(React.createElement(ContratoDocument, { data }) as any);
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e?.message ?? e), stack: String(e?.stack ?? '').slice(0, 400) }, { status: 500 });
+  }
 
   // Subir a storage
   const rut = (t?.rut ?? 'trab').replace(/[.\-]/g, '');

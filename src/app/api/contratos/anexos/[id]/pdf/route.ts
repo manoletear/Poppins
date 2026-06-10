@@ -63,7 +63,12 @@ export async function GET(
     fechaFirmaTrabajador: a.fecha_firma_trabajador,
   };
 
-  const buffer = await renderToBuffer(React.createElement(AnexoDocument, { data }) as any);
+  let buffer: Buffer;
+  try {
+    buffer = await renderToBuffer(React.createElement(AnexoDocument, { data }) as any);
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e?.message ?? e), stack: String(e?.stack ?? '').slice(0, 400) }, { status: 500 });
+  }
 
   const storagePath = `contratos/${a.empleador_id}/anexo_${a.contrato_id}_${a.numero_anexo}.pdf`;
   try {
