@@ -43,7 +43,7 @@ export default function ForgotPasswordPage() {
         {/* Logo */}
         <div className="text-center">
           <h2 className="text-3xl font-bold text-zinc-900">Poppins</h2>
-          <p className="text-sm text-zinc-500 mt-1">ERP RRHH Chile</p>
+          <p className="text-sm text-zinc-500 mt-1">La magia en tu casa</p>
         </div>
 
         {/* Title */}

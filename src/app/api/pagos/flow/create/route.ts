@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       amount: Math.round(monto),
       email: email || 'pagos@poppins.cl',
       urlConfirmation: `${siteUrl}/api/pagos/flow/confirm`,
-      urlReturn: `${siteUrl}/empresa/pagos?flow_status=completed`,
+      urlReturn: `${siteUrl}/hogar/pagos?flow_status=completed`,
     });
 
     return NextResponse.json({

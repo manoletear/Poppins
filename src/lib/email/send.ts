@@ -9,26 +9,41 @@
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Poppins <notificaciones@poppins.cl>';
 
+export interface EmailAttachment {
+  filename: string;
+  content: string;     // base64
+  contentType?: string;
+}
+
 interface EmailPayload {
   to: string;
   subject: string;
   html: string;
+  attachments?: EmailAttachment[];
 }
 
-export async function sendEmail({ to, subject, html }: EmailPayload): Promise<boolean> {
+export async function sendEmail({ to, subject, html, attachments }: EmailPayload): Promise<boolean> {
   if (!RESEND_API_KEY) {
     console.warn('[Email] RESEND_API_KEY no configurada — email no enviado');
     return false;
   }
 
   try {
+    const body: Record<string, any> = { from: FROM_EMAIL, to, subject, html };
+    if (attachments && attachments.length > 0) {
+      body.attachments = attachments.map(a => ({
+        filename: a.filename,
+        content: a.content,
+        ...(a.contentType && { content_type: a.contentType }),
+      }));
+    }
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${RESEND_API_KEY}`,
       },
-      body: JSON.stringify({ from: FROM_EMAIL, to, subject, html }),
+      body: JSON.stringify(body),
     });
 
     if (!res.ok) {
@@ -106,7 +121,7 @@ export function emailPagoConfirmado(nombre: string, monto: string, cuentas: numb
         <h2 style="color:#2D2D90">Poppins</h2>
         <p>Hola ${nombre},</p>
         <p>Tu pago por <strong>${monto}</strong> (${cuentas} cuenta${cuentas > 1 ? 's' : ''}) ha sido procesado exitosamente.</p>
-        <a href="https://poppins.tooxs-fperez.workers.dev/empresa/pagos" style="display:inline-block;background:#16a34a;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
+        <a href="https://poppins.tooxs-fperez.workers.dev/hogar/pagos" style="display:inline-block;background:#16a34a;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
           Ver Comprobante
         </a>
         <p style="color:#999;font-size:12px;margin-top:30px">Poppins — Magia en tu casa</p>
@@ -123,7 +138,7 @@ export function emailAlertaVencimiento(nombre: string, cuenta: string, diasResta
         <h2 style="color:#2D2D90">Poppins</h2>
         <p>Hola ${nombre},</p>
         <p>Tu cuenta <strong>${cuenta}</strong> vence en <strong>${diasRestantes} día${diasRestantes > 1 ? 's' : ''}</strong>.</p>
-        <a href="https://poppins.tooxs-fperez.workers.dev/empresa/pagos" style="display:inline-block;background:#E91E8C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
+        <a href="https://poppins.tooxs-fperez.workers.dev/hogar/pagos" style="display:inline-block;background:#E91E8C;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;margin:16px 0">
           Pagar Ahora
         </a>
         <p style="color:#999;font-size:12px;margin-top:30px">Poppins — Magia en tu casa</p>

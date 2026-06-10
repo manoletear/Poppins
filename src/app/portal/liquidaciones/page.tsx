@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
-import { FileText, Download, PenTool, CheckCircle, X } from 'lucide-react';
+import { FileText, Download, PenTool, CheckCircle, X, Eye } from 'lucide-react';
 
 
 // Matches actual `liquidaciones` table columns
@@ -176,46 +176,34 @@ function FirmaModal({ liq, onClose, onFirma }: { liq: Liquidacion; onClose: () =
   );
 }
 
-function downloadLiquidacionPDF(liq: Liquidacion) {
-  const f = (n: number) => (n ?? 0).toLocaleString('es-CL');
-  const printWindow = window.open('', '_blank');
-  if (!printWindow) return;
-  printWindow.document.write(`
-    <html>
-      <head><title>Liquidacion ${liq.periodo}</title>
-      <style>
-        body{font-family:Arial,sans-serif;padding:40px;color:#333;max-width:600px;margin:0 auto}
-        h1{font-size:20px;margin-bottom:4px}
-        h2{font-size:14px;color:#666;margin-bottom:20px}
-        .section{font-size:12px;font-weight:bold;color:#888;text-transform:uppercase;letter-spacing:1px;margin:16px 0 8px}
-        .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f0f0f0;font-size:14px}
-        .label{color:#888}.value{font-weight:600}
-        .neg{color:#dc2626}
-        .total{border-top:2px solid #333;font-size:16px;font-weight:bold;padding-top:10px;margin-top:10px}
-        .green{color:#059669}
-      </style>
-      </head>
-      <body>
-        <h1>Liquidacion de Sueldo</h1>
-        <h2>${formatPeriodo(liq.periodo)}</h2>
-        <div class="section">Haberes</div>
-        <div class="row"><span class="label">Sueldo Base</span><span class="value">$${f(liq.sueldo_base)}</span></div>
-        <div class="row"><span class="label">Gratificacion Legal</span><span class="value">$${f(liq.gratificacion_legal)}</span></div>
-        <div class="row"><span class="label">Horas Extra 50%</span><span class="value">$${f(liq.horas_extras_50)}</span></div>
-        <div class="row"><span class="label">Bonos Imponibles</span><span class="value">$${f(liq.bonos_imponibles)}</span></div>
-        <div class="row"><span class="label">Total Haberes</span><span class="value">$${f(liq.total_haberes)}</span></div>
-        <div class="section">Descuentos</div>
-        <div class="row"><span class="label">AFP</span><span class="value neg">-$${f(liq.afp_trabajador)}</span></div>
-        <div class="row"><span class="label">Salud</span><span class="value neg">-$${f(liq.salud_trabajador)}</span></div>
-        <div class="row"><span class="label">AFC (Cesantia)</span><span class="value neg">-$${f(liq.afc_trabajador)}</span></div>
-        <div class="row"><span class="label">Impuesto Unico</span><span class="value neg">-$${f(liq.impuesto_unico)}</span></div>
-        <div class="row"><span class="label">Total Descuentos</span><span class="value neg">-$${f(liq.total_descuentos)}</span></div>
-        <div class="row total"><span>Liquido a Pagar</span><span class="green">$${f(liq.liquido_pagar)}</span></div>
-      </body>
-    </html>
-  `);
-  printWindow.document.close();
-  printWindow.print();
+async function downloadLiquidacionPDF(liq: Liquidacion, mode: 'preview' | 'download' = 'preview') {
+  try {
+    const r = await fetch(`/api/portal/liquidacion-pdf?period=${liq.periodo}`);
+    if (!r.ok) {
+      alert(r.status === 404
+        ? 'No hay liquidación disponible para este período. Contacta a tu empleador.'
+        : `No se pudo generar el PDF (HTTP ${r.status}).`);
+      return;
+    }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    if (mode === 'download') {
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `liquidacion_${liq.periodo.replace('-', '')}.pdf`;
+      a.click();
+    } else {
+      const w = window.open(url, '_blank');
+      if (!w) {
+        alert('Tu navegador bloqueó la ventana. Permite popups e intenta de nuevo.');
+        return;
+      }
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
+  } catch (e) {
+    console.error('downloadLiquidacionPDF', e);
+    alert('Error al obtener el PDF.');
+  }
 }
 
 export default function MisLiquidacionesPage() {
@@ -231,13 +219,34 @@ export default function MisLiquidacionesPage() {
     if (!trabajadorId) return;
     try {
       const supabase = createClient();
-      const { data, error: err } = await supabase
-        .from('liquidaciones')
-        .select('*')
-        .eq('trabajador_id', trabajadorId)
-        .order('periodo', { ascending: false });
+      // Lee de payroll_results (sistema Poppins) y mapea a la interface Liquidacion
+      // para reutilizar el UI existente. RLS worker_lee_payroll_results filtra.
+      const { data: results, error: err } = await supabase
+        .from('payroll_results')
+        .select('id, payroll_period, gross_income, taxable_income, net_pay, deduction_afp10, deduction_afp_commission, deduction_health7, deduction_income_tax, deduction_advances, deduction_other, pagado_at, medio_pago, recibo_firmado_at')
+        .eq('worker_id', trabajadorId)
+        .eq('voided', false)
+        .order('payroll_period', { ascending: false });
       if (err) throw err;
-      setPayroll((data as Liquidacion[]) || []);
+      const liqs: Liquidacion[] = (results ?? []).map((r: any) => ({
+        id: r.id, trabajador_id: trabajadorId, periodo: r.payroll_period,
+        pagado_at: r.pagado_at, medio_pago: r.medio_pago, recibo_firmado_at: r.recibo_firmado_at,
+        sueldo_base: 0, gratificacion_legal: 0,
+        horas_extras_50: 0, horas_extras_100: 0, bonos_imponibles: 0,
+        colacion: 0, movilizacion: 0, viatico: 0, comisiones: 0,
+        total_haberes: r.gross_income ?? 0,
+        total_haberes_imponibles: r.taxable_income ?? 0,
+        total_haberes_no_imponibles: Math.max(0, (r.gross_income ?? 0) - (r.taxable_income ?? 0)),
+        afp_trabajador: (r.deduction_afp10 ?? 0) + (r.deduction_afp_commission ?? 0),
+        salud_trabajador: r.deduction_health7 ?? 0,
+        salud_adicional: 0,
+        afc_trabajador: r.deduction_other ?? 0,
+        impuesto_unico: r.deduction_income_tax ?? 0,
+        total_descuentos: (r.gross_income ?? 0) - (r.net_pay ?? 0),
+        liquido_pagar: r.net_pay ?? 0,
+        estado: 'pagado',
+      } as any));
+      setPayroll(liqs);
     } catch (e: unknown) {
       console.error('Error loading liquidaciones:', e);
       setError(e instanceof Error ? e.message : 'Error al cargar liquidaciones');
@@ -295,11 +304,18 @@ export default function MisLiquidacionesPage() {
                       Ver Detalle
                     </button>
                     <button
-                      onClick={() => downloadLiquidacionPDF(latest)}
+                      onClick={() => downloadLiquidacionPDF(latest, 'preview')}
+                      className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      <Eye size={14} />
+                      Ver PDF
+                    </button>
+                    <button
+                      onClick={() => downloadLiquidacionPDF(latest, 'download')}
                       className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
                     >
                       <Download size={14} />
-                      Descargar PDF
+                      Descargar
                     </button>
                     {latest.estado !== 'aprobado' && latest.estado !== 'pagado' && (
                       <button
@@ -357,10 +373,18 @@ export default function MisLiquidacionesPage() {
                               Ver
                             </button>
                             <button
-                              onClick={() => downloadLiquidacionPDF(liq)}
+                              onClick={() => downloadLiquidacionPDF(liq, 'preview')}
                               className="text-xs px-3 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition font-medium"
+                              title="Ver PDF"
                             >
                               PDF
+                            </button>
+                            <button
+                              onClick={() => downloadLiquidacionPDF(liq, 'download')}
+                              className="text-xs px-2 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition font-medium"
+                              title="Descargar PDF"
+                            >
+                              <Download size={12} />
                             </button>
                             {liq.estado !== 'aprobado' && liq.estado !== 'pagado' ? (
                               <button

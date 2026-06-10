@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/client';
 export function getRedirectForRole(rol: string): string {
   switch (rol) {
     case 'admin': return '/admin';
-    case 'empleador': return '/empresa';
+    case 'empleador': return '/hogar';
     case 'empleado': return '/portal';
     default: return '/';
   }

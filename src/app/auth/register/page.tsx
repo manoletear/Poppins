@@ -75,7 +75,7 @@ export default function RegisterPage() {
 
       if (data.session) {
         // Auto-confirmed, redirect
-        router.push('/empresa');
+        router.push('/hogar');
       } else {
         // Email confirmation required
         setSuccess(true);
@@ -92,7 +92,7 @@ export default function RegisterPage() {
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="max-w-md w-full rounded-2xl border border-zinc-200 bg-white shadow-lg p-8 text-center">
           <div className="text-3xl font-bold text-zinc-900">Poppins</div>
-          <p className="text-sm text-zinc-500 mt-1">ERP RRHH Chile</p>
+          <p className="text-sm text-zinc-500 mt-1">La magia en tu casa</p>
 
           <div className="mt-8">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
@@ -125,7 +125,7 @@ export default function RegisterPage() {
         {/* Logo */}
         <div className="text-center">
           <h2 className="text-3xl font-bold text-zinc-900">Poppins</h2>
-          <p className="text-sm text-zinc-500 mt-1">ERP RRHH Chile</p>
+          <p className="text-sm text-zinc-500 mt-1">La magia en tu casa</p>
         </div>
 
         {/* Title */}

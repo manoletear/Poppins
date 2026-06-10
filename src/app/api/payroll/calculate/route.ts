@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { calculatePayroll } from '@/lib/payroll-cl/engine';
 import { calcularHorasExtra } from '@/lib/payroll-cl/marcajes-to-hours';
+import { validarPrevision } from '@/lib/payroll-cl/validacion-prevision';
+import { getActiveEmpleadorId } from '@/lib/auth/active-empleador';
 import type { PayrollEngineInput } from '@/lib/payroll-cl/types/payroll';
 import { SNAPSHOT_USABLE_FOR_CLOSE } from '@/lib/payroll-cl/types/enums';
 
@@ -33,30 +35,60 @@ export async function POST(request: Request) {
     }, { status: 422 });
   }
 
-  // Verificar acceso del empleador al contrato
-  const { data: perfil } = await supabase
-    .from('user_profiles')
-    .select('empleador_id')
-    .eq('auth_user_id', user.id)
-    .maybeSingle();
-  let empleadorId = perfil?.empleador_id as string | undefined;
-  if (!empleadorId) {
-    const { data: emp } = await supabase
-      .from('empleadores')
-      .select('id')
-      .eq('auth_user_id', user.id)
-      .maybeSingle();
-    empleadorId = emp?.id;
-  }
+  // Verificar acceso del empleador al contrato (N:M con workspace switcher)
+  const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'sin_empleador' }, { status: 400 });
 
   const { data: contrato } = await supabase
     .from('contratos')
-    .select('id')
+    .select('id, fecha_termino, trabajador_id')
     .eq('id', body.contract.contractId)
     .eq('empleador_id', empleadorId)
     .maybeSingle();
   if (!contrato) return NextResponse.json({ ok: false, error: 'contrato_no_encontrado' }, { status: 404 });
+
+  // Validación previsional: bloquea en mode=final si inválida; preview devuelve warnings
+  let previsionInfo: { ok: boolean; estado: string; errores: string[]; warnings: string[] } | null = null;
+  const { data: trabPrev } = await supabase
+    .from('trabajadores')
+    .select('id, rut, nombre, afp_id, salud_id, salud_tipo, salud_plan_uf, prevision_verificada_at, prevision_estado')
+    .eq('id', contrato.trabajador_id)
+    .maybeSingle();
+  if (trabPrev) {
+    const [{ data: catAfps }, { data: catIsapres }] = await Promise.all([
+      supabase.from('cat_afp').select('id, codigo, activa'),
+      supabase.from('cat_isapre').select('id, codigo, tipo, activa'),
+    ]);
+    const [y, m] = body.payrollPeriod.split('-').map(Number);
+    const periodoFin = new Date(y, m, 0, 23, 59, 59);
+    const validacion = validarPrevision(
+      {
+        id: trabPrev.id, rut: trabPrev.rut, nombre: trabPrev.nombre,
+        afp_id: trabPrev.afp_id, salud_id: trabPrev.salud_id, salud_tipo: trabPrev.salud_tipo,
+        salud_plan_uf: trabPrev.salud_plan_uf,
+        prevision_verificada_at: trabPrev.prevision_verificada_at,
+        prevision_estado: trabPrev.prevision_estado,
+      },
+      {
+        afps:    (catAfps    ?? []) as Array<{ id: number; codigo: string; activa: boolean }>,
+        isapres: (catIsapres ?? []) as Array<{ id: number; codigo: string; tipo: 'fonasa' | 'isapre'; activa: boolean }>,
+      },
+      { periodoFin, contratoFechaTermino: (contrato as any).fecha_termino },
+    );
+    previsionInfo = validacion;
+    if (!validacion.ok && body.mode === 'final') {
+      return NextResponse.json({
+        ok: false,
+        error: 'prevision_invalida',
+        detail: validacion.errores,
+        warnings: validacion.warnings,
+      }, { status: 422 });
+    }
+    // Si el motor no recibió isaprePlanUf desde el body, lo inyectamos desde la BD
+    if (trabPrev.salud_tipo === 'isapre' && trabPrev.salud_plan_uf && !body.worker.isaprePlanUf) {
+      body = { ...body, worker: { ...body.worker, isaprePlanUf: Number(trabPrev.salud_plan_uf) } };
+    }
+  }
 
   // Horas extra: si no vienen en el input, calcular desde marcajes del período.
   let horasExtraInfo: ReturnType<typeof calcularHorasExtra> | null = null;
@@ -116,6 +148,9 @@ export async function POST(request: Request) {
         contribution_afc_employer: result.employerContributions.afcEmployer,
         contribution_cai111:   result.employerContributions.cai111,
         contribution_mutual:   result.employerContributions.mutual,
+        contribution_ccaf:     result.employerContributions.ccaf ?? 0,
+        deduction_ccaf:        result.ccafDeductions ?? 0,
+        ccaf_codigo_previred:  body.ccaf?.codigoPrevired ?? null,
         net_pay:               result.netPay,
         total_employer_cost:   result.totalEmployerCost,
         warnings:              result.warnings,
@@ -162,6 +197,7 @@ export async function POST(request: Request) {
     result,
     ...(savedResultId && { savedResultId }),
     ...(horasExtraInfo && { horasExtraInfo }),
+    ...(previsionInfo && { prevision: previsionInfo }),
   });
 }
 

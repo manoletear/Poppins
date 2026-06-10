@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
       amount: Math.round(monto),
       email,
       urlConfirmation: `${siteUrl}/api/onboarding/flow/confirm`,
-      urlReturn: `${siteUrl}/empresa/onboarding?flow_status=completed&contrato_id=${contratoId}`,
+      urlReturn: `${siteUrl}/hogar/onboarding?flow_status=completed&contrato_id=${contratoId}`,
       optional: {
         // Store IDs in optional for webhook reference
         'optional_contrato_id': contratoId,

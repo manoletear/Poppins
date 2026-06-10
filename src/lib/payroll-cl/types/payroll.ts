@@ -57,6 +57,21 @@ export interface PayrollPeriodEvents {
 export interface PayrollVariableItem {
   conceptCode: string;
   amount: number;
+  /** Sobrescribe la inferencia por código (NON_TAXABLE_CODES) cuando viene seteado. */
+  imponible?: boolean;
+}
+
+/** Afiliación CCAF del empleador y descuentos voluntarios del trabajador. */
+export interface PayrollCcafInput {
+  /** Código Previred ('01'=Los Andes, '02'=La Araucana, '03'=Los Héroes). */
+  codigoPrevired: string;
+  /** Tasa aporte empleador (default 0.006 = 0.6%). */
+  aportePct?: number;
+  /** Descuentos voluntarios del trabajador en el período. */
+  descuentos?: Array<{
+    tipo: 'credito' | 'dental' | 'leasing' | 'seguro_vida' | 'otro';
+    monto: number;
+  }>;
 }
 
 /** Entrada completa del motor (§10.2). */
@@ -67,6 +82,8 @@ export interface PayrollEngineInput {
   worker: PayrollWorkerInput;
   periodEvents: PayrollPeriodEvents;
   variableItems?: PayrollVariableItem[];
+  /** CCAF: solo aplica si el empleador está afiliado. */
+  ccaf?: PayrollCcafInput;
   /** Snapshot de indicadores aprobado/locked. */
   snapshot: IndicatorSnapshot;
   /** 'preview' no persiste; 'final' sí (lo decide el servicio, no el motor). */
@@ -126,7 +143,10 @@ export interface PayrollResult {
     afcEmployer: number;
     cai111: number;
     mutual: number;
+    ccaf?: number;
   };
+  /** Descuentos CCAF del trabajador (parte de "other"). */
+  ccafDeductions?: number;
 
   netPay: number;
   totalEmployerCost: number;

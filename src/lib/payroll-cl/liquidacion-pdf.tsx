@@ -1,52 +1,106 @@
 // Template React-PDF para liquidación de sueldo (TCP Chile)
+// Layout estilo Buk/DT: tablas paralelas haberes/descuentos + líquido destacado.
+// Fuente: Poppins (registrada desde public/fonts). Colores: negro + grises.
 import React from 'react';
 import path from 'path';
+import fs from 'fs';
 import {
-  Document, Page, Text, View, StyleSheet, Font, Image,
+  Document, Page, Text, View, StyleSheet, Image, Font,
 } from '@react-pdf/renderer';
 
-// Ruta absoluta al logo — funciona en Node (API route)
-const LOGO_PATH = path.join(process.cwd(), 'public', 'landing', 'logo-poppins.png');
+// Cargamos el logo como Buffer al importar el módulo. Esto evita que react-pdf
+// intente resolver una ruta de string en Windows (con espacios + backslashes),
+// que falla silenciosamente y deja el header sin logo.
+const LOGO_BUFFER: Buffer | null = (() => {
+  try {
+    return fs.readFileSync(path.join(process.cwd(), 'public', 'Poppins.png'));
+  } catch {
+    return null;
+  }
+})();
+
+const FONT_DIR = path.join(process.cwd(), 'public', 'fonts');
 
 Font.register({
-  family: 'Helvetica',
+  family: 'Poppins',
   fonts: [
-    { src: 'Helvetica' },
-    { src: 'Helvetica-Bold', fontWeight: 'bold' },
+    { src: path.join(FONT_DIR, 'Poppins-Regular.ttf'), fontWeight: 'normal' },
+    { src: path.join(FONT_DIR, 'Poppins-Medium.ttf'),  fontWeight: 'medium' },
+    { src: path.join(FONT_DIR, 'Poppins-Bold.ttf'),    fontWeight: 'bold' },
   ],
 });
 
 const styles = StyleSheet.create({
-  page: { fontFamily: 'Helvetica', fontSize: 8, padding: 30, color: '#111' },
-  title: { fontSize: 13, fontWeight: 'bold', marginBottom: 2 },
-  subtitle: { fontSize: 9, color: '#555', marginBottom: 12 },
-  section: { marginBottom: 8 },
-  sectionTitle: { fontSize: 8, fontWeight: 'bold', backgroundColor: '#1a2e6e', color: '#fff', padding: '3 5', marginBottom: 3 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 2, borderBottom: '0.5 solid #e5e7eb' },
-  rowLabel: { flex: 1, color: '#444' },
-  rowValue: { width: 90, textAlign: 'right', fontWeight: 'bold' },
-  totalRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, backgroundColor: '#f1f5f9', marginTop: 2 },
-  totalLabel: { flex: 1, fontWeight: 'bold' },
-  totalValue: { width: 90, textAlign: 'right', fontWeight: 'bold' },
-  netBox: { backgroundColor: '#1a2e6e', color: '#fff', padding: '6 8', marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  netLabel: { fontSize: 10, fontWeight: 'bold', color: '#fff' },
-  netValue: { fontSize: 14, fontWeight: 'bold', color: '#fff' },
-  footer: { marginTop: 16, borderTop: '0.5 solid #ccc', paddingTop: 6, fontSize: 7, color: '#888', textAlign: 'center' },
-  twoCol: { flexDirection: 'row', gap: 12, marginBottom: 8 },
-  col: { flex: 1 },
+  page: { fontFamily: 'Poppins', fontSize: 9, padding: 32, color: '#000' },
+
+  // Header
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+  headerLeft: { flex: 1 },
+  title: { fontSize: 16, fontWeight: 'bold', color: '#000', marginBottom: 2 },
+  headerEmp: { fontSize: 10, marginBottom: 1, color: '#000' },
+  headerEmpLabel: { fontWeight: 'bold', color: '#000' },
+  headerMes: { fontSize: 10, color: '#000' },
+  logo: { width: 75, height: 75, objectFit: 'contain' },
+
+  // Info grid (3 cols)
+  infoGrid: { flexDirection: 'row', marginTop: 18, marginBottom: 6 },
+  infoCol: { flex: 1, paddingRight: 8 },
   infoRow: { flexDirection: 'row', marginBottom: 2 },
-  infoLabel: { width: 90, color: '#666' },
-  infoValue: { flex: 1, fontWeight: 'bold' },
-  separator: { borderTop: '0.5 solid #ddd', marginVertical: 6 },
+  infoLabel: { fontWeight: 'bold', color: '#000' },
+  infoValue: { color: '#000' },
+  sueldoBase: { marginTop: 2, marginBottom: 14 },
+
+  // Tablas haberes/descuentos
+  tableSection: { flexDirection: 'row', gap: 12 },
+  tableCol: { flex: 1 },
+  sectionHeader: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    backgroundColor: '#e5e7eb', paddingVertical: 5, paddingHorizontal: 8,
+  },
+  sectionHeaderText: { fontWeight: 'bold', fontSize: 9, color: '#000' },
+  sectionHeaderAmount: { fontWeight: 'bold', fontSize: 9, color: '#000' },
+  itemRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, paddingHorizontal: 8 },
+  itemLabel: { color: '#000', flex: 1 },
+  itemAmount: { color: '#000', width: 90, textAlign: 'right' },
+
+  // Totales (fondo gris claro, texto negro)
+  totalsBar: {
+    flexDirection: 'row', justifyContent: 'space-between',
+    backgroundColor: '#e5e7eb', paddingVertical: 6, paddingHorizontal: 8, marginTop: 4,
+  },
+  totalsText: { fontWeight: 'bold', fontSize: 10, color: '#000' },
+
+  // Sub-bar de imp/base
+  subBar: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 4, paddingHorizontal: 8, marginTop: 1 },
+  subBarItem: { fontSize: 8, color: '#000', fontWeight: 'bold' },
+
+  // Líquido (gris medio, texto negro)
+  netBox: {
+    backgroundColor: '#d1d5db', paddingVertical: 8, paddingHorizontal: 8, marginTop: 1,
+    flexDirection: 'row', justifyContent: 'center',
+  },
+  netText: { fontWeight: 'bold', fontSize: 12, color: '#000' },
+
+  // Certificación
+  certificacion: { marginTop: 20, fontSize: 8.5, color: '#000', lineHeight: 1.5 },
+
+  // Firmas
+  firmaRow: { flexDirection: 'row', gap: 30, marginTop: 36 },
+  firmaCol: { flex: 1, borderTopWidth: 0.5, borderTopColor: '#000', paddingTop: 4, alignItems: 'center' },
+  firmaText: { fontSize: 8, color: '#000' },
 });
 
-const CLP = (v: number) => `$${Math.round(v).toLocaleString('es-CL')}`;
-
+const CLP = (v: number) => `$ ${Math.round(v).toLocaleString('es-CL')}`;
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+export interface LiquidacionLineItem {
+  label: string;
+  amount: number;
+}
+
 export interface LiquidacionData {
-  period: string;                  // YYYY-MM
+  period: string;
   // Empleador
   empleadorNombre: string;
   empleadorRut: string;
@@ -55,200 +109,214 @@ export interface LiquidacionData {
   trabajadorRut: string;
   cargo?: string;
   // Contrato
+  tipoContrato?: string;       // 'Indefinido', 'Plazo fijo'
+  fechaIngreso: string;        // formato display
+  diasTrabajados: number;
+  horasExtras?: number;        // cantidad de horas (no monto)
   sueldoBase: number;
-  fechaIngreso: string;
-  // Cálculos
-  grossIncome: number;
-  horasExtraValor: number;
-  gratificacion: number;
-  otrosHaberes: number;
-  deductionAfp10: number;
-  deductionAfpCommission: number;
-  deductionHealth7: number;
-  deductionHealthDiff: number;     // diferencia plan isapre
-  deductionIncomeTax: number;
-  deductionAdvances: number;
-  deductionOther: number;
-  netPay: number;
-  paidDays: number;
-  daysInMonth: number;
-  afpNombre: string;
-  saludNombre: string;
+  // Previsión
+  afpNombre: string;           // 'AFP Modelo'
+  afpTasa?: string;            // '10.58%'
+  saludNombre: string;         // 'Fonasa', 'Consalud'
+  saludDetalle?: string;       // 'Consalud 2.341 UF (100%)'
   ufValor?: number;
+  // Tablas
+  haberesImponibles: LiquidacionLineItem[];
+  haberesNoImponibles: LiquidacionLineItem[];
+  descuentosLegales: LiquidacionLineItem[];
+  otrosDescuentos: LiquidacionLineItem[];
+  // Subtotales (se calculan en el endpoint)
+  totalHaberesImponibles: number;
+  totalHaberesNoImponibles: number;
+  totalDescuentosLegales: number;
+  totalOtrosDescuentos: number;
+  totalHaberes: number;
+  totalDescuentos: number;
+  // Bases (mostradas en sub-bar)
+  impPrevSalud: number;
+  impCesantia: number;
+  baseTributable: number;
+  // Resultado
+  netPay: number;
+  // Recibo de pago (Art. 54 CT) — opcional
+  pagadoAt?: string | null;
+  medioPago?: string | null;
+  referenciaPago?: string | null;
+  reciboFirmadoAt?: string | null;
+}
+
+function Section({
+  title, total, items,
+}: { title: string; total: number; items: LiquidacionLineItem[] }) {
+  return (
+    <View>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionHeaderText}>{title}</Text>
+        <Text style={styles.sectionHeaderAmount}>{CLP(total)}</Text>
+      </View>
+      {items.map((it, i) => (
+        <View key={i} style={styles.itemRow}>
+          <Text style={styles.itemLabel}>{it.label}</Text>
+          <Text style={styles.itemAmount}>{CLP(it.amount)}</Text>
+        </View>
+      ))}
+    </View>
+  );
 }
 
 export function LiquidacionDocument({ data }: { data: LiquidacionData }) {
   const [y, m] = data.period.split('-').map(Number);
   const periodoLabel = `${MESES[m - 1]} ${y}`;
-
-  const totalHaberes = data.grossIncome;
-  const totalDescuentos =
-    data.deductionAfp10 + data.deductionAfpCommission +
-    data.deductionHealth7 + data.deductionHealthDiff +
-    data.deductionIncomeTax + data.deductionAdvances + data.deductionOther;
+  const empHeader = `${data.empleadorNombre}${data.empleadorRut ? ` (${data.empleadorRut})` : ''}`;
 
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        {/* Header — título + logo */}
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
-          <View>
+        {/* Header — título + empleador + logo */}
+        <View style={styles.headerRow}>
+          <View style={styles.headerLeft}>
             <Text style={styles.title}>Liquidación de Sueldo</Text>
-            <Text style={styles.subtitle}>Período: {periodoLabel}</Text>
+            <Text style={styles.headerEmp}>
+              <Text style={styles.headerEmpLabel}>Empleador: </Text>
+              {empHeader}
+            </Text>
+            <Text style={styles.headerMes}>
+              <Text style={styles.headerEmpLabel}>Mes: </Text>
+              {periodoLabel}
+            </Text>
           </View>
-          <Image src={LOGO_PATH} style={{ width: 90, height: 'auto', objectFit: 'contain' }} />
+          {LOGO_BUFFER && <Image src={LOGO_BUFFER} style={styles.logo} />}
         </View>
-        <View style={styles.twoCol}>
-          {/* Empleador */}
-          <View style={styles.col}>
-            <Text style={[styles.sectionTitle, { marginBottom: 4 }]}>Empleador</Text>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Nombre</Text>
-              <Text style={styles.infoValue}>{data.empleadorNombre}</Text>
-            </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>RUT</Text>
-              <Text style={styles.infoValue}>{data.empleadorRut}</Text>
-            </View>
-          </View>
 
-          {/* Trabajador */}
-          <View style={styles.col}>
-            <Text style={[styles.sectionTitle, { marginBottom: 4 }]}>Trabajador</Text>
+        {/* Info grid: trabajador / contrato / previsión */}
+        <View style={styles.infoGrid}>
+          <View style={styles.infoCol}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Nombre</Text>
+              <Text style={styles.infoLabel}>Sr(a): </Text>
               <Text style={styles.infoValue}>{data.trabajadorNombre}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>RUT</Text>
+              <Text style={styles.infoLabel}>RUT: </Text>
               <Text style={styles.infoValue}>{data.trabajadorRut}</Text>
             </View>
             {data.cargo && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Cargo</Text>
+                <Text style={styles.infoLabel}>Cargo: </Text>
                 <Text style={styles.infoValue}>{data.cargo}</Text>
               </View>
             )}
+          </View>
+          <View style={styles.infoCol}>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Ingreso</Text>
+              <Text style={styles.infoLabel}>Tipo Contrato: </Text>
+              <Text style={styles.infoValue}>{data.tipoContrato ?? 'Indefinido'}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Inicio Contrato: </Text>
               <Text style={styles.infoValue}>{data.fechaIngreso}</Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Días trabajados</Text>
-              <Text style={styles.infoValue}>{data.paidDays} / {data.daysInMonth}</Text>
+              <Text style={styles.infoLabel}>Días Trabajados: </Text>
+              <Text style={styles.infoValue}>{data.diasTrabajados} días</Text>
+            </View>
+            {!!data.horasExtras && data.horasExtras > 0 && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Horas Extras: </Text>
+                <Text style={styles.infoValue}>{data.horasExtras} horas</Text>
+              </View>
+            )}
+          </View>
+          <View style={styles.infoCol}>
+            <View style={styles.infoRow}>
+              <Text style={styles.infoLabel}>Previsión: </Text>
+              <Text style={styles.infoValue}>
+                {data.afpNombre}{data.afpTasa ? ` (${data.afpTasa})` : ''}
+              </Text>
             </View>
             <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>AFP</Text>
-              <Text style={styles.infoValue}>{data.afpNombre}</Text>
+              <Text style={styles.infoLabel}>Salud: </Text>
+              <Text style={styles.infoValue}>{data.saludDetalle ?? data.saludNombre}</Text>
             </View>
-            <View style={styles.infoRow}>
-              <Text style={styles.infoLabel}>Salud</Text>
-              <Text style={styles.infoValue}>{data.saludNombre}</Text>
-            </View>
+            {!!data.ufValor && (
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>UF: </Text>
+                <Text style={styles.infoValue}>$ {data.ufValor.toLocaleString('es-CL', { minimumFractionDigits: 2 })}</Text>
+              </View>
+            )}
           </View>
         </View>
 
-        <View style={styles.separator} />
+        <View style={styles.sueldoBase}>
+          <Text>
+            <Text style={styles.infoLabel}>Sueldo Base: </Text>
+            <Text>{CLP(data.sueldoBase)}</Text>
+          </Text>
+        </View>
 
-        <View style={styles.twoCol}>
-          {/* Haberes */}
-          <View style={styles.col}>
-            <Text style={styles.sectionTitle}>Haberes</Text>
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Sueldo base</Text>
-              <Text style={styles.rowValue}>{CLP(data.sueldoBase)}</Text>
-            </View>
-            {data.horasExtraValor > 0 && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Horas extra</Text>
-                <Text style={styles.rowValue}>{CLP(data.horasExtraValor)}</Text>
-              </View>
-            )}
-            {data.gratificacion > 0 && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Gratificación legal</Text>
-                <Text style={styles.rowValue}>{CLP(data.gratificacion)}</Text>
-              </View>
-            )}
-            {data.otrosHaberes > 0 && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Otros haberes</Text>
-                <Text style={styles.rowValue}>{CLP(data.otrosHaberes)}</Text>
-              </View>
-            )}
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total haberes</Text>
-              <Text style={styles.totalValue}>{CLP(totalHaberes)}</Text>
-            </View>
+        {/* Tablas paralelas haberes / descuentos */}
+        <View style={styles.tableSection}>
+          <View style={styles.tableCol}>
+            <Section title="HABERES IMPONIBLES" total={data.totalHaberesImponibles} items={data.haberesImponibles} />
+            <View style={{ height: 6 }} />
+            <Section title="HABERES NO IMPONIBLES" total={data.totalHaberesNoImponibles} items={data.haberesNoImponibles} />
           </View>
+          <View style={styles.tableCol}>
+            <Section title="DESCUENTOS LEGALES" total={data.totalDescuentosLegales} items={data.descuentosLegales} />
+            <View style={{ height: 6 }} />
+            <Section title="OTROS DESCUENTOS" total={data.totalOtrosDescuentos} items={data.otrosDescuentos} />
+          </View>
+        </View>
 
-          {/* Descuentos */}
-          <View style={styles.col}>
-            <Text style={styles.sectionTitle}>Descuentos</Text>
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>AFP 10%</Text>
-              <Text style={styles.rowValue}>{CLP(data.deductionAfp10)}</Text>
-            </View>
-            {data.deductionAfpCommission > 0 && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Comisión AFP</Text>
-                <Text style={styles.rowValue}>{CLP(data.deductionAfpCommission)}</Text>
-              </View>
-            )}
-            <View style={styles.row}>
-              <Text style={styles.rowLabel}>Salud 7%</Text>
-              <Text style={styles.rowValue}>{CLP(data.deductionHealth7)}</Text>
-            </View>
-            {data.deductionHealthDiff > 0 && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Dif. plan salud</Text>
-                <Text style={styles.rowValue}>{CLP(data.deductionHealthDiff)}</Text>
-              </View>
-            )}
-            {data.deductionIncomeTax > 0 && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Imp. Único 2ª cat.</Text>
-                <Text style={styles.rowValue}>{CLP(data.deductionIncomeTax)}</Text>
-              </View>
-            )}
-            {data.deductionAdvances > 0 && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Anticipos</Text>
-                <Text style={styles.rowValue}>{CLP(data.deductionAdvances)}</Text>
-              </View>
-            )}
-            {data.deductionOther > 0 && (
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>Otras deducciones</Text>
-                <Text style={styles.rowValue}>{CLP(data.deductionOther)}</Text>
-              </View>
-            )}
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total descuentos</Text>
-              <Text style={styles.totalValue}>{CLP(totalDescuentos)}</Text>
-            </View>
-          </View>
+        {/* Totales */}
+        <View style={styles.totalsBar}>
+          <Text style={styles.totalsText}>TOTAL HABERES {CLP(data.totalHaberes)}</Text>
+          <Text style={styles.totalsText}>TOTAL DESCUENTOS {CLP(data.totalDescuentos)}</Text>
+        </View>
+
+        {/* Sub-bar bases */}
+        <View style={styles.subBar}>
+          <Text style={styles.subBarItem}>IMP. PREV./SALUD: {CLP(data.impPrevSalud)}</Text>
+          <Text style={styles.subBarItem}>IMP. CESANTÍA: {CLP(data.impCesantia)}</Text>
+          <Text style={styles.subBarItem}>BASE TRIBUTABLE: {CLP(data.baseTributable)}</Text>
         </View>
 
         {/* Líquido */}
         <View style={styles.netBox}>
-          <Text style={styles.netLabel}>Líquido a Pagar</Text>
-          <Text style={styles.netValue}>{CLP(data.netPay)}</Text>
+          <Text style={styles.netText}>LÍQUIDO A RECIBIR: {CLP(data.netPay)}</Text>
         </View>
 
-        {/* Footer firma */}
-        <View style={{ flexDirection: 'row', gap: 30, marginTop: 40 }}>
-          <View style={{ flex: 1, borderTop: '0.5 solid #666', paddingTop: 4, alignItems: 'center' }}>
-            <Text style={{ color: '#666' }}>Firma Empleador</Text>
+        {/* Datos del pago (Art. 54 CT) — si fue marcado pagado */}
+        {data.pagadoAt && (
+          <View style={{ marginTop: 12, padding: 8, backgroundColor: '#e5e7eb' }}>
+            <Text style={{ fontSize: 9, fontWeight: 'bold', marginBottom: 2 }}>RECIBO DE PAGO</Text>
+            <Text style={{ fontSize: 8.5 }}>
+              Fecha de pago: {new Date(data.pagadoAt).toLocaleDateString('es-CL')}
+              {data.medioPago ? `  ·  Medio: ${data.medioPago}` : ''}
+              {data.referenciaPago ? `  ·  Ref: ${data.referenciaPago}` : ''}
+            </Text>
           </View>
-          <View style={{ flex: 1, borderTop: '0.5 solid #666', paddingTop: 4, alignItems: 'center' }}>
-            <Text style={{ color: '#666' }}>Firma Trabajador</Text>
-          </View>
-        </View>
+        )}
 
-        <Text style={styles.footer}>
-          Documento generado por Poppins · {new Date().toLocaleDateString('es-CL')}{data.ufValor ? ` · UF $${data.ufValor.toLocaleString('es-CL')}` : ''}
+        {/* Certificación */}
+        <Text style={styles.certificacion}>
+          Certifico que he recibido de {empHeader} a mi entera satisfacción el saldo indicado en la presente Liquidación
+          y no tengo cargo ni cobro posterior que hacer.
         </Text>
+
+        {/* Firmas */}
+        <View style={styles.firmaRow}>
+          <View style={styles.firmaCol}>
+            <Text style={styles.firmaText}>FIRMA EMPLEADOR</Text>
+          </View>
+          <View style={styles.firmaCol}>
+            <Text style={styles.firmaText}>FIRMA TRABAJADOR</Text>
+            {data.reciboFirmadoAt && (
+              <Text style={[styles.firmaText, { color: '#16a34a', marginTop: 2 }]}>
+                ✓ Firmado el {new Date(data.reciboFirmadoAt).toLocaleDateString('es-CL')}
+              </Text>
+            )}
+          </View>
+        </View>
       </Page>
     </Document>
   );

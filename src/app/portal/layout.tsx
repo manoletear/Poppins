@@ -27,6 +27,7 @@ import {
   Crown,
   Bell,
   CalendarCheck,
+  FileSignature,
 } from 'lucide-react';
 
 const navSections = [
@@ -44,6 +45,7 @@ const navSections = [
     label: 'Mi Información',
     items: [
       { name: 'Mi Ficha', href: '/portal/mi-ficha', icon: CircleUser },
+      { name: 'Mi Contrato', href: '/portal/contrato', icon: FileSignature },
       { name: 'Mis Liquidaciones', href: '/portal/liquidaciones', icon: Receipt },
       { name: 'Anticipos', href: '/portal/anticipos', icon: CreditCard },
       { name: 'Mis Vacaciones', href: '/portal/vacaciones', icon: Umbrella },
@@ -147,7 +149,7 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
             <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-200 bg-gradient-to-r from-emerald-700 to-emerald-500">
               <div>
                 <h2 className="text-lg font-bold text-white">Tu Plan Poppins</h2>
-                <p className="text-sm text-emerald-100">Portal Empleado</p>
+                <p className="text-sm text-emerald-100">La magia en tu casa</p>
               </div>
               <button onClick={() => setShowPlan(false)} className="rounded-lg p-1.5 text-emerald-100 hover:text-white hover:bg-white/10 transition-colors">
                 <X className="h-5 w-5" />
@@ -180,7 +182,7 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
         <Link href="/portal" className="text-xl font-bold text-zinc-900" onClick={onNavigate}>
           Poppins
         </Link>
-        <p className="text-xs text-emerald-600">Portal Empleado</p>
+        <p className="text-xs text-emerald-600">La magia en tu casa</p>
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto">

@@ -3,6 +3,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import ExcelJS from 'exceljs';
+import { getActiveEmpleadorId } from '@/lib/auth/active-empleador';
+import { auditLog } from '@/lib/audit/log';
 
 export const runtime = 'nodejs';
 
@@ -22,15 +24,7 @@ export async function GET(request: Request) {
   const period = new URL(request.url).searchParams.get('period');
   if (!period) return NextResponse.json({ ok: false, error: 'period_required' }, { status: 400 });
 
-  let empleadorId: string | undefined;
-  const { data: profile } = await supabase
-    .from('user_profiles').select('empleador_id').eq('auth_user_id', user.id).maybeSingle();
-  empleadorId = profile?.empleador_id;
-  if (!empleadorId) {
-    const { data: emp } = await supabase
-      .from('empleadores').select('id, nombre, apellido, rut').eq('auth_user_id', user.id).maybeSingle();
-    empleadorId = emp?.id;
-  }
+  const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'no_empleador' }, { status: 403 });
 
   const { data: empData } = await supabase
@@ -269,6 +263,13 @@ export async function GET(request: Request) {
 
   // ── Generar buffer ────────────────────────────────────────────────────────
   const buf = await wb.xlsx.writeBuffer();
+
+  await auditLog(supabase, {
+    userId: user.id, empleadorId,
+    action: 'download.sueldos_xlsx',
+    entity: 'payroll_period', entityId: period,
+    request,
+  });
 
   return new Response(buf, {
     headers: {

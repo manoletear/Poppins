@@ -128,6 +128,7 @@ export async function getEmployee(id: number) {
     sueldoBase: Number(cj.base_wage ?? cj.liquid_wage ?? cj.salary ?? cj.base_salary ?? cj.assignable_salary ?? e.base_salary ?? 0) || 0,
     afp: str(e.pension_fund) || str(e.afp),
     salud: str(e.health_company) || str(e.health_plan) || 'Fonasa',
+    saludPlanUf: Number(e.health_plan_uf ?? e.health_plan?.uf ?? 0) || 0,
     email: e.email || e.personal_email || '',
     telefono: e.phone || e.office_phone || '',
     direccion: e.address || e.street || '',

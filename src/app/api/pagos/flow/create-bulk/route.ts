@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       amount: flowAmount,
       email: email || 'pagos@poppins.cl',
       urlConfirmation: `${siteUrl}/api/pagos/flow/confirm`,
-      urlReturn: `${siteUrl}/empresa/pagos?flow_status=completed`,
+      urlReturn: `${siteUrl}/hogar/pagos?flow_status=completed`,
     });
 
     // Store flow token on all pagos

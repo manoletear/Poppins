@@ -44,11 +44,11 @@ export async function GET(request: NextRequest) {
 
     const redirectMap: Record<string, string> = {
       admin: '/admin',
-      empleador: '/empresa',
+      empleador: '/hogar',
       empleado: '/portal',
     };
 
-    const dest = redirectMap[profile?.rol || ''] || '/empresa';
+    const dest = redirectMap[profile?.rol || ''] || '/hogar';
     const finalResponse = NextResponse.redirect(`${siteUrl}${dest}`);
     cookiesToSet.forEach(({ name, value, options }) => finalResponse.cookies.set(name, value, options));
     return finalResponse;

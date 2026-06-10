@@ -34,7 +34,7 @@ export default function Sidebar() {
             Poppins
           </div>
           <div className="text-[9px] text-white/40 tracking-[0.06em] mt-[1px]">
-            ERP Doméstico
+            La magia en tu casa
           </div>
         </div>
       </div>

@@ -25,6 +25,13 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      // /empresa → /hogar (renombre Jun 2026). Mantiene bookmarks y links viejos.
+      { source: '/empresa',          destination: '/hogar',          permanent: true },
+      { source: '/empresa/:path*',   destination: '/hogar/:path*',   permanent: true },
+    ];
+  },
 };
 
 initOpenNextCloudflareForDev();

@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins.tooxs-fperez.workers.dev';
-  const completarHogarUrl = `${siteUrl}/empresa/completar-hogar`;
+  const completarHogarUrl = `${siteUrl}/hogar/completar-hogar`;
 
   const sent = await sendEmail({
     to: emp.email,
@@ -80,7 +80,7 @@ export async function POST(request: NextRequest) {
           </div>
 
           <p style="color:#999;font-size:13px;line-height:1.5;margin:24px 0 0;text-align:center">
-            También puedes acceder desde tu panel en <a href="${siteUrl}/empresa" style="color:#2D2D90;text-decoration:underline">${siteUrl}/empresa</a>
+            También puedes acceder desde tu panel en <a href="${siteUrl}/hogar" style="color:#2D2D90;text-decoration:underline">${siteUrl}/hogar</a>
           </p>
         </div>
 

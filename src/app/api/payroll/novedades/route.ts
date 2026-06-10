@@ -4,24 +4,17 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getActiveEmpleadorId } from '@/lib/auth/active-empleador';
+import { auditLog } from '@/lib/audit/log';
 
 export const runtime = 'nodejs';
-
-async function resolveEmpleador(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-  const { data: perfil } = await supabase
-    .from('user_profiles').select('empleador_id').eq('auth_user_id', userId).maybeSingle();
-  if (perfil?.empleador_id) return perfil.empleador_id as string;
-  const { data: emp } = await supabase
-    .from('empleadores').select('id').eq('auth_user_id', userId).maybeSingle();
-  return emp?.id as string | undefined;
-}
 
 export async function GET(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: 'no_auth' }, { status: 401 });
 
-  const empleadorId = await resolveEmpleador(supabase, user.id);
+  const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'sin_empleador' }, { status: 400 });
 
   const url = new URL(request.url);
@@ -49,7 +42,7 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: 'no_auth' }, { status: 401 });
 
-  const empleadorId = await resolveEmpleador(supabase, user.id);
+  const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'sin_empleador' }, { status: 400 });
 
   const body = await request.json().catch(() => null);
@@ -75,6 +68,14 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
+  await auditLog(supabase, {
+    userId: user.id, empleadorId,
+    action: 'novedades.upsert',
+    entity: 'payroll_novedades', entityId: data.id,
+    payload: { period, trabajador_id, concept_code, amount: Number(amount) },
+    request,
+  });
+
   return NextResponse.json({ ok: true, id: data.id });
 }
 
@@ -83,7 +84,7 @@ export async function DELETE(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: 'no_auth' }, { status: 401 });
 
-  const empleadorId = await resolveEmpleador(supabase, user.id);
+  const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'sin_empleador' }, { status: 400 });
 
   const url = new URL(request.url);
@@ -97,6 +98,13 @@ export async function DELETE(request: Request) {
     .eq('empleador_id', empleadorId);
 
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+
+  await auditLog(supabase, {
+    userId: user.id, empleadorId,
+    action: 'novedades.delete',
+    entity: 'payroll_novedades', entityId: id,
+    request,
+  });
 
   return NextResponse.json({ ok: true });
 }

@@ -59,6 +59,18 @@ export interface PreviredRowInput {
   movimientoPersonal?: number;
   /** ISO date de la novedad, si corresponde */
   fechaMovimiento?: string | null;
+
+  // ── CCAF ──────────────────────────────────────────────────────────────────
+  /** Código Previred CCAF ('01','02','03'); vacío si no hay afiliación. */
+  ccafCodigoPrevired?: string | null;
+  /** Aporte empleador 0.6% del imponible. */
+  ccafAporte?: number;
+  /** Descuentos trabajador por tipo. */
+  ccafCredito?: number;
+  ccafDental?: number;
+  ccafLeasing?: number;
+  ccafSeguroVida?: number;
+  ccafOtros?: number;
 }
 
 // ── AFP: texto del engine → código Previred ────────────────────────────────
@@ -150,14 +162,14 @@ function buildLine(r: PreviredRowInput): string {
     /* 24 */ String(mutual).padStart(2, '0'),
     /* 25 */ n(r.mutualBase),
     /* 26 */ n(r.atep),
-    /* 27 */ 0,  // Código CCAF
-    /* 28 */ 0,  // Renta imponible CCAF
-    /* 29 */ 0,  // Créditos personales CCAF
-    /* 30 */ 0,  // Descuento dental CCAF
-    /* 31 */ 0,  // Descuento leasing CCAF
-    /* 32 */ 0,  // Descuento seguro de vida CCAF
-    /* 33 */ 0,  // Otros descuentos CCAF
-    /* 34 */ 0,  // Cotización CCAF
+    /* 27 */ r.ccafCodigoPrevired || 0,                                 // Código CCAF (00 si no afiliado)
+    /* 28 */ r.ccafCodigoPrevired ? n(r.pensionBase) : 0,               // Renta imponible CCAF (= pensionBase)
+    /* 29 */ n(r.ccafCredito ?? 0),                                     // Créditos personales CCAF
+    /* 30 */ n(r.ccafDental ?? 0),                                      // Descuento dental CCAF
+    /* 31 */ n(r.ccafLeasing ?? 0),                                     // Descuento leasing CCAF
+    /* 32 */ n(r.ccafSeguroVida ?? 0),                                  // Descuento seguro de vida CCAF
+    /* 33 */ n(r.ccafOtros ?? 0),                                       // Otros descuentos CCAF
+    /* 34 */ n(r.ccafAporte ?? 0),                                      // Cotización CCAF (aporte empleador)
     /* 35 */ 0,  // Código sucursal mutual
     /* 36 */ r.movimientoPersonal ?? 0,
     /* 37 */ r.fechaMovimiento ? dateToddMMAAAA(r.fechaMovimiento) : '',

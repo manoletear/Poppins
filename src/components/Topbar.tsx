@@ -1,5 +1,7 @@
 'use client';
 
+import EmpleadorSwitcher from './EmpleadorSwitcher';
+
 export default function Topbar() {
   const period = 'Marzo 2026';
 
@@ -20,6 +22,9 @@ export default function Topbar() {
       </div>
 
       <div className="flex-1" />
+
+      {/* Workspace switcher (solo aparece si user tiene >1 empleador) */}
+      <EmpleadorSwitcher />
 
       {/* User chip */}
       <div className="flex items-center gap-2 px-[10px] py-1 rounded-[20px] cursor-pointer border border-gray-200 hover:bg-gray-50">

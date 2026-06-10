@@ -7,6 +7,8 @@ import {
   saludIdToPrevired,
   type PreviredRowInput,
 } from '@/lib/payroll-cl/previred-generator';
+import { getActiveEmpleadorId } from '@/lib/auth/active-empleador';
+import { auditLog } from '@/lib/audit/log';
 
 export const runtime = 'nodejs';
 
@@ -21,15 +23,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: false, error: 'period_requerido (YYYY-MM)' }, { status: 422 });
   }
 
-  // Resolver empleador del usuario autenticado
-  const { data: perfil } = await supabase
-    .from('user_profiles').select('empleador_id').eq('auth_user_id', user.id).maybeSingle();
-  let empleadorId = perfil?.empleador_id as string | undefined;
-  if (!empleadorId) {
-    const { data: emp } = await supabase
-      .from('empleadores').select('id').eq('auth_user_id', user.id).maybeSingle();
-    empleadorId = emp?.id;
-  }
+  const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'sin_empleador' }, { status: 400 });
 
   // RUT del empleador
@@ -157,6 +151,14 @@ export async function GET(request: Request) {
   const txt = generatePreviredLines(rows);
   const buf = encodeIso88591(txt);
   const filename = `previred_${period.replace('-', '')}.txt`;
+
+  await auditLog(supabase, {
+    userId: user.id, empleadorId,
+    action: 'download.previred',
+    entity: 'payroll_period', entityId: period,
+    payload: { rows: results.length, filename },
+    request,
+  });
 
   return new Response(buf.buffer as ArrayBuffer, {
     headers: {

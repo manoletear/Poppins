@@ -3,6 +3,7 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getActiveEmpleadorId } from '@/lib/auth/active-empleador';
 
 export const runtime = 'nodejs';
 
@@ -11,14 +12,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ ok: false, error: 'no_auth' }, { status: 401 });
 
-  const { data: perfil } = await supabase
-    .from('user_profiles').select('empleador_id').eq('auth_user_id', user.id).maybeSingle();
-  let empleadorId = perfil?.empleador_id as string | undefined;
-  if (!empleadorId) {
-    const { data: emp } = await supabase
-      .from('empleadores').select('id').eq('auth_user_id', user.id).maybeSingle();
-    empleadorId = emp?.id;
-  }
+  const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'sin_empleador' }, { status: 400 });
 
   // Últimos 12 períodos

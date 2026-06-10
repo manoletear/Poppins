@@ -44,9 +44,9 @@ function LoginForm() {
 
     switch (profile?.rol) {
       case 'admin': router.push('/admin'); break;
-      case 'empleador': router.push('/empresa'); break;
+      case 'empleador': router.push('/hogar'); break;
       case 'empleado': router.push('/portal'); break;
-      default: router.push('/empresa');
+      default: router.push('/hogar');
     }
   };
 
@@ -119,7 +119,7 @@ function LoginForm() {
         {/* Logo */}
         <div className="text-center">
           <h2 className="text-3xl font-bold text-zinc-900">Poppins</h2>
-          <p className="text-sm text-zinc-500 mt-1">ERP RRHH Chile</p>
+          <p className="text-sm text-zinc-500 mt-1">La magia en tu casa</p>
         </div>
 
         <h1 className="text-xl font-bold text-zinc-900 mt-8">Iniciar Sesión</h1>

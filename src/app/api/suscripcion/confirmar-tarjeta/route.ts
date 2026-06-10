@@ -4,7 +4,7 @@ import { confirmarTarjetaYSuscribir } from '@/lib/pagos/suscripcion-service';
 
 /**
  * Tras registrar la tarjeta en Flow (camino A real), confirma el registro y crea
- * la suscripción. Lo llama la página de retorno /empresa/suscripcion/confirmar.
+ * la suscripción. Lo llama la página de retorno /hogar/suscripcion/confirmar.
  */
 export async function POST() {
   const supabase = await createClient();

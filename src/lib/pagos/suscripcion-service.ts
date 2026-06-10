@@ -105,7 +105,7 @@ export async function iniciarSuscripcion(input: IniciarSuscripcionInput) {
   if (!flowSimulado()) {
     const card = await registerFlowCard({
       customerId: customer.customerId,
-      urlReturn: `${siteUrl()}/empresa/suscripcion/confirmar?empleador=${empleadorId}`,
+      urlReturn: `${siteUrl()}/hogar/suscripcion/confirmar?empleador=${empleadorId}`,
     });
     await db
       .from('suscripciones')

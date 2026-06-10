@@ -9,6 +9,8 @@
 // Separador: ';'  Encoding: UTF-8 (el portal acepta UTF-8 desde 2022)
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { getActiveEmpleadorId } from '@/lib/auth/active-empleador';
+import { auditLog } from '@/lib/audit/log';
 
 export const runtime = 'nodejs';
 
@@ -35,15 +37,7 @@ export async function GET(request: Request) {
   const period = new URL(request.url).searchParams.get('period');
   if (!period) return NextResponse.json({ ok: false, error: 'period_required' }, { status: 400 });
 
-  let empleadorId: string | undefined;
-  const { data: profile } = await supabase
-    .from('user_profiles').select('empleador_id').eq('auth_user_id', user.id).maybeSingle();
-  empleadorId = profile?.empleador_id;
-  if (!empleadorId) {
-    const { data: emp } = await supabase
-      .from('empleadores').select('id').eq('auth_user_id', user.id).maybeSingle();
-    empleadorId = emp?.id;
-  }
+  const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'no_empleador' }, { status: 403 });
 
   const { data: empData } = await supabase
@@ -195,6 +189,14 @@ export async function GET(request: Request) {
   });
 
   const content = [tipo1, ...tipo2Lines].join('\r\n') + '\r\n';
+
+  await auditLog(supabase, {
+    userId: user.id, empleadorId,
+    action: 'download.lre',
+    entity: 'payroll_period', entityId: period,
+    payload: { rows: tipo2Lines.length },
+    request,
+  });
 
   return new Response(content, {
     headers: {

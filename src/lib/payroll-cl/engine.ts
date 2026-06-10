@@ -96,16 +96,21 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
   let variablesNoImponibles = 0;
   let anticipos = 0;
   for (const item of variableItems) {
-    const imponible = !NON_TAXABLE_CODES.has(item.conceptCode);
-    if (item.conceptCode === 'ANTICIPO_SUELDO' || item.conceptCode === 'PRESTAMO_EMPLEADOR') {
+    // Flag explícito gana sobre la inferencia por código
+    const imponible = item.imponible ?? !NON_TAXABLE_CODES.has(item.conceptCode);
+    const esAnticipo = item.conceptCode === 'ANTICIPO_SUELDO' || item.conceptCode === 'PRESTAMO_EMPLEADOR';
+    if (esAnticipo) {
       anticipos += item.amount;
-    } else if (imponible) {
-      variablesImponibles += item.amount;
+      // Anticipos se registran como DESCUENTO (no es haber), visible en payslip
+      c(item.conceptCode, item.conceptCode === 'PRESTAMO_EMPLEADOR' ? 'Préstamo Empleador' : 'Anticipo de Sueldo',
+        ConceptType.DESCUENTO, item.amount,
+        { imponible: false, taxable: false, legal: false, calculationOrder: 27 });
     } else {
-      variablesNoImponibles += item.amount;
+      if (imponible) variablesImponibles += item.amount;
+      else variablesNoImponibles += item.amount;
+      c(item.conceptCode, item.conceptCode, ConceptType.HABER, item.amount,
+        { imponible, taxable: imponible });
     }
-    c(item.conceptCode, item.conceptCode, ConceptType.HABER, item.amount,
-      { imponible, taxable: imponible });
   }
 
   // ── 4. Bases ──
@@ -202,10 +207,14 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
   }
 
   // ── 10. Base impuesto único ──
-  const incomeTaxBase = remuneracionImponible - afp10 - afpCommission - salud7;
+  // Art. 42 LIR: imponible menos TODAS las cotizaciones obligatorias del trabajador
+  // (AFP 10%, comisión AFP, salud 7% — incluida diferencia Isapre si aplica —
+  //  y AFC trabajador 0.6% por Ley 21.585).
+  const incomeTaxBase =
+    remuneracionImponible - afp10 - afpCommission - salud7 - isapreDiferencia - afcTrabajador;
   t('BASE_IMPUESTO', 'Base imponible impuesto único', incomeTaxBase,
-    'remuneracionImponible - afp10 - afpCommission - salud7',
-    { remuneracionImponible, afp10, afpCommission, salud7 });
+    'remuneracionImponible - afp10 - afpCommission - salud7 - isapreDiferencia - afcTrabajador',
+    { remuneracionImponible, afp10, afpCommission, salud7, isapreDiferencia, afcTrabajador });
 
   // ── 11. Impuesto único 2ª categoría ──
   let incomeTax = 0;
@@ -250,11 +259,33 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
   c('MUTUAL_ACCIDENTES_TRABAJO', 'Mutual Accidentes del Trabajo', ConceptType.APORTE_EMPLEADOR, mutual,
     { baseAmount: mutualBase, rate: MUTUAL_BASE_RATE, visibleInPayslip: false, calculationOrder: 53 });
 
+  // ── 13b. CCAF: aporte empleador 0.6% + descuentos voluntarios trabajador ──
+  let ccafAporte = 0;
+  let ccafDescuentos = 0;
+  if (input.ccaf) {
+    const aportePct = input.ccaf.aportePct ?? 0.006;
+    ccafAporte = worker.isPensioner ? 0 : Math.round(pensionBase * aportePct);
+    if (ccafAporte > 0) {
+      c('CCAF_APORTE_EMPLEADOR', `Aporte CCAF (${(aportePct * 100).toFixed(2)}%)`,
+        ConceptType.APORTE_EMPLEADOR, ccafAporte,
+        { baseAmount: pensionBase, rate: aportePct, visibleInPayslip: false, calculationOrder: 54 });
+    }
+    for (const d of input.ccaf.descuentos ?? []) {
+      if (d.monto > 0) {
+        ccafDescuentos += d.monto;
+        const codigo = `CCAF_DESC_${d.tipo.toUpperCase()}`;
+        const nombre = `CCAF — ${({ credito: 'Crédito social', dental: 'Dental', leasing: 'Leasing', seguro_vida: 'Seguro de vida', otro: 'Otros' } as const)[d.tipo]}`;
+        c(codigo, nombre, ConceptType.DESCUENTO, d.monto,
+          { calculationOrder: 26, imponible: false });
+      }
+    }
+  }
+
   // ── 14. Totales ──
   const totalDescuentos = afp10 + afpCommission + salud7 + isapreDiferencia
-    + afcTrabajador + incomeTax + descuentoAusencia + anticipos;
+    + afcTrabajador + incomeTax + descuentoAusencia + anticipos + ccafDescuentos;
   const netPay = Math.round(grossIncome + asignacionFamiliar - totalDescuentos);
-  const totalEmployerCost = Math.round(remuneracionImponible + sis + afcEmpleador + cai + mutual);
+  const totalEmployerCost = Math.round(remuneracionImponible + sis + afcEmpleador + cai + mutual + ccafAporte);
 
   return {
     payrollPeriod: input.payrollPeriod,
@@ -274,13 +305,15 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
       health7: salud7,
       incomeTax,
       advances: anticipos,
-      other: descuentoAusencia + afcTrabajador + isapreDiferencia,
+      other: descuentoAusencia + afcTrabajador + isapreDiferencia + ccafDescuentos,
     },
+    ...(ccafDescuentos > 0 && { ccafDeductions: ccafDescuentos }),
     employerContributions: {
       sis,
       afcEmployer: afcEmpleador,
       cai111: cai,
       mutual,
+      ...(ccafAporte > 0 && { ccaf: ccafAporte }),
     },
     netPay,
     totalEmployerCost,

@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
           <div style="font-size:24px;font-weight:800;color:#2D2D90">Poppins</div>
           <p style="font-size:15px;color:#18181b;margin-top:16px">Hola${emp?.nombre ? ' ' + emp.nombre : ''} 👋, te recordamos:</p>
           <p style="font-size:18px;font-weight:700;color:#E91E8C">${r.titulo}</p>
-          <a href="${siteUrl}/empresa/recordatorios" style="display:inline-block;background:linear-gradient(90deg,#7c3aed,#E91E8C);color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700;margin-top:12px">Ver en Poppins</a>
+          <a href="${siteUrl}/hogar/recordatorios" style="display:inline-block;background:linear-gradient(90deg,#7c3aed,#E91E8C);color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:700;margin-top:12px">Ver en Poppins</a>
           <p style="font-size:12px;color:#a1a1aa;margin-top:20px">Con cariño, Poppins 💜</p>
         </div>`,
       });

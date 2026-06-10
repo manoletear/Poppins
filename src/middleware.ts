@@ -4,13 +4,13 @@ import { createServerClient } from '@supabase/ssr';
 
 const ROLE_REDIRECT: Record<string, string> = {
   admin: '/admin',
-  empleador: '/empresa',
+  empleador: '/hogar',
   empleado: '/portal',
 };
 
 const ROLE_ACCESS: Record<string, string[]> = {
-  admin: ['/admin', '/empresa', '/portal'],
-  empleador: ['/empresa'],
+  admin: ['/admin', '/hogar', '/portal'],
+  empleador: ['/hogar'],
   empleado: ['/portal'],
 };
 
@@ -52,7 +52,7 @@ export async function middleware(request: NextRequest) {
     .single();
 
   const rol = profile?.rol || 'empleador';
-  const dest = ROLE_REDIRECT[rol] || '/empresa';
+  const dest = ROLE_REDIRECT[rol] || '/hogar';
 
   // Role-based access check
   const allowed = ROLE_ACCESS[rol] || [];
@@ -64,12 +64,12 @@ export async function middleware(request: NextRequest) {
   const onboardingCompleted = profile?.onboarding_completado ?? false;
   if (!onboardingCompleted) {
     const onboardingPaths: Record<string, string> = {
-      empleador: '/empresa/onboarding',
+      empleador: '/hogar/onboarding',
       empleado: '/portal/onboarding',
     };
     const onboardingPath = onboardingPaths[rol];
     // Don't redirect if already on onboarding or completar-hogar page
-    const allowedDuringOnboarding = [onboardingPath, '/empresa/completar-hogar'];
+    const allowedDuringOnboarding = [onboardingPath, '/hogar/completar-hogar'];
     if (onboardingPath && !allowedDuringOnboarding.some(p => p && pathname.startsWith(p))) {
       return NextResponse.redirect(new URL(onboardingPath, request.url));
     }
@@ -79,5 +79,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/empresa/:path*', '/portal/:path*', '/admin/:path*'],
+  matcher: ['/', '/hogar/:path*', '/portal/:path*', '/admin/:path*'],
 };
