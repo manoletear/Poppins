@@ -23,7 +23,13 @@ export async function GET(request: Request) {
   const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'no_empleador' }, { status: 403 });
 
-  const result = await generarLiquidacionPdf(supabase, empleadorId, period, workerId);
+  let result: Awaited<ReturnType<typeof generarLiquidacionPdf>>;
+  try {
+    result = await generarLiquidacionPdf(supabase, empleadorId, period, workerId);
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: String(e?.message ?? e), stack: String(e?.stack ?? '') }, { status: 500 });
+  }
+
   if ('error' in result) {
     return NextResponse.json({ ok: false, error: result.error }, { status: 404 });
   }
