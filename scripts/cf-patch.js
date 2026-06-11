@@ -16,24 +16,52 @@ fs.copyFileSync(
 );
 console.log('[cf-patch] pdfkit.js ← pdfkit.browser.js');
 
-// --- 2. Stub blake3-wasm nodejs WASM loader ---
+// --- 2. Replace blake3-wasm nodejs WASM loader with a pure-JS shim ---
+// Wrangler uses blake3-wasm at deploy time (Node.js) for file hashing,
+// so the shim must be functional — not just a stub that throws.
+// In the CF Workers bundle, pdfkit.browser.js uses noble-hashes instead,
+// so these functions are dead code at runtime there.
 const blake3NodejsDir = path.join(
   __dirname, '..', 'node_modules', 'blake3-wasm', 'dist', 'wasm', 'nodejs',
 );
-const blake3Stub = `\
-// CF Workers stub — pdfkit.browser.js uses noble-hashes, not blake3.
-// This stub prevents the WebAssembly.Module() call from crashing CF Workers
-// in case esbuild includes this file via static require() analysis.
+const blake3Shim = `\
+// CF Workers / Node.js compatible shim for blake3-wasm nodejs WASM loader.
+// Uses SHA-256 via Node crypto instead of WebAssembly so it works in CF Workers
+// (no WebAssembly.Module at module load time) and in Node.js (wrangler deploy).
 'use strict';
-function notSupported() { throw new Error('blake3-wasm not supported in CF Workers'); }
-module.exports.hash = notSupported;
-module.exports.create_hasher = notSupported;
-module.exports.create_keyed = notSupported;
-module.exports.create_derive = notSupported;
-module.exports.Blake3Hash = class Blake3Hash {};
+const crypto = require('crypto');
+
+class WasmHasher {
+  constructor() { this._h = crypto.createHash('sha256'); }
+  update(data) { this._h.update(data); return this; }
+  digest(out) {
+    const result = this._h.copy().digest();
+    if (out) out.set(result.slice(0, out.length));
+    return out;
+  }
+  reader() {
+    const bytes = this._h.copy().digest();
+    let pos = BigInt(0);
+    return {
+      fill(target) { target.set(bytes.slice(Number(pos), Number(pos) + target.length)); },
+      set_position(p) { pos = p; },
+      free() {},
+    };
+  }
+  free() {}
+}
+
+module.exports.hash = function(data, out) {
+  const result = crypto.createHash('sha256').update(data).digest();
+  if (out) out.set(result.slice(0, out.length));
+};
+module.exports.create_hasher = function() { return new WasmHasher(); };
+module.exports.create_keyed = function(_key) { return new WasmHasher(); };
+module.exports.create_derive = function(_ctx) { return new WasmHasher(); };
+module.exports.Blake3Hash = WasmHasher;
 module.exports.HashReader = class HashReader {};
-module.exports.__wbindgen_throw = notSupported;
+module.exports.__wbindgen_throw = function(msg) { throw new Error(msg); };
 module.exports.__wasm = null;
 `;
-fs.writeFileSync(path.join(blake3NodejsDir, 'blake3_js.js'), blake3Stub);
-console.log('[cf-patch] blake3-wasm/dist/wasm/nodejs/blake3_js.js → CF stub');
+fs.writeFileSync(path.join(blake3NodejsDir, 'blake3_js.js'), blake3Shim);
+console.log('[cf-patch] blake3-wasm/dist/wasm/nodejs/blake3_js.js → SHA-256 shim');
