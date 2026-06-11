@@ -2,8 +2,8 @@
  * Cloudflare Workers compatibility patches applied after npm install.
  *
  * 1. pdfkit.js → pdfkit.browser.js  (removes blake3-wasm WebAssembly from pdfkit)
- * 2. blake3_js.js (nodejs) → CF-safe stub  (prevents WebAssembly.Module crash at
- *    module-load time in case anything else in the bundle imports blake3-wasm)
+ * 2. blake3_js.js (nodejs) → SHA-256 shim  (prevents WebAssembly crash, keeps wrangler working)
+ * 3. yoga-layout index.js → uses YOGA_WASM global binding instead of dynamic WebAssembly.instantiate
  */
 const fs = require('fs');
 const path = require('path');
@@ -65,3 +65,31 @@ module.exports.__wasm = null;
 `;
 fs.writeFileSync(path.join(blake3NodejsDir, 'blake3_js.js'), blake3Shim);
 console.log('[cf-patch] blake3-wasm/dist/wasm/nodejs/blake3_js.js → SHA-256 shim');
+
+// --- 3. Patch yoga-layout to use CF Workers WASM binding ---
+// yoga-layout uses WebAssembly compiled with Emscripten via dynamic WebAssembly.instantiate().
+// CF Workers forbids dynamic instantiation from buffers. The fix: override loadYoga's
+// `instantiateWasm` hook to use YOGA_WASM (a pre-compiled WebAssembly.Module global
+// provided by wrangler.jsonc "wasm_modules" binding).
+// In non-CF environments (local, CI build), YOGA_WASM is undefined so fallback is used.
+const yogaIndexPath = path.join(
+  __dirname, '..', 'node_modules', 'yoga-layout', 'dist', 'src', 'index.js',
+);
+const yogaIndex = `\
+// @ts-ignore untyped from Emscripten
+import loadYogaImpl from '../binaries/yoga-wasm-base64-esm.js';
+import wrapAssembly from "./wrapAssembly.js";
+// CF Workers: use pre-compiled YOGA_WASM binding instead of dynamic WebAssembly.instantiate
+const yogaOpts = {};
+if (typeof YOGA_WASM !== 'undefined') {
+  yogaOpts.instantiateWasm = (imports, receiveInstance) => {
+    receiveInstance(new WebAssembly.Instance(YOGA_WASM, imports));
+  };
+}
+const Yoga = wrapAssembly(await loadYogaImpl(yogaOpts));
+export default Yoga;
+export * from "./generated/YGEnums.js";
+//# sourceMappingURL=index.js.map
+`;
+fs.writeFileSync(yogaIndexPath, yogaIndex);
+console.log('[cf-patch] yoga-layout/dist/src/index.js → YOGA_WASM binding shim');

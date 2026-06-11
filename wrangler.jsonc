@@ -12,6 +12,12 @@
   // Variables de RUNTIME (server-side). Las NEXT_PUBLIC_* además deben ir como
   // env vars de BUILD en el dashboard de Workers Builds (Next las inlinea al compilar).
   // Los SECRETOS (service_role, BUK, Flow) NO van acá: usar `wrangler secret put` o el dashboard.
+  // yoga-layout usa WebAssembly compilado con Emscripten. CF Workers no permite
+  // WebAssembly.instantiate(buffer) dinámico, solo módulos importados estáticamente.
+  // Este binding provee el módulo pre-compilado como global YOGA_WASM.
+  "wasm_modules": {
+    "YOGA_WASM": "./yoga.wasm"
+  },
   "vars": {
     "NEXT_PUBLIC_SUPABASE_URL": "https://sczxyejqooqthxcxksah.supabase.co",
     "NEXT_PUBLIC_SITE_URL": "https://poppins.tooxs-fperez.workers.dev",
