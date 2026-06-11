@@ -4,7 +4,7 @@
  * After `opennextjs-cloudflare build`, prepends a static yoga.wasm import to worker.js.
  * Wrangler then bundles it as a CompiledWasm module (pre-compiled WebAssembly.Module).
  * At runtime, globalThis.__YOGA_WASM__ is set before any app code runs, so the
- * instantiateWasm hook in yoga-layout/dist/src/index.js (patched by cf-patch.js) can use it.
+ * instantiateWasm hook in yoga-layout/dist/src/load.js (patched by cf-patch.js) can use it.
  */
 const fs = require('fs');
 const path = require('path');

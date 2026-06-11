@@ -66,32 +66,31 @@ module.exports.__wasm = null;
 fs.writeFileSync(path.join(blake3NodejsDir, 'blake3_js.js'), blake3Shim);
 console.log('[cf-patch] blake3-wasm/dist/wasm/nodejs/blake3_js.js → SHA-256 shim');
 
-// --- 3. Patch yoga-layout to use CF Workers WASM binding ---
-// yoga-layout uses WebAssembly compiled with Emscripten via dynamic WebAssembly.instantiate().
-// CF Workers forbids dynamic instantiation from buffers. The fix: override loadYoga's
-// `instantiateWasm` hook to use YOGA_WASM (a pre-compiled WebAssembly.Module global
-// provided by wrangler.jsonc "wasm_modules" binding).
-// In non-CF environments (local, CI build), YOGA_WASM is undefined so fallback is used.
-const yogaIndexPath = path.join(
-  __dirname, '..', 'node_modules', 'yoga-layout', 'dist', 'src', 'index.js',
+// --- 3. Patch yoga-layout/load.js to use CF Workers WASM binding ---
+// @react-pdf/layout imports `yoga-layout/load` (load.js), NOT `yoga-layout` (index.js).
+// load.js calls loadYogaImpl() with no args → Emscripten uses WebAssembly.instantiate(bytes)
+// CF Workers forbids dynamic instantiation from buffers.
+// Fix: pass instantiateWasm hook using the pre-compiled WASM module from globalThis.__YOGA_WASM__
+// (set at top of worker.js by cf-post-build.js static import).
+// In non-CF environments (local dev, CI build), the global is undefined → Emscripten fallback.
+const yogaLoadPath = path.join(
+  __dirname, '..', 'node_modules', 'yoga-layout', 'dist', 'src', 'load.js',
 );
-const yogaIndex = `\
+const yogaLoad = `\
 // @ts-ignore untyped from Emscripten
 import loadYogaImpl from '../binaries/yoga-wasm-base64-esm.js';
 import wrapAssembly from "./wrapAssembly.js";
-// CF Workers (ES Modules): use pre-compiled WASM from globalThis.__YOGA_WASM__
-// The global is set at the top of worker.js via a static import (cf-post-build.js).
-// In non-CF environments (local dev, CI build), the global is undefined → Emscripten fallback.
-const yogaOpts = {};
-if (typeof globalThis.__YOGA_WASM__ !== 'undefined') {
-  yogaOpts.instantiateWasm = (imports, receiveInstance) => {
-    receiveInstance(new WebAssembly.Instance(globalThis.__YOGA_WASM__, imports));
-  };
+export async function loadYoga() {
+  const opts = {};
+  if (typeof globalThis['__YOGA_WASM__'] !== 'undefined') {
+    opts.instantiateWasm = (imports, receiveInstance) => {
+      receiveInstance(new WebAssembly.Instance(globalThis['__YOGA_WASM__'], imports));
+    };
+  }
+  return wrapAssembly(await loadYogaImpl(opts));
 }
-const Yoga = wrapAssembly(await loadYogaImpl(yogaOpts));
-export default Yoga;
 export * from "./generated/YGEnums.js";
-//# sourceMappingURL=index.js.map
+//# sourceMappingURL=load.js.map
 `;
-fs.writeFileSync(yogaIndexPath, yogaIndex);
-console.log('[cf-patch] yoga-layout/dist/src/index.js → YOGA_WASM binding shim');
+fs.writeFileSync(yogaLoadPath, yogaLoad);
+console.log('[cf-patch] yoga-layout/dist/src/load.js → YOGA_WASM binding shim');
