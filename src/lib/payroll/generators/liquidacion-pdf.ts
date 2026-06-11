@@ -100,7 +100,7 @@ export async function generateLiquidacionesPDF(periodo: string, empleadorId?: st
     // Get worker + contract info
     const trabIds = liquidaciones.map((l: any) => l.trabajador_id);
     const [trabRes, contRes, instRes] = await Promise.all([
-      supabase.from('trabajadores').select('id, nombre, apellido_paterno, rut, cargo, afp_id, salud_id, salud_tipo, plan_salud_uf, apv_monto, apv_regimen').in('id', trabIds),
+      supabase.from('trabajadores').select('id, nombre, apellido_paterno, rut, cargo, afp_id, salud_id, salud_tipo, salud_plan_uf, apv_monto, apv_regimen').in('id', trabIds),
       supabase.from('contratos').select('trabajador_id, tipo_contrato, fecha_inicio, cargo').eq('empleador_id', emp.id).eq('estado', 'activo').in('trabajador_id', trabIds),
       supabase.from('instituciones_previsionales').select('id, nombre, tipo, tasa_descuento'),
     ]);
@@ -122,7 +122,7 @@ export async function generateLiquidacionesPDF(periodo: string, empleadorId?: st
       const afpTasa = afpInst.tasa_descuento ? `${afpInst.tasa_descuento}%` : '';
       const saludNombre = saludInst.nombre || trab.salud_tipo || 'Fonasa';
       let saludDetalle = saludNombre;
-      if (trab.plan_salud_uf) saludDetalle += ` ${trab.plan_salud_uf} UF`;
+      if (trab.salud_plan_uf) saludDetalle += ` ${trab.salud_plan_uf} UF`;
 
       let apvDetalle: string | null = null;
       if (l.apv_monto && l.apv_monto > 0) {

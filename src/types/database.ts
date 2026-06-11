@@ -81,7 +81,7 @@ export interface Database {
           sueldo_base: number;
           afp_id: string | null;
           salud_id: string | null;
-          plan_salud_uf: number | null;
+          salud_plan_uf: number | null;
           pactado_salud: number | null;
           cargas_familiares: number;
           horario_semanal: number;
@@ -122,7 +122,7 @@ export interface Database {
           sueldo_base: number;
           afp_id?: string | null;
           salud_id?: string | null;
-          plan_salud_uf?: number | null;
+          salud_plan_uf?: number | null;
           pactado_salud?: number | null;
           cargas_familiares?: number;
           horario_semanal?: number;

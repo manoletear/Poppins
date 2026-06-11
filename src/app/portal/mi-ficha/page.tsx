@@ -413,10 +413,10 @@ export default function MiFichaPage() {
                       <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Sistema de Salud</div>
                       <div className="text-sm font-medium text-gray-900">{employee.salud_nombre || employee.salud_tipo || 'No registrada'}</div>
                     </div>
-                    {employee.plan_salud_uf && (
+                    {employee.salud_plan_uf && (
                       <div className="bg-gray-50 rounded-lg p-4">
                         <div className="text-xs text-gray-500 font-semibold uppercase mb-1">Plan Salud (UF)</div>
-                        <div className="text-sm font-medium text-gray-900">{employee.plan_salud_uf} UF</div>
+                        <div className="text-sm font-medium text-gray-900">{employee.salud_plan_uf} UF</div>
                       </div>
                     )}
                     {employee.es_pensionado && (

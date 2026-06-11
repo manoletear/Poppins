@@ -217,7 +217,7 @@ export default function AdminEmpleadoDetailPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                 <Field label="AFP" value={worker.afp_id || '—'} />
                 <Field label="Salud" value={worker.salud_id || '—'} />
-                <Field label="Plan salud (UF)" value={worker.plan_salud_uf ? `${worker.plan_salud_uf} UF` : '—'} />
+                <Field label="Plan salud (UF)" value={worker.salud_plan_uf ? `${worker.salud_plan_uf} UF` : '—'} />
                 <Field label="Cargas familiares" value={String(worker.cargas_familiares || 0)} />
                 <Field label="Puertas adentro" value={worker.puertas_adentro ? 'Si' : 'No'} />
               </div>

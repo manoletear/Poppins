@@ -14,7 +14,7 @@ export interface TrabajadorParaValidar {
   afp_id?: number | null;
   salud_id?: number | null;
   salud_tipo?: string | null;             // 'fonasa' | 'isapre'
-  plan_salud_uf?: number | string | null;
+  salud_plan_uf?: number | string | null;
   es_pensionado?: boolean | null;
   banco?: string | null;
   tipo_cuenta?: string | null;
@@ -56,8 +56,8 @@ export function validarCamposTrabajador(t: TrabajadorParaValidar): CamposFaltant
   requerir(!!(t.salud_tipo),               'Tipo de salud (Fonasa/Isapre)', 'salud_tipo');
   if (t.salud_tipo === 'isapre') {
     requerir(t.salud_id != null,           'Isapre',             'salud_id');
-    const plan = Number(t.plan_salud_uf ?? 0);
-    requerir(plan > 0,                     'Plan Isapre (UF)',   'plan_salud_uf');
+    const plan = Number(t.salud_plan_uf ?? 0);
+    requerir(plan > 0,                     'Plan Isapre (UF)',   'salud_plan_uf');
   } else if (t.salud_tipo === 'fonasa') {
     // salud_id puede ser el ID de Fonasa por default — si está nulo, también se requiere.
     requerir(t.salud_id != null,           'Institución de salud','salud_id');

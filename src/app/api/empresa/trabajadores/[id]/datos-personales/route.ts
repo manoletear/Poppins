@@ -46,7 +46,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   // Validación legal: simular el estado final y bloquear si faltan campos.
   const { data: actual } = await supabase
     .from('trabajadores')
-    .select('rut,nombre,apellido_paterno,fecha_nacimiento,email,direccion,comuna,region,afp_id,salud_id,salud_tipo,plan_salud_uf,es_pensionado,banco,tipo_cuenta,numero_cuenta,payment_method')
+    .select('rut,nombre,apellido_paterno,fecha_nacimiento,email,direccion,comuna,region,afp_id,salud_id,salud_tipo,salud_plan_uf,es_pensionado,banco,tipo_cuenta,numero_cuenta,payment_method')
     .eq('id', id).maybeSingle();
   if (!actual) return NextResponse.json({ ok: false, error: 'no_existe' }, { status: 404 });
 

@@ -166,7 +166,7 @@ export async function GET() {
   const { data: todosLosTrab } = await supabase
     .from('trabajadores')
     .select(`id, rut, nombre, apellido_paterno, fecha_nacimiento, email,
-             direccion, comuna, region, afp_id, salud_id, salud_tipo, plan_salud_uf,
+             direccion, comuna, region, afp_id, salud_id, salud_tipo, salud_plan_uf,
              es_pensionado, banco, tipo_cuenta, numero_cuenta, payment_method,
              contratos!inner(empleador_id, estado)`)
     .eq('contratos.empleador_id', empleadorId)

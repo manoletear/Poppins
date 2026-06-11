@@ -269,7 +269,7 @@ export async function POST(request: Request) {
       fecha_nacimiento: trab.fecha_nacimiento, email: trab.email,
       direccion: trab.direccion, comuna: trab.comuna, region: trab.region,
       afp_id: trab.afp_id, salud_id: trab.salud_id, salud_tipo: trab.salud_tipo,
-      plan_salud_uf: trab.salud_plan_uf, es_pensionado: trab.es_pensionado,
+      salud_plan_uf: trab.salud_plan_uf, es_pensionado: trab.es_pensionado,
       banco: trab.banco, tipo_cuenta: trab.tipo_cuenta, numero_cuenta: trab.numero_cuenta,
       payment_method: trab.payment_method,
     });
