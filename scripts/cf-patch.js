@@ -79,11 +79,13 @@ const yogaIndex = `\
 // @ts-ignore untyped from Emscripten
 import loadYogaImpl from '../binaries/yoga-wasm-base64-esm.js';
 import wrapAssembly from "./wrapAssembly.js";
-// CF Workers: use pre-compiled YOGA_WASM binding instead of dynamic WebAssembly.instantiate
+// CF Workers (ES Modules): use pre-compiled WASM from globalThis.__YOGA_WASM__
+// The global is set at the top of worker.js via a static import (cf-post-build.js).
+// In non-CF environments (local dev, CI build), the global is undefined → Emscripten fallback.
 const yogaOpts = {};
-if (typeof YOGA_WASM !== 'undefined') {
+if (typeof globalThis.__YOGA_WASM__ !== 'undefined') {
   yogaOpts.instantiateWasm = (imports, receiveInstance) => {
-    receiveInstance(new WebAssembly.Instance(YOGA_WASM, imports));
+    receiveInstance(new WebAssembly.Instance(globalThis.__YOGA_WASM__, imports));
   };
 }
 const Yoga = wrapAssembly(await loadYogaImpl(yogaOpts));
