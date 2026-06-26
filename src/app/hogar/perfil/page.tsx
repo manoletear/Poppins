@@ -168,6 +168,10 @@ export default function PerfilEmpleadorPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [apodo, setApodo] = useState('');
+  const [apodoEditing, setApodoEditing] = useState(false);
+  const [apodoSaving, setApodoSaving] = useState(false);
+
   const [empleador, setEmpleador] = useState<Empleador | null>(null);
   const [conyuge, setConyuge] = useState<Familiar | null>(null);
   const [hijos, setHijos] = useState<Familiar[]>([]);
@@ -212,7 +216,32 @@ export default function PerfilEmpleadorPage() {
     if (authLoading) return;
     if (!empleadorId) { setLoading(false); setError('No se encontró tu perfil de empleador'); return; }
     fetchData();
-  }, [fetchData, authLoading, empleadorId]);
+    // Cargar apodo desde user_empleadores
+    const supabase = createClient();
+    supabase
+      .from('user_empleadores')
+      .select('apodo')
+      .eq('auth_user_id', (profile as { auth_user_id?: string }).auth_user_id ?? '')
+      .eq('empleador_id', empleadorId)
+      .maybeSingle()
+      .then(({ data }: { data: { apodo: string | null } | null }) => {
+        if (data?.apodo) setApodo(data.apodo);
+      });
+  }, [fetchData, authLoading, empleadorId, profile]);
+
+  const saveApodo = async () => {
+    setApodoSaving(true);
+    try {
+      await fetch('/api/hogar/miembros', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auth_user_id: (profile as { auth_user_id?: string }).auth_user_id, apodo }),
+      });
+      setApodoEditing(false);
+    } finally {
+      setApodoSaving(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -324,6 +353,47 @@ export default function PerfilEmpleadorPage() {
               <span className="mt-2 rounded-full bg-blue-100 px-3 py-0.5 text-xs font-semibold text-blue-700">
                 Plan {empleador.plan_tipo || empleador.plan || 'starter'}
               </span>
+
+              {/* Apodo en el hogar */}
+              <div className="mt-4 w-full">
+                {apodoEditing ? (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      autoFocus
+                      type="text"
+                      value={apodo}
+                      onChange={(e) => setApodo(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') saveApodo(); if (e.key === 'Escape') setApodoEditing(false); }}
+                      placeholder="Tu apodo en el hogar"
+                      maxLength={30}
+                      className="flex-1 rounded-lg border border-zinc-300 px-2.5 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                    <button
+                      onClick={saveApodo}
+                      disabled={apodoSaving}
+                      className="rounded-lg bg-zinc-900 p-1.5 text-white hover:bg-zinc-700 disabled:opacity-50"
+                    >
+                      {apodoSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                    </button>
+                    <button
+                      onClick={() => setApodoEditing(false)}
+                      className="rounded-lg border border-zinc-200 p-1.5 text-zinc-400 hover:bg-zinc-50"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setApodoEditing(true)}
+                    className="group flex items-center gap-1.5 mx-auto text-sm text-zinc-400 hover:text-zinc-700 transition-colors"
+                  >
+                    <Pencil className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <span className={apodo ? 'font-medium text-zinc-600' : 'italic'}>
+                      {apodo || 'Agregar apodo'}
+                    </span>
+                  </button>
+                )}
+              </div>
             </div>
             <div className="px-5 py-4 space-y-3">
               <InfoField icon={<CreditCard className="h-4 w-4 text-zinc-400" />} label="RUT" value={empleador.rut} />
