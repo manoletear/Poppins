@@ -68,7 +68,7 @@ export function emailInvitacionHogar(opts: {
   const { nombreInvitante, etiqueta, activationUrl } = opts;
   return {
     to: '',
-    subject: `${nombreInvitante} te invitó a su hogar en Poppins 🏡`,
+    subject: `¡${nombreInvitante} te invitó a Poppins! 🏡✨`,
     html: `
 <!DOCTYPE html>
 <html lang="es">
@@ -76,49 +76,62 @@ export function emailInvitacionHogar(opts: {
 <body style="margin:0;padding:0;background:#f4f4f5;font-family:'Helvetica Neue',Arial,sans-serif">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f5;padding:40px 0">
     <tr><td align="center">
-      <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:20px;overflow:hidden;box-shadow:0 4px 32px rgba(0,0,0,0.10)">
 
-        <!-- Header -->
+        <!-- Header con emoji grande -->
         <tr>
-          <td style="background:linear-gradient(135deg,#18181b 0%,#3f3f46 100%);padding:36px 40px;text-align:center">
-            <p style="margin:0;font-size:28px;font-weight:800;color:#ffffff;letter-spacing:-0.5px">Poppins</p>
-            <p style="margin:6px 0 0;font-size:13px;color:#a1a1aa;letter-spacing:1px;text-transform:uppercase">La magia en tu casa</p>
+          <td style="background:linear-gradient(135deg,#18181b 0%,#3f3f46 100%);padding:40px 40px 32px;text-align:center">
+            <div style="font-size:52px;line-height:1;margin-bottom:12px">🏡</div>
+            <p style="margin:0;font-size:30px;font-weight:800;color:#ffffff;letter-spacing:-0.5px">Poppins</p>
+            <p style="margin:6px 0 0;font-size:13px;color:#a1a1aa;letter-spacing:1.5px;text-transform:uppercase">La magia en tu casa</p>
           </td>
         </tr>
 
         <!-- Body -->
         <tr>
-          <td style="padding:40px 40px 32px">
-            <p style="margin:0 0 8px;font-size:22px;font-weight:700;color:#18181b">
-              ¡Te están esperando! 🎉
+          <td style="padding:40px 40px 12px">
+
+            <p style="margin:0 0 6px;font-size:26px;font-weight:800;color:#18181b;line-height:1.2">
+              ¡Te invitaron a Poppins!
             </p>
-            <p style="margin:0 0 24px;font-size:15px;color:#52525b;line-height:1.6">
-              <strong style="color:#18181b">${nombreInvitante}</strong> te invitó a unirte a su hogar en Poppins
-              como <strong style="color:#18181b">${etiqueta}</strong>.
+            <p style="margin:0 0 28px;font-size:16px;color:#52525b;line-height:1.7">
+              <strong style="color:#18181b">${nombreInvitante}</strong> te agregó como
+              <strong style="color:#18181b"> ${etiqueta}</strong> en su hogar. 🎉<br>
+              Eso significa que ahora eres parte oficial del equipo doméstico.
+              Sin sueldo, pero con acceso a Poppins — que tampoco está nada mal.
             </p>
 
-            <div style="background:#f9fafb;border:1px solid #e4e4e7;border-radius:12px;padding:20px 24px;margin-bottom:28px">
-              <p style="margin:0 0 10px;font-size:13px;font-weight:600;color:#71717a;text-transform:uppercase;letter-spacing:0.5px">¿Qué es Poppins?</p>
+            <!-- Qué vas a poder hacer -->
+            <div style="background:#fafafa;border-left:4px solid #18181b;border-radius:0 12px 12px 0;padding:20px 24px;margin-bottom:28px">
+              <p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#18181b">¿Qué es Poppins?</p>
+              <p style="margin:0 0 12px;font-size:14px;color:#3f3f46;line-height:1.6">
+                La app que organiza el hogar de verdad: tareas, listas de compras,
+                recordatorios, y todo lo del personal doméstico — en un solo lugar.
+              </p>
               <p style="margin:0;font-size:14px;color:#3f3f46;line-height:1.6">
-                Una app para gestionar todo lo de tu hogar: empleados domésticos, liquidaciones, tareas, compras y mucho más.
-                Ahora podés ver lo que tu familia comparte contigo — todo en un solo lugar.
+                Y lo mejor: <strong style="color:#18181b">${nombreInvitante}</strong> ya decidió qué podés ver.
+                Así que ni preguntes si hay plata en la cuenta. 😅
               </p>
             </div>
 
+            <!-- CTA -->
             <table width="100%" cellpadding="0" cellspacing="0">
-              <tr><td align="center" style="padding-bottom:28px">
+              <tr><td align="center" style="padding-bottom:32px">
                 <a href="${activationUrl}"
-                   style="display:inline-block;background:#18181b;color:#ffffff;font-size:15px;font-weight:700;
-                          padding:14px 36px;border-radius:10px;text-decoration:none;letter-spacing:0.3px">
+                   style="display:inline-block;background:#18181b;color:#ffffff;font-size:16px;font-weight:700;
+                          padding:16px 40px;border-radius:12px;text-decoration:none;letter-spacing:0.3px">
                   Activar mi cuenta →
                 </a>
+                <p style="margin:12px 0 0;font-size:12px;color:#a1a1aa">
+                  Este link es personal y expira en 24 horas ⏰
+                </p>
               </td></tr>
             </table>
 
-            <div style="border-top:1px solid #e4e4e7;padding-top:20px">
-              <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.5">
-                Este link es personal y expira en 24 horas.<br>
-                Si no esperabas esta invitación, puedes ignorar este mensaje sin problema.
+            <div style="border-top:1px solid #e4e4e7;padding-top:20px;margin-bottom:8px">
+              <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.6">
+                Si no esperabas esta invitación, ignora este mensaje sin drama.<br>
+                Nadie se va a enterar, prometido. 🤫
               </p>
             </div>
           </td>
@@ -126,9 +139,9 @@ export function emailInvitacionHogar(opts: {
 
         <!-- Footer -->
         <tr>
-          <td style="background:#f9fafb;border-top:1px solid #e4e4e7;padding:20px 40px;text-align:center">
+          <td style="background:#f9fafb;border-top:1px solid #e4e4e7;padding:18px 40px;text-align:center">
             <p style="margin:0;font-size:12px;color:#a1a1aa">
-              Poppins — Hecho con ♥ para familias chilenas
+              Poppins — Hecho con ♥ para familias chilenas 🇨🇱
             </p>
           </td>
         </tr>
