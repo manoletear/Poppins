@@ -95,22 +95,22 @@ export function emailInvitacionHogar(opts: {
               ¡Te invitaron a Poppins!
             </p>
             <p style="margin:0 0 28px;font-size:16px;color:#52525b;line-height:1.7">
-              <strong style="color:#18181b">${nombreInvitante}</strong> te sumó como
+              <strong style="color:#18181b">${nombreInvitante}</strong> te agregó como
               <strong style="color:#18181b"> ${etiqueta}</strong> en su hogar. 🎉<br>
-              O sea, ya eres parte oficial de la familia digital po.
-              Sin sueldo, sí, pero con acceso a Poppins — que no está nada de mal.
+              Eso significa que ahora eres parte oficial del equipo doméstico.
+              Sin sueldo, pero con acceso a Poppins — que tampoco está nada mal.
             </p>
 
             <!-- Qué vas a poder hacer -->
             <div style="background:#fafafa;border-left:4px solid #18181b;border-radius:0 12px 12px 0;padding:20px 24px;margin-bottom:28px">
-              <p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#18181b">¿Y qué es Poppins, po?</p>
+              <p style="margin:0 0 12px;font-size:14px;font-weight:700;color:#18181b">¿Qué es Poppins?</p>
               <p style="margin:0 0 12px;font-size:14px;color:#3f3f46;line-height:1.6">
-                La app que organiza el hogar en serio: tareas, lista del super,
-                recordatorios, y todo lo del personal doméstico — todo en un solo lugar, cachai.
+                La app que organiza el hogar de verdad: tareas, listas de compras,
+                recordatorios, y todo lo del personal doméstico — en un solo lugar.
               </p>
               <p style="margin:0;font-size:14px;color:#3f3f46;line-height:1.6">
-                Eso sí: <strong style="color:#18181b">${nombreInvitante}</strong> ya eligió qué puedes ver.
-                Así que mejor ni preguntar si hay lucas en la cuenta. 😅
+                Y lo mejor: <strong style="color:#18181b">${nombreInvitante}</strong> ya decidió qué puedes ver.
+                Así que ni preguntes si hay plata en la cuenta. 😅
               </p>
             </div>
 
@@ -123,15 +123,15 @@ export function emailInvitacionHogar(opts: {
                   Activar mi cuenta →
                 </a>
                 <p style="margin:12px 0 0;font-size:12px;color:#a1a1aa">
-                  El link es personal y expira en 24 horas ⏰
+                  Este link es personal y expira en 24 horas ⏰
                 </p>
               </td></tr>
             </table>
 
             <div style="border-top:1px solid #e4e4e7;padding-top:20px;margin-bottom:8px">
               <p style="margin:0;font-size:13px;color:#a1a1aa;line-height:1.6">
-                Si no esperabas esta invitación, ignora este correo sin drama.<br>
-                Nadie se va a cachar, prometido. 🤫
+                Si no esperabas esta invitación, ignora este mensaje sin drama.<br>
+                Nadie se va a enterar, prometido. 🤫
               </p>
             </div>
           </td>
