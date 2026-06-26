@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth/context';
+import { createClient } from '@/lib/supabase/client';
 import { getInitials } from '@/lib/auth/helpers';
 import { NotificacionesDropdown } from '@/components/NotificacionesDropdown';
 import { PLANES } from '@/lib/pagos/plans';
@@ -36,47 +37,49 @@ import {
   Check,
 } from 'lucide-react';
 
+import type { Permisos } from '@/lib/payroll/types/miembros';
+
+// Cada item tiene una clave de permiso opcional. Si no tiene clave, siempre se muestra.
 const navSections = [
   {
     label: 'Mi Hogar',
     items: [
-      { name: 'Inicio',      href: '/hogar',          icon: LayoutDashboard },
+      { name: 'Inicio',      href: '/hogar',          icon: LayoutDashboard, permiso: 'inicio' as keyof Permisos },
       { name: 'Mi Perfil',   href: '/hogar/perfil',   icon: CircleUser },
-      { name: 'Mi Vivienda', href: '/hogar/vivienda', icon: Home },
-      { name: 'Mi Familia',  href: '/hogar/familia',  icon: Heart },
+      { name: 'Mi Vivienda', href: '/hogar/vivienda', icon: Home,            permiso: 'vivienda' as keyof Permisos },
+      { name: 'Mi Familia',  href: '/hogar/familia',  icon: Heart,           permiso: 'familia' as keyof Permisos },
     ],
   },
   {
     label: 'Mi Equipo',
     items: [
-      { name: 'Empleados', href: '/hogar/empleados', icon: Users },
-      { name: 'Contratos', href: '/hogar/contratos', icon: FileText },
-      { name: 'Horarios',  href: '/hogar/horarios',  icon: Clock },
+      { name: 'Empleados', href: '/hogar/empleados', icon: Users,     permiso: 'empleados' as keyof Permisos },
+      { name: 'Contratos', href: '/hogar/contratos', icon: FileText,  permiso: 'contratos' as keyof Permisos },
+      { name: 'Horarios',  href: '/hogar/horarios',  icon: Clock,     permiso: 'horarios' as keyof Permisos },
     ],
   },
   {
-    // Todo lo del payroll agrupado: la dueña entiende "remuneraciones" como "pagar a su gente"
     label: 'Remuneraciones',
     items: [
-      { name: 'Pagar el mes',   href: '/hogar/pagar-mes',      icon: Sparkles },
-      { name: 'Liquidaciones',  href: '/hogar/liquidaciones',  icon: Receipt },
-      { name: 'Modo experto',   href: '/hogar/remuneraciones', icon: Wallet },
-      { name: 'Solicitudes',    href: '/hogar/solicitudes',    icon: MessageSquare },
+      { name: 'Pagar el mes',    href: '/hogar/pagar-mes',      icon: Sparkles,       permiso: 'pagar_mes' as keyof Permisos },
+      { name: 'Liquidaciones',   href: '/hogar/liquidaciones',  icon: Receipt,        permiso: 'liquidaciones' as keyof Permisos },
+      { name: 'Modo experto',    href: '/hogar/remuneraciones', icon: Wallet,         permiso: 'remuneraciones' as keyof Permisos },
+      { name: 'Solicitudes',     href: '/hogar/solicitudes',    icon: MessageSquare,  permiso: 'solicitudes' as keyof Permisos },
     ],
   },
   {
     label: 'Día a Día',
     items: [
-      { name: 'Tareas del día',  href: '/hogar/tareas',        icon: CheckSquare },
-      { name: 'Lista de compras', href: '/hogar/compras',      icon: ShoppingCart },
-      { name: 'Recordatorios',   href: '/hogar/recordatorios', icon: Bell },
+      { name: 'Tareas del día',   href: '/hogar/tareas',        icon: CheckSquare, permiso: 'tareas' as keyof Permisos },
+      { name: 'Lista de compras', href: '/hogar/compras',       icon: ShoppingCart,permiso: 'compras' as keyof Permisos },
+      { name: 'Recordatorios',    href: '/hogar/recordatorios', icon: Bell,        permiso: 'recordatorios' as keyof Permisos },
     ],
   },
   {
     label: 'Extras',
     items: [
-      { name: 'Mi plan',         href: '/hogar/pagos',    icon: CreditCard },
-      { name: 'Novedades legales', href: '/hogar/noticias', icon: Newspaper },
+      { name: 'Mi plan',           href: '/hogar/pagos',    icon: CreditCard },
+      { name: 'Novedades legales', href: '/hogar/noticias', icon: Newspaper, permiso: 'noticias' as keyof Permisos },
     ],
   },
 ];
@@ -341,6 +344,34 @@ function UserAccountPopover({ onNavigate }: { onNavigate?: () => void }) {
 
 function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate?: () => void }) {
   const { profile } = useAuth();
+  const [permisos, setPermisos] = useState<Permisos | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.empleador_id) return;
+    const supabase = createClient();
+    supabase
+      .from('user_empleadores')
+      .select('rol, permisos')
+      .eq('auth_user_id', (profile as { auth_user_id?: string }).auth_user_id ?? '')
+      .eq('empleador_id', profile.empleador_id)
+      .maybeSingle()
+      .then(({ data }: { data: { rol: string; permisos: Permisos } | null }) => {
+        if (data?.rol === 'owner' || data?.rol === 'admin') {
+          setIsOwner(true);
+          setPermisos(null); // owners ven todo
+        } else {
+          setIsOwner(false);
+          setPermisos((data?.permisos as Permisos | null) ?? null);
+        }
+      });
+  }, [profile]);
+
+  const canSee = (permiso?: keyof Permisos) => {
+    if (!permiso) return true; // sin clave = siempre visible
+    if (isOwner || permisos === null) return true;
+    return permisos[permiso] ?? false;
+  };
 
   return (
     <div className="flex h-full flex-col">
@@ -352,34 +383,38 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
       </div>
 
       <nav className="flex-1 space-y-6 overflow-y-auto">
-        {navSections.map((section) => (
-          <div key={section.label}>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2">
-              {section.label}
-            </p>
-            <div className="space-y-1">
-              {section.items.map((item) => {
-                const Icon = item.icon;
-                const isActive = pathname === item.href;
-                return (
-                  <a
-                    key={item.href}
-                    href={item.href}
-                    onClick={onNavigate}
-                    className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive
-                        ? 'bg-zinc-900 text-white'
-                        : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                    {item.name}
-                  </a>
-                );
-              })}
+        {navSections.map((section) => {
+          const visibleItems = section.items.filter((item) => canSee(item.permiso));
+          if (visibleItems.length === 0) return null;
+          return (
+            <div key={section.label}>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 mb-2">
+                {section.label}
+              </p>
+              <div className="space-y-1">
+                {visibleItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <a
+                      key={item.href}
+                      href={item.href}
+                      onClick={onNavigate}
+                      className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? 'bg-zinc-900 text-white'
+                          : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.name}
+                    </a>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </nav>
 
       <UserAccountPopover onNavigate={onNavigate} />

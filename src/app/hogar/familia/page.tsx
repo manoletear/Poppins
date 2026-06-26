@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Heart, User, Dog, Cat, Bird, Fish, Phone, Mail, Loader2, AlertCircle, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
+import MiembrosHogar from './MiembrosHogar';
 import { AvatarPicker } from '@/components/Avatar';
 
 const ROLES_POR_TIPO: Record<string, string[]> = {
@@ -107,6 +108,19 @@ function getMascotaIcon(tipo: string) {
 export default function FamiliaPage() {
   const { profile, loading: authLoading } = useAuth();
   const empleadorId = profile?.empleador_id || '';
+  const [isOwner, setIsOwner] = useState(false);
+
+  useEffect(() => {
+    if (!profile?.empleador_id) return;
+    const supabase = createClient();
+    supabase
+      .from('user_empleadores')
+      .select('rol')
+      .eq('auth_user_id', (profile as { auth_user_id?: string }).auth_user_id ?? '')
+      .eq('empleador_id', profile.empleador_id)
+      .maybeSingle()
+      .then(({ data }: { data: { rol: string } | null }) => setIsOwner(data?.rol === 'owner'));
+  }, [profile]);
   const [familiares, setFamiliares] = useState<Familiar[]>([]);
   const [mascotas, setMascotas] = useState<Mascota[]>([]);
   const [loading, setLoading] = useState(true);
@@ -678,6 +692,9 @@ export default function FamiliaPage() {
           </div>
         )}
       </div>
+
+      {/* Acceso al Hogar */}
+      <MiembrosHogar isOwner={isOwner} />
 
       {/* Modal Familiar */}
       {showFamiliarModal && (

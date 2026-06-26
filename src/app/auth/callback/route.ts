@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import { createClient as createServiceClient } from '@supabase/supabase-js';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -33,6 +34,29 @@ export async function GET(request: NextRequest) {
     if (error || !data.user) {
       const detail = error?.message || 'no_user';
       return NextResponse.redirect(`${siteUrl}/auth/login?error=exchange_failed&detail=${encodeURIComponent(detail)}`);
+    }
+
+    // Si el usuario fue invitado a un hogar, activar la membresía
+    const meta = data.user.user_metadata as Record<string, unknown> | undefined;
+    const invEmpleadorId = meta?.empleador_id as string | undefined;
+    if (invEmpleadorId) {
+      const svc = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      await svc
+        .from('user_empleadores')
+        .update({ estado: 'activo' })
+        .eq('auth_user_id', data.user.id)
+        .eq('empleador_id', invEmpleadorId)
+        .eq('estado', 'pendiente');
+
+      // Asegurarse de que active_empleador_id está set para que el hogar cargue
+      await svc
+        .from('user_profiles')
+        .update({ active_empleador_id: invEmpleadorId })
+        .eq('auth_user_id', data.user.id)
+        .is('active_empleador_id', null);
     }
 
     // Try to get profile (trigger may have created it already)
