@@ -177,8 +177,9 @@ function MiembroCard({
   );
 }
 
-export default function MiembrosHogar({ isOwner }: { isOwner: boolean }) {
+export default function MiembrosHogar() {
   const [miembros, setMiembros] = useState<MiembroHogar[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
   const [invEmail, setInvEmail] = useState('');
@@ -194,6 +195,7 @@ export default function MiembrosHogar({ isOwner }: { isOwner: boolean }) {
       const res = await fetch('/api/hogar/miembros');
       if (res.ok) {
         const data = await res.json();
+        setIsOwner(data.currentUserRol === 'owner' || data.currentUserRol === 'admin');
         setMiembros(
           (data.miembros ?? []).map((m: Record<string, unknown>) => ({
             ...m,
@@ -221,13 +223,15 @@ export default function MiembrosHogar({ isOwner }: { isOwner: boolean }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: invEmail.trim(), etiqueta: invEtiqueta, permisos: invPermisos }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({ error: `Error ${res.status}` }));
       if (!res.ok) { setInvError(data.error ?? 'Error al enviar'); return; }
       setInvSuccess(true);
       setInvEmail('');
       setInvPermisos(PERMISOS_DEFAULT_FAMILIAR);
       await fetchMiembros();
       setTimeout(() => { setInvSuccess(false); setShowInvite(false); }, 2000);
+    } catch (e) {
+      setInvError(e instanceof Error ? e.message : 'Error inesperado');
     } finally {
       setInvLoading(false);
     }

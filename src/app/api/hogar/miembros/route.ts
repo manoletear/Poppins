@@ -44,7 +44,11 @@ export async function GET(request: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const res = NextResponse.json({ miembros });
+  const currentUserRol = (miembros ?? []).find(
+    (m: { auth_user_id: string }) => m.auth_user_id === user.id
+  )?.rol ?? null;
+
+  const res = NextResponse.json({ miembros, currentUserRol });
   cookiesToSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
   return res;
 }
