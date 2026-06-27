@@ -37,7 +37,12 @@ export async function POST(request: NextRequest) {
   const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ error: 'Sin hogar activo' }, { status: 403 });
 
-  const { data: membership } = await supabase
+  const svc = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data: membership } = await svc
     .from('user_empleadores')
     .select('rol')
     .eq('auth_user_id', user.id)
@@ -55,11 +60,6 @@ export async function POST(request: NextRequest) {
     .eq('auth_user_id', user.id)
     .maybeSingle();
   const nombreInvitante = [invitanteProfile?.nombre, invitanteProfile?.apellido].filter(Boolean).join(' ') || 'Tu familia';
-
-  const svc = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins.cl';
 
