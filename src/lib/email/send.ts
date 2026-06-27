@@ -6,8 +6,6 @@
  * Free tier: 3.000 emails/mes, 100/día
  */
 
-const RESEND_API_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Poppins <notificaciones@poppins.cl>';
 
 export interface EmailAttachment {
   filename: string;
@@ -23,6 +21,9 @@ interface EmailPayload {
 }
 
 export async function sendEmail({ to, subject, html, attachments }: EmailPayload): Promise<boolean> {
+  const RESEND_API_KEY = process.env.RESEND_API_KEY;
+  const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Poppins <notificaciones@poppins.cl>';
+
   if (!RESEND_API_KEY) {
     console.warn('[Email] RESEND_API_KEY no configurada — email no enviado');
     return false;
