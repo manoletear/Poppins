@@ -1,10 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Pencil, Trash2, Heart, User, Dog, Cat, Bird, Fish, Phone, Mail, Loader2, AlertCircle, X } from 'lucide-react';
+import { Plus, Pencil, Trash2, Heart, User, Dog, Cat, Bird, Fish, Phone, Mail, Loader2, AlertCircle, X, UserPlus, CheckCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/lib/auth/context';
-import MiembrosHogar from './MiembrosHogar';
 import { AvatarPicker } from '@/components/Avatar';
 
 const ROLES_POR_TIPO: Record<string, string[]> = {
@@ -36,6 +35,13 @@ interface Familiar {
   es_cuenta_activa: boolean;
   notas: string | null;
   foto_url: string | null;
+}
+
+interface MiembroAcceso {
+  auth_user_id: string;
+  invitacion_email: string | null;
+  estado: string;
+  user_profiles: { email?: string | null } | null;
 }
 
 interface Mascota {
@@ -114,6 +120,47 @@ function getMascotaIcon(tipo: string) {
   }
 }
 
+function AccesoButton({ email, etiqueta, isOwner, getAcceso, onDarAcceso, onRevocar, invitandoEmail }: {
+  email: string | null;
+  etiqueta: string;
+  isOwner: boolean;
+  getAcceso: (email: string | null) => MiembroAcceso | null;
+  onDarAcceso: (email: string, etiqueta: string) => Promise<void>;
+  onRevocar: (authUserId: string) => Promise<void>;
+  invitandoEmail: string | null;
+}) {
+  if (!email) return null;
+  const acceso = getAcceso(email);
+  if (acceso) {
+    return (
+      <div className="flex items-center gap-2 mt-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
+          <CheckCircle className="h-3 w-3" /> Acceso activo
+        </span>
+        {isOwner && (
+          <button
+            onClick={() => onRevocar(acceso.auth_user_id)}
+            className="text-xs text-zinc-400 hover:text-red-500 transition-colors"
+          >
+            Revocar
+          </button>
+        )}
+      </div>
+    );
+  }
+  if (!isOwner) return null;
+  return (
+    <button
+      onClick={() => onDarAcceso(email, etiqueta)}
+      disabled={invitandoEmail === email}
+      className="mt-2 inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 px-2.5 py-1 text-xs font-medium text-zinc-600 hover:border-zinc-400 hover:text-zinc-900 transition-colors disabled:opacity-50"
+    >
+      {invitandoEmail === email ? <Loader2 className="h-3 w-3 animate-spin" /> : <UserPlus className="h-3 w-3" />}
+      Dar acceso
+    </button>
+  );
+}
+
 export default function FamiliaPage() {
   const { profile, loading: authLoading } = useAuth();
   const empleadorId = profile?.empleador_id || '';
@@ -137,6 +184,9 @@ export default function FamiliaPage() {
   // Delete confirmation
   const [deletingFamiliarId, setDeletingFamiliarId] = useState<string | null>(null);
   const [deletingMascotaId, setDeletingMascotaId] = useState<string | null>(null);
+  const [miembros, setMiembros] = useState<MiembroAcceso[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
+  const [invitandoEmail, setInvitandoEmail] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!empleadorId) return;
@@ -160,11 +210,50 @@ export default function FamiliaPage() {
     }
   }, [empleadorId]);
 
+  const fetchMiembros = useCallback(async () => {
+    const res = await fetch('/api/hogar/miembros');
+    if (!res.ok) return;
+    const data = await res.json();
+    setMiembros(data.miembros ?? []);
+    setIsOwner(data.currentUserRol === 'owner' || data.currentUserRol === 'admin');
+  }, []);
+
   useEffect(() => {
     if (authLoading) return;
     if (!empleadorId) { setLoading(false); return; }
     fetchData();
-  }, [fetchData]);
+    fetchMiembros();
+  }, [fetchData, fetchMiembros]);
+
+  const getAcceso = (email: string | null) => {
+    if (!email) return null;
+    return miembros.find(
+      (m) => m.invitacion_email === email ||
+             (m.user_profiles as { email?: string | null } | null)?.email === email
+    ) ?? null;
+  };
+
+  const handleDarAcceso = async (email: string, etiqueta: string) => {
+    setInvitandoEmail(email);
+    try {
+      const res = await fetch('/api/hogar/miembros/invitar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, etiqueta }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { alert(data.error ?? 'Error al invitar'); return; }
+      await fetchMiembros();
+    } finally {
+      setInvitandoEmail(null);
+    }
+  };
+
+  const handleRevocarAcceso = async (authUserId: string) => {
+    if (!confirm('¿Quitar acceso a Poppins de este familiar?')) return;
+    await fetch(`/api/hogar/miembros?auth_user_id=${authUserId}`, { method: 'DELETE' });
+    await fetchMiembros();
+  };
 
   // --- Familiar CRUD ---
   const openAddFamiliar = () => {
@@ -388,16 +477,15 @@ export default function FamiliaPage() {
                     {c.notas && (
                       <p className="text-xs text-zinc-400">{c.notas}</p>
                     )}
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="text-sm text-zinc-500">Cuenta activa:</span>
-                      <span
-                        className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                          c.es_cuenta_activa ? 'bg-green-100 text-green-700' : 'bg-zinc-100 text-zinc-500'
-                        }`}
-                      >
-                        {c.es_cuenta_activa ? 'Si' : 'No'}
-                      </span>
-                    </div>
+                    <AccesoButton
+                      email={c.email}
+                      etiqueta="Cónyuge"
+                      isOwner={isOwner}
+                      getAcceso={getAcceso}
+                      onDarAcceso={handleDarAcceso}
+                      onRevocar={handleRevocarAcceso}
+                      invitandoEmail={invitandoEmail}
+                    />
                   </div>
                   <div className="flex items-center gap-1">
                     <button
@@ -504,12 +592,18 @@ export default function FamiliaPage() {
                     >
                       {esMenor ? 'Menor' : 'Adulto'}
                     </span>
-                    {hijo.es_cuenta_activa && (
-                      <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
-                        Cuenta activa
-                      </span>
-                    )}
                   </div>
+                  {!esMenor && (
+                    <AccesoButton
+                      email={hijo.email}
+                      etiqueta="Hijo/a"
+                      isOwner={isOwner}
+                      getAcceso={getAcceso}
+                      onDarAcceso={handleDarAcceso}
+                      onRevocar={handleRevocarAcceso}
+                      invitandoEmail={invitandoEmail}
+                    />
+                  )}
                   <ul className="space-y-1">
                     {hijo.alergias && (
                       <li className="text-xs text-zinc-500">Alergia: {hijo.alergias}</li>
@@ -597,6 +691,15 @@ export default function FamiliaPage() {
                     {otro.email && <li className="text-xs text-zinc-500">Email: {otro.email}</li>}
                     {otro.notas && <li className="text-xs text-zinc-400">{otro.notas}</li>}
                   </ul>
+                  <AccesoButton
+                    email={otro.email}
+                    etiqueta="Otro familiar"
+                    isOwner={isOwner}
+                    getAcceso={getAcceso}
+                    onDarAcceso={handleDarAcceso}
+                    onRevocar={handleRevocarAcceso}
+                    invitandoEmail={invitandoEmail}
+                  />
                 </div>
               );
             })}
@@ -690,9 +793,6 @@ export default function FamiliaPage() {
           </div>
         )}
       </div>
-
-      {/* Acceso al Hogar */}
-      <MiembrosHogar />
 
       {/* Modal Familiar */}
       {showFamiliarModal && (

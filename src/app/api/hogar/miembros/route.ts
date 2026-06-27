@@ -75,7 +75,12 @@ export async function DELETE(request: NextRequest) {
   const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ error: 'Sin hogar activo' }, { status: 403 });
 
-  const { data: membership } = await supabase
+  const svc = createServiceClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { data: membership } = await svc
     .from('user_empleadores')
     .select('rol')
     .eq('auth_user_id', user.id)
@@ -88,11 +93,6 @@ export async function DELETE(request: NextRequest) {
   if (targetUserId === user.id) {
     return NextResponse.json({ error: 'No puedes removerte a ti mismo' }, { status: 400 });
   }
-
-  const svc = createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
 
   const { error } = await svc
     .from('user_empleadores')
