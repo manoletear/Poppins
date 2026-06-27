@@ -37,7 +37,14 @@ export async function getActiveEmpleadorId(
   }
 
   if (profile?.empleador_id) {
-    return { empleadorId: profile.empleador_id, source: 'profile_legacy' };
+    const { data: legacyLink } = await supabase
+      .from('user_empleadores')
+      .select('empleador_id')
+      .eq('auth_user_id', user.id)
+      .eq('empleador_id', profile.empleador_id)
+      .maybeSingle();
+    if (legacyLink) return { empleadorId: profile.empleador_id, source: 'profile_legacy' };
+    // No membership row → fall through to empleadores_direct
   }
 
   const { data: emp } = await supabase

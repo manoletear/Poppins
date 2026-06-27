@@ -27,7 +27,7 @@ export async function GET(request: Request) {
   try {
     result = await generarLiquidacionPdf(supabase, empleadorId, period, workerId);
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: String(e?.message ?? e), stack: String(e?.stack ?? '') }, { status: 500 });
+    return NextResponse.json({ ok: false, error: String(e?.message ?? e) }, { status: 500 });
   }
 
   if ('error' in result) {

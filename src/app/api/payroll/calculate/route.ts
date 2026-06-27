@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     const { data: marcajes } = await supabase
       .from('marcajes_horario')
       .select('fecha, horas_trabajadas')
-      .eq('trabajador_id', body.contract.workerId)
+      .eq('trabajador_id', contrato.trabajador_id)
       .gte('fecha', firstDay)
       .lte('fecha', lastDay);
 

@@ -75,12 +75,16 @@ export function calcularSalud(
   // ISAPRE: el plan está en UF, convertir a pesos
   const planPesos = Math.round((salud.plan_uf ?? 0) * indicadores.uf);
 
-  if (planPesos <= legal) {
-    // El 7% cubre el plan completo
+  if (planPesos < legal) {
+    // Plan cheaper than 7% — worker only pays planPesos; libre disposición stays with worker
+    return { legal, adicional: 0, total: planPesos };
+  }
+
+  if (planPesos === legal) {
     return { legal, adicional: 0, total: legal };
   }
 
-  // El plan excede el 7%, la diferencia es cotización adicional
+  // Plan exceeds 7% — worker pays the additional difference
   const adicional = planPesos - legal;
   return { legal, adicional, total: legal + adicional };
 }

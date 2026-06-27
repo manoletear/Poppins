@@ -74,7 +74,7 @@ export function calcularImpuestoUnico(
   // Encontrar el tramo
   let tramoIdx = 0;
   for (let i = 0; i < tramos.length; i++) {
-    if (baseUtm > tramos[i].desde_utm) {
+    if (baseUtm >= tramos[i].desde_utm) {
       tramoIdx = i;
     }
   }

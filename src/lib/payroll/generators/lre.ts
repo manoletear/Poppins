@@ -18,7 +18,7 @@ const CODIGOS_HABERES: Record<string, string> = {
   "Asignación de Colación": "1202",
   "Asignación de Movilización": "1201",
   "Viáticos": "1203",
-  "Bonos No Imponibles": "1106",
+  "Bonos No Imponibles": "1207",
   "Semana Corrida": "1301",
 };
 

@@ -894,9 +894,15 @@ export default function RemuneracionesPage() {
       if (data.ok) {
         if (mode === 'preview') {
           setPreviewData(prev => new Map(prev).set(period, data.results));
-        } else {
+        } else if (data.processed > 0) {
           await fetchSummaries();
           setPreviewData(prev => { const m = new Map(prev); m.delete(period); return m; });
+        } else {
+          // All workers failed validation — show detail, keep preview intact
+          const detalle = (data.errorDetail as Array<{ worker: string; error: string }> | undefined)
+            ?.map(e => `• ${e.worker}: ${e.error}`)
+            .join('\n') ?? '';
+          alert(`No se pudo cerrar el mes: ningún trabajador pasó la validación.\n\n${detalle}`);
         }
       } else if (data.error === 'periodo_anterior_no_cerrado') {
         alert(data.detail ?? `Debes cerrar primero ${data.prevPeriod} antes de este período.`);
@@ -1070,22 +1076,25 @@ export default function RemuneracionesPage() {
                       />
                     </div>
 
-                    {/* Procesos desactualizados */}
+                    {/* Procesos — desactualizado hasta que se calcule */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {PROCESOS_ABIERTO.map(({ key, label, Icon }) => (
-                        <div key={key} className="flex items-center justify-between rounded-xl border border-orange-200 bg-orange-50 px-3 py-3">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-orange-400 flex items-center justify-center shrink-0">
-                              <Icon className="w-4 h-4 text-white" />
+                      {PROCESOS_ABIERTO.map(({ key, label, Icon }) => {
+                        const ok = preview.length > 0;
+                        return (
+                          <div key={key} className={`flex items-center justify-between rounded-xl border px-3 py-3 ${ok ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${ok ? 'bg-green-500' : 'bg-orange-400'}`}>
+                                <Icon className="w-4 h-4 text-white" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-semibold text-zinc-800 leading-tight">{label}</p>
+                                <p className={`text-[10px] ${ok ? 'text-green-600' : 'text-orange-500'}`}>{ok ? 'Actualizado' : 'Desactualizado'}</p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-xs font-semibold text-zinc-800 leading-tight">{label}</p>
-                              <p className="text-[10px] text-orange-500">Desactualizado</p>
-                            </div>
+                            <Download className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
                           </div>
-                          <Download className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Vista previa */}

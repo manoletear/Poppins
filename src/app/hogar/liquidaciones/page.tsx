@@ -189,7 +189,7 @@ export default function LiquidacionesEmpresaPage() {
             id, payroll_period, worker_id, gross_income, net_pay,
             deduction_afp10, deduction_afp_commission, deduction_health7,
             deduction_income_tax, deduction_advances, deduction_other,
-            calculation_trace, created_at,
+            calculation_trace, created_at, pagado_at,
             trabajadores:worker_id ( id, nombre, apellido_paterno, cargo, rut ),
             contratos ( sueldo_base )
           `)
@@ -221,7 +221,7 @@ export default function LiquidacionesEmpresaPage() {
             impuesto_unico: r.deduction_income_tax ?? 0,
             total_descuentos: totalDesc,
             liquido_pagar: r.net_pay ?? 0,
-            estado: 'pagada',
+            estado: r.pagado_at ? 'pagada' : 'aprobada',
             created_at: r.created_at ?? '',
             trabajadores: {
               id: r.trabajadores?.id ?? r.worker_id,

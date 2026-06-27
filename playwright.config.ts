@@ -1,14 +1,16 @@
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
-  testDir: './tests',
-  timeout: 30000,
+  testDir: './e2e',
+  timeout: 40_000,
+  retries: 1,
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'https://poppins-erp-2026.vercel.app',
+    baseURL: process.env.E2E_BASE_URL || 'https://poppins.tooxs-fperez.workers.dev',
     headless: true,
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { browserName: 'chromium' } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
 });

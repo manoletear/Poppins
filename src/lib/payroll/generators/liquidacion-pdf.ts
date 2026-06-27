@@ -78,6 +78,16 @@ interface LiquidacionData {
 export async function generateLiquidacionesPDF(periodo: string, empleadorId?: string) {
   const supabase = createClient();
 
+  // Fetch current UF value from indicadores API
+  let ufValor = '$ 0';
+  try {
+    const indRes = await fetch('/api/indicadores');
+    if (indRes.ok) {
+      const ind = await indRes.json();
+      ufValor = '$ ' + Number(ind.uf ?? 0).toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+  } catch { /* use fallback */ }
+
   // Get empleadores to process
   let empQuery = supabase.from('empleadores').select('id, nombre, apellido, rut');
   if (empleadorId) empQuery = empQuery.eq('id', empleadorId);
@@ -149,7 +159,7 @@ export async function generateLiquidacionesPDF(periodo: string, empleadorId?: st
         salud_nombre: saludNombre,
         salud_detalle: saludDetalle,
         apv_detalle: apvDetalle,
-        uf_valor: '$ 39.841,72', // TODO: get from config
+        uf_valor: ufValor,
         hab_sueldo_base: Number(l.sueldo_base) || 0,
         hab_gratificacion: Number(l.gratificacion_legal) || 0,
         hab_horas_extras_50: Number(l.horas_extras_50) || 0,

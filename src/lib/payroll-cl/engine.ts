@@ -207,14 +207,13 @@ export function calculatePayroll(input: PayrollEngineInput): PayrollResult {
   }
 
   // ── 10. Base impuesto único ──
-  // Art. 42 LIR: imponible menos TODAS las cotizaciones obligatorias del trabajador
-  // (AFP 10%, comisión AFP, salud 7% — incluida diferencia Isapre si aplica —
-  //  y AFC trabajador 0.6% por Ley 21.585).
+  // Art. 42 LIR: imponible menos cotizaciones AFP y salud obligatorias.
+  // SII Circular 31/2014: AFC NO es cotización previsional → no reduce base del impuesto único.
   const incomeTaxBase =
-    remuneracionImponible - afp10 - afpCommission - salud7 - isapreDiferencia - afcTrabajador;
+    remuneracionImponible - afp10 - afpCommission - salud7 - isapreDiferencia;
   t('BASE_IMPUESTO', 'Base imponible impuesto único', incomeTaxBase,
-    'remuneracionImponible - afp10 - afpCommission - salud7 - isapreDiferencia - afcTrabajador',
-    { remuneracionImponible, afp10, afpCommission, salud7, isapreDiferencia, afcTrabajador });
+    'remuneracionImponible - afp10 - afpCommission - salud7 - isapreDiferencia',
+    { remuneracionImponible, afp10, afpCommission, salud7, isapreDiferencia });
 
   // ── 11. Impuesto único 2ª categoría ──
   let incomeTax = 0;
