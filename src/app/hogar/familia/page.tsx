@@ -27,6 +27,7 @@ interface Familiar {
   tipo: 'conyuge' | 'hijo' | 'otro';
   nombre: string;
   apellido: string;
+  apodo: string | null;
   fecha_nacimiento: string | null;
   alergias: string | null;
   condiciones_medicas: string | null;
@@ -41,6 +42,7 @@ interface Mascota {
   id: string;
   empleador_id: string;
   nombre: string;
+  apodo: string | null;
   tipo: 'perro' | 'gato' | 'ave' | 'pez' | 'otro';
   raza: string | null;
   edad: number | null;
@@ -48,6 +50,11 @@ interface Mascota {
   veterinario_nombre: string | null;
   veterinario_telefono: string | null;
   foto_url: string | null;
+}
+
+function displayName(nombre: string, apellido?: string | null, apodo?: string | null): string {
+  if (apodo?.trim()) return apodo.trim();
+  return [nombre, apellido].filter(Boolean).join(' ');
 }
 
 function Avatar({ src, fallback, size = 'md' }: { src: string | null; fallback: React.ReactNode; size?: 'sm' | 'md' }) {
@@ -62,6 +69,7 @@ const emptyFamiliar: FamiliarForm = {
   tipo: 'hijo',
   nombre: '',
   apellido: '',
+  apodo: null,
   fecha_nacimiento: null,
   alergias: null,
   condiciones_medicas: null,
@@ -74,6 +82,7 @@ const emptyFamiliar: FamiliarForm = {
 
 const emptyMascota: MascotaForm = {
   nombre: '',
+  apodo: null,
   tipo: 'perro',
   raza: null,
   edad: null,
@@ -169,6 +178,7 @@ export default function FamiliaPage() {
       tipo: f.tipo,
       nombre: f.nombre,
       apellido: f.apellido,
+      apodo: f.apodo,
       fecha_nacimiento: f.fecha_nacimiento,
       alergias: f.alergias,
       condiciones_medicas: f.condiciones_medicas,
@@ -235,6 +245,7 @@ export default function FamiliaPage() {
   const openEditMascota = (m: Mascota) => {
     setMascotaForm({
       nombre: m.nombre,
+      apodo: m.apodo,
       tipo: m.tipo,
       raza: m.raza,
       edad: m.edad,
@@ -353,7 +364,7 @@ export default function FamiliaPage() {
                   <Avatar src={c.foto_url} fallback={<div className="h-10 w-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0"><Heart className="h-5 w-5 text-rose-500" /></div>} />
                   <div className="flex-1 space-y-2">
                     <p className="text-base font-medium text-zinc-900">
-                      {c.nombre} {c.apellido}
+                      {displayName(c.nombre, c.apellido, c.apodo)}
                       {edad !== null && <span className="text-sm text-zinc-500 ml-2">({edad} anos)</span>}
                     </p>
                     {c.telefono && (
@@ -448,7 +459,7 @@ export default function FamiliaPage() {
                       <Avatar src={hijo.foto_url} fallback={<div className="rounded-full bg-zinc-100 p-2"><User className="h-4 w-4 text-zinc-500" /></div>} size="sm" />
                       <div>
                         <p className="text-sm font-semibold text-zinc-900">
-                          {hijo.nombre} {hijo.apellido}
+                          {displayName(hijo.nombre, hijo.apellido, hijo.apodo)}
                         </p>
                         {edad !== null && <p className="text-xs text-zinc-500">{edad} anos</p>}
                       </div>
@@ -542,7 +553,7 @@ export default function FamiliaPage() {
                       <Avatar src={otro.foto_url} fallback={<div className="rounded-full bg-zinc-100 p-2"><User className="h-4 w-4 text-zinc-500" /></div>} size="sm" />
                       <div>
                         <p className="text-sm font-semibold text-zinc-900">
-                          {otro.nombre} {otro.apellido}
+                          {displayName(otro.nombre, otro.apellido, otro.apodo)}
                         </p>
                         {edad !== null && <p className="text-xs text-zinc-500">{edad} anos</p>}
                       </div>
@@ -622,7 +633,7 @@ export default function FamiliaPage() {
                     <div className="flex items-center gap-3">
                       <Avatar src={mascota.foto_url} fallback={<div className="rounded-full bg-amber-50 p-2"><Icon className="h-5 w-5 text-amber-600" /></div>} />
                       <div>
-                        <p className="text-sm font-semibold text-zinc-900">{mascota.nombre}</p>
+                        <p className="text-sm font-semibold text-zinc-900">{displayName(mascota.nombre, null, mascota.apodo)}</p>
                         <p className="text-xs text-zinc-500">
                           {mascota.tipo.charAt(0).toUpperCase() + mascota.tipo.slice(1)}
                           {mascota.raza && ` ${mascota.raza}`}
@@ -742,6 +753,16 @@ export default function FamiliaPage() {
                 </div>
               </div>
               <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Apodo (opcional)</label>
+                <input
+                  type="text"
+                  value={familiarForm.apodo || ''}
+                  onChange={(e) => setFamiliarForm({ ...familiarForm, apodo: e.target.value || null })}
+                  placeholder="Si pones apodo, se usa en lugar del nombre"
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+              <div>
                 <label className="block text-sm font-medium text-zinc-700 mb-1">Fecha de nacimiento</label>
                 <input
                   type="date"
@@ -852,6 +873,16 @@ export default function FamiliaPage() {
                   type="text"
                   value={mascotaForm.nombre}
                   onChange={(e) => setMascotaForm({ ...mascotaForm, nombre: e.target.value })}
+                  className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-zinc-700 mb-1">Apodo (opcional)</label>
+                <input
+                  type="text"
+                  value={mascotaForm.apodo || ''}
+                  onChange={(e) => setMascotaForm({ ...mascotaForm, apodo: e.target.value || null })}
+                  placeholder="Si pones apodo, se usa en lugar del nombre"
                   className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
               </div>
