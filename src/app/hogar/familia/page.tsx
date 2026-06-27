@@ -137,7 +137,7 @@ function AccesoButton({ email, etiqueta, isOwner, getAcceso, onDarAcceso, onRevo
         <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-700">
           <CheckCircle className="h-3 w-3" /> Acceso activo
         </span>
-        {isOwner && (
+        {isOwner && acceso.rol !== 'owner' && (
           <button
             onClick={() => onRevocar(acceso.auth_user_id)}
             className="text-xs text-zinc-400 hover:text-red-500 transition-colors"
