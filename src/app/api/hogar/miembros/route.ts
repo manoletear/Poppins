@@ -56,9 +56,7 @@ export async function GET(request: NextRequest) {
     user_profiles: profileMap[m.auth_user_id] ?? null,
   }));
 
-  const currentUserRol = enriched.find(
-    (m: { auth_user_id: string }) => m.auth_user_id === user.id
-  )?.rol ?? null;
+  const currentUserRol = enriched.find((m) => m.auth_user_id === user.id)?.rol ?? null;
 
   const res = NextResponse.json({ miembros: enriched, currentUserRol });
   cookiesToSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
