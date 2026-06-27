@@ -1,11 +1,20 @@
 /**
  * Poppins Email Service
  *
- * Usa Resend para enviar emails transaccionales.
- * Setup: 1) crear cuenta en resend.com 2) agregar RESEND_API_KEY al .env.local
- * Free tier: 3.000 emails/mes, 100/día
+ * SMTP directo via nodemailer — sin proveedor externo.
+ * Configuración via variables de entorno / Cloudflare secrets:
+ *   SMTP_HOST          (default: smtp.gmail.com)
+ *   SMTP_PORT          (default: 587)
+ *   SMTP_USER          cuenta Gmail (o usuario SMTP)
+ *   SMTP_PASSWORD      app password de Gmail (o contraseña SMTP)
+ *   SMTP_FROM_EMAIL    From header, ej: "Poppins <noreply@tooxs.com>"
+ *   SMTP_USE_TLS       "false" para deshabilitar STARTTLS (default: true)
+ *
+ * Para Gmail: habilitar 2FA + generar App Password en myaccount.google.com/apppasswords.
+ * Si falta cualquier variable requerida, el email se omite con un warning — nunca rompe el flujo.
  */
 
+import nodemailer from 'nodemailer';
 
 export interface EmailAttachment {
   filename: string;
@@ -21,40 +30,47 @@ interface EmailPayload {
 }
 
 export async function sendEmail({ to, subject, html, attachments }: EmailPayload): Promise<boolean> {
-  const RESEND_API_KEY = process.env.RESEND_API_KEY;
-  const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || 'Poppins <notificaciones@poppins.cl>';
+  const host     = (process.env.SMTP_HOST     || 'smtp.gmail.com').trim();
+  const port     = parseInt(process.env.SMTP_PORT || '587', 10);
+  const user     = (process.env.SMTP_USER     || '').trim();
+  const pass     = (process.env.SMTP_PASSWORD  || '').trim();
+  const from     = (process.env.SMTP_FROM_EMAIL || '').trim() || `Poppins <${user}>`;
+  const useTls   = (process.env.SMTP_USE_TLS ?? 'true') !== 'false';
 
-  if (!RESEND_API_KEY) {
-    console.warn('[Email] RESEND_API_KEY no configurada — email no enviado');
+  if (!user || !pass) {
+    console.warn('[Email] SMTP_USER o SMTP_PASSWORD no configurados — email no enviado');
     return false;
   }
 
   try {
-    const body: Record<string, any> = { from: FROM_EMAIL, to, subject, html };
-    if (attachments && attachments.length > 0) {
-      body.attachments = attachments.map(a => ({
-        filename: a.filename,
-        content: a.content,
-        ...(a.contentType && { content_type: a.contentType }),
-      }));
-    }
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-      },
-      body: JSON.stringify(body),
+    const transporter = nodemailer.createTransport({
+      host,
+      port,
+      secure: port === 465,   // SSL directo en 465; STARTTLS en 587
+      requireTLS: port !== 465 && useTls,
+      auth: { user, pass },
+      tls: { rejectUnauthorized: false },
     });
 
-    if (!res.ok) {
-      const error = await res.text();
-      console.error('[Email] Error:', error);
-      return false;
+    const mail: nodemailer.SendMailOptions = {
+      from,
+      to,
+      subject,
+      html,
+    };
+
+    if (attachments?.length) {
+      mail.attachments = attachments.map((a) => ({
+        filename: a.filename,
+        content: Buffer.from(a.content, 'base64'),
+        contentType: a.contentType,
+      }));
     }
+
+    await transporter.sendMail(mail);
     return true;
   } catch (err) {
-    console.error('[Email] Error:', err);
+    console.error('[Email] Error SMTP:', err);
     return false;
   }
 }
@@ -157,7 +173,7 @@ export function emailInvitacionHogar(opts: {
 
 export function emailLiquidacionLista(nombre: string, periodo: string, monto: string): EmailPayload {
   return {
-    to: '', // se completa al llamar
+    to: '',
     subject: `Tu liquidación de ${periodo} está lista — Poppins`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:30px">
