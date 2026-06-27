@@ -35,20 +35,32 @@ export async function GET(request: NextRequest) {
 
   const { data: miembros, error } = await svc
     .from('user_empleadores')
-    .select(`
-      auth_user_id, empleador_id, rol, etiqueta, apodo, permisos, estado, invitacion_email, created_at,
-      user_profiles (nombre, apellido, email, avatar_url)
-    `)
+    .select('auth_user_id, empleador_id, rol, etiqueta, apodo, permisos, estado, invitacion_email, created_at')
     .eq('empleador_id', empleadorId)
     .order('created_at');
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const currentUserRol = (miembros ?? []).find(
+  // Enrich with user_profiles (no FK exists, so we join manually)
+  const userIds = (miembros ?? []).map((m: { auth_user_id: string }) => m.auth_user_id);
+  const { data: profiles } = userIds.length
+    ? await svc.from('user_profiles').select('auth_user_id, nombre, apellido, email, avatar_url').in('auth_user_id', userIds)
+    : { data: [] };
+
+  const profileMap = Object.fromEntries(
+    (profiles ?? []).map((p: { auth_user_id: string; nombre?: string; apellido?: string; email?: string; avatar_url?: string }) => [p.auth_user_id, p])
+  );
+
+  const enriched = (miembros ?? []).map((m: { auth_user_id: string }) => ({
+    ...m,
+    user_profiles: profileMap[m.auth_user_id] ?? null,
+  }));
+
+  const currentUserRol = enriched.find(
     (m: { auth_user_id: string }) => m.auth_user_id === user.id
   )?.rol ?? null;
 
-  const res = NextResponse.json({ miembros, currentUserRol });
+  const res = NextResponse.json({ miembros: enriched, currentUserRol });
   cookiesToSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
   return res;
 }
