@@ -118,6 +118,20 @@ export async function POST(request: NextRequest) {
     })
     .eq('id', invitacion.id);
 
+  // Si el trabajador ya tiene cuenta auth, crear user_empleadores ahora
+  if (datos.email) {
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const authUser = existingUsers?.users?.find((u) => u.email === datos.email);
+    if (authUser) {
+      await supabase
+        .from('user_empleadores')
+        .upsert(
+          { auth_user_id: authUser.id, empleador_id: invitacion.empleador_id, rol: 'empleado', estado: 'activo' },
+          { onConflict: 'auth_user_id,empleador_id' }
+        );
+    }
+  }
+
   return NextResponse.json({
     success: true,
     trabajador_id: trabajador.id,

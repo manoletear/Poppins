@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: authUser.email || '',
         nombre: authUser.user_metadata?.full_name || authUser.user_metadata?.nombre || authUser.email?.split('@')[0] || 'Usuario',
         apellido: authUser.user_metadata?.apellido || null,
-        rol: (authUser.user_metadata?.rol as 'empleador') || 'empleador',
+        rol: 'empleador',
         empleador_id: null,
         trabajador_id: null,
         onboarding_completado: false,

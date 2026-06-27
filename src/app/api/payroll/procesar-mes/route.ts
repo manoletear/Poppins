@@ -12,6 +12,7 @@ import { validarPrevision } from '@/lib/payroll-cl/validacion-prevision';
 import { validarCamposTrabajador } from '@/lib/validaciones/trabajador';
 import { getActiveEmpleadorId } from '@/lib/auth/active-empleador';
 import { auditLog } from '@/lib/audit/log';
+import { dispatchLiquidacionesEmail } from '@/lib/payroll/dispatch-liquidaciones-email';
 import type { PayrollEngineInput } from '@/lib/payroll-cl/types/payroll';
 import { HealthType, LegalProfileType, WorkScheduleType } from '@/lib/payroll-cl/types/enums';
 
@@ -34,6 +35,11 @@ export async function POST(request: Request) {
   // Resolver empleador activo (N:M con workspace switcher)
   const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'sin_empleador' }, { status: 400 });
+
+  if (mode === 'final') {
+    const { data: m } = await supabase.from('user_empleadores').select('rol').eq('auth_user_id', user.id).eq('empleador_id', empleadorId).maybeSingle();
+    if (!m || !['owner', 'admin'].includes(m.rol)) return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 });
+  }
 
   // Si mode=final y ya existen resultados no anulados para el período → error
   if (mode === 'final') {
@@ -473,17 +479,10 @@ export async function POST(request: Request) {
     });
 
     // Disparo email post-cierre best-effort si el empleador lo activó
-    // (lee la preferencia y reenvía cookies para autenticar el llamado interno).
     const { data: empPrefs } = await supabase
       .from('empleadores').select('preferencias').eq('id', empleadorId).maybeSingle();
     if ((empPrefs?.preferencias as any)?.email_liquidacion_enabled === true) {
-      const baseUrl = new URL(request.url).origin;
-      const cookie = request.headers.get('cookie') ?? '';
-      fetch(`${baseUrl}/api/payroll/enviar-liquidaciones`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', cookie },
-        body: JSON.stringify({ period }),
-      }).catch(() => { /* best-effort */ });
+      dispatchLiquidacionesEmail(supabase, empleadorId, period).catch(() => { /* best-effort */ });
     }
   }
 

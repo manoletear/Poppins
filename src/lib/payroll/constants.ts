@@ -70,8 +70,8 @@ export const TRAMOS_ASIGNACION_FAMILIAR_DEFAULT: TramoAsignacionFamiliar[] = [
 
 // --- Jornada ---
 
-/** Horas semanales jornada completa (Ley 40hrs, desde abril 2026: 42hrs) */
-export const HORAS_JORNADA_COMPLETA = 45;
+/** Horas semanales jornada completa (Ley 21.561: 44h desde abr-2024, 42h desde abr-2026) */
+export const HORAS_JORNADA_COMPLETA = 42;
 
 /** Días del mes para cálculo de valor hora */
 export const DIAS_MES = 30;
@@ -121,7 +121,7 @@ export const JORNADA_40H = {
 } as const;
 
 /** Jornada actual vigente (actualizar según fecha) */
-export const JORNADA_VIGENTE = 44; // Desde abril 2024
+export const JORNADA_VIGENTE = 42; // Ley 21.561 — vigente desde abril 2026
 
 // --- Remuneración TCP ---
 

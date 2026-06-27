@@ -32,7 +32,8 @@ export async function POST(request: NextRequest) {
     const resultado: 'charged' | 'failed' =
       status === '2' || status === 'charged' || status === 'active' ? 'charged' : 'failed';
 
-    const r = await procesarCobroWebhook({ flowSubscriptionId: subscriptionId, resultado });
+    const flowEventId = params['token'] || params['event_id'] || params['commerceOrder'] || undefined;
+    const r = await procesarCobroWebhook({ flowSubscriptionId: subscriptionId, resultado, flowEventId });
     return NextResponse.json({ received: true, ...r });
   } catch (e) {
     return NextResponse.json({ error: e instanceof Error ? e.message : 'Error interno' }, { status: 500 });

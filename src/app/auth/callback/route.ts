@@ -46,10 +46,10 @@ export async function GET(request: NextRequest) {
       );
       await svc
         .from('user_empleadores')
-        .update({ estado: 'activo' })
-        .eq('auth_user_id', data.user.id)
-        .eq('empleador_id', invEmpleadorId)
-        .eq('estado', 'pendiente');
+        .upsert(
+          { auth_user_id: data.user.id, empleador_id: invEmpleadorId, rol: 'empleado', estado: 'activo' },
+          { onConflict: 'auth_user_id,empleador_id' }
+        );
 
       // Asegurarse de que active_empleador_id está set para que el hogar cargue
       await svc

@@ -13,10 +13,15 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ ok: false, error: 'no_auth' }, { status: 401 });
 
   const { period } = await request.json();
-  if (!period) return NextResponse.json({ ok: false, error: 'period_required' }, { status: 400 });
+  if (!period || !/^\d{4}-\d{2}$/.test(period)) {
+    return NextResponse.json({ ok: false, error: 'period_requerido (YYYY-MM)' }, { status: 400 });
+  }
 
   const { empleadorId } = await getActiveEmpleadorId(supabase, user);
   if (!empleadorId) return NextResponse.json({ ok: false, error: 'no_empleador' }, { status: 403 });
+
+  const { data: m } = await supabase.from('user_empleadores').select('rol').eq('auth_user_id', user.id).eq('empleador_id', empleadorId).maybeSingle();
+  if (!m || !['owner', 'admin'].includes(m.rol)) return NextResponse.json({ ok: false, error: 'forbidden' }, { status: 403 });
 
   // Secuencialidad: no se puede reabrir si hay períodos posteriores cerrados.
   // Hay que reabrirlos de adelante hacia atrás.

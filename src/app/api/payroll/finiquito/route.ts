@@ -105,6 +105,7 @@ export async function POST(request: Request) {
   const periodoFin = body.fecha_termino.slice(0, 7); // 'YYYY-MM'
   const snapshot = await buildSnapshotForPeriod(periodoFin);
   const imm = snapshot.minimumIncomeHouseholdWorker ?? snapshot.minimumIncomeGeneral ?? 500000;
+  const uf = snapshot.ufPeriodEndValue;
 
   const ultimaRemuneracion = Number(body.ultima_remuneracion ?? contrato.sueldo_base);
 
@@ -135,6 +136,7 @@ export async function POST(request: Request) {
     ultima_remuneracion: ultimaRemuneracion,
     aviso_previo_dado: !!body.aviso_previo_dado,
     imm,
+    uf,
   });
 
   if (mode === 'preview') {

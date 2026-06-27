@@ -81,6 +81,9 @@ export interface InputFiniquito {
 
   /** Ingreso Mínimo Mensual vigente (para topes de gratificación) */
   imm: number;
+
+  /** Valor UF vigente a la fecha de término (para tope Art. 172 CT) */
+  uf: number;
 }
 
 // --- Output ---

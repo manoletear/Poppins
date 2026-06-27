@@ -29,6 +29,7 @@ function crearInputBase(overrides: Partial<InputFiniquito> = {}): InputFiniquito
     ultima_remuneracion: 950000,
     aviso_previo_dado: false,
     imm: 500000,
+    uf: 38800,
     ...overrides,
   };
 }
@@ -80,13 +81,13 @@ describe("Motor de Finiquitos", () => {
     });
 
     it("calcula vacaciones pendientes", () => {
-      // 5 días * (900000/30) = 5 * 30000 = 150000
-      expect(resultado.vacaciones_pendientes).toBe(150000);
+      // 5 días * (ultima_remuneracion/30) = 5 * (950000/30) — Art. 73 CT
+      expect(resultado.vacaciones_pendientes).toBe(Math.round(5 * 950000 / 30));
     });
 
     it("calcula vacaciones proporcionales", () => {
-      // 3.75 días * (900000/30) = 3.75 * 30000 = 112500
-      expect(resultado.vacaciones_proporcionales).toBe(112500);
+      // 3.75 días * (ultima_remuneracion/30) — Art. 73 CT
+      expect(resultado.vacaciones_proporcionales).toBe(Math.round(3.75 * 950000 / 30));
     });
 
     it("calcula gratificación proporcional Art. 50", () => {
@@ -209,12 +210,12 @@ describe("Motor de Finiquitos", () => {
     });
 
     it("sí paga vacaciones pendientes", () => {
-      const valorDia = 900000 / 30;
+      const valorDia = 950000 / 30; // ultima_remuneracion — Art. 73 CT
       expect(resultado.vacaciones_pendientes).toBe(Math.round(8 * valorDia));
     });
 
     it("sí paga vacaciones proporcionales", () => {
-      const valorDia = 900000 / 30;
+      const valorDia = 950000 / 30; // ultima_remuneracion — Art. 73 CT
       expect(resultado.vacaciones_proporcionales).toBe(Math.round(5 * valorDia));
     });
 
@@ -251,7 +252,7 @@ describe("Motor de Finiquitos", () => {
     });
 
     it("sí paga vacaciones pendientes y proporcionales", () => {
-      const valorDia = 900000 / 30;
+      const valorDia = 950000 / 30; // ultima_remuneracion — Art. 73 CT
       expect(resultado.vacaciones_pendientes).toBe(Math.round(3 * valorDia));
       expect(resultado.vacaciones_proporcionales).toBe(Math.round(1.25 * valorDia));
     });
@@ -274,7 +275,7 @@ describe("Motor de Finiquitos", () => {
       });
 
       const resultado = calcularFiniquito(input);
-      const valorDia = 900000 / 30;
+      const valorDia = 950000 / 30; // ultima_remuneracion — Art. 73 CT
       expect(resultado.vacaciones_proporcionales).toBe(Math.round(diasProporcionales * valorDia));
     });
 

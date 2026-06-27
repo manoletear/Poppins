@@ -26,6 +26,7 @@ export async function POST(request: Request) {
     .select('rol')
     .eq('auth_user_id', user.id)
     .eq('empleador_id', empleadorId)
+    .eq('estado', 'activo')
     .maybeSingle();
   if (!link) {
     return NextResponse.json({ ok: false, error: 'sin_acceso_a_empleador' }, { status: 403 });

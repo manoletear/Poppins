@@ -28,6 +28,7 @@ import { construirHaberes } from "./calculators/haberes";
 import { calcularTopes, calcularAfp, calcularSalud, calcularAfc, calcularAsignacionFamiliar } from "./calculators/prevision";
 import { calcularBaseTributable, calcularImpuestoUnico } from "./calculators/impuesto";
 import { calcularCostosEmpleador } from "./calculators/empleador";
+import { LIMITE_DESCUENTOS_VOLUNTARIOS } from "./constants";
 
 /**
  * Calcula una liquidación de sueldo completa.
@@ -76,7 +77,7 @@ export function calcularLiquidacion(
   const baseTributable = calcularBaseTributable(
     totalTributable,
     afpMonto,
-    saludResult.legal,
+    saludResult.total,
     afcResult.trabajador,
     variables.apv_monto,
     variables.apv_regimen
@@ -94,11 +95,9 @@ export function calcularLiquidacion(
 
   // Descuentos legales
   descuentos.push({ nombre: `AFP ${afp.nombre} (${(afp.tasa_trabajador * 100).toFixed(2)}%)`, monto: afpMonto, tipo: "legal" });
-  descuentos.push({ nombre: `Salud ${salud.nombre} (7%)`, monto: saludResult.legal, tipo: "legal" });
-
-  if (saludResult.adicional > 0) {
-    descuentos.push({ nombre: `Salud Adicional ${salud.nombre}`, monto: saludResult.adicional, tipo: "legal" });
-  }
+  // total = planPesos for Isapre (handles libre disposición when plan < 7%)
+  // legal is kept separate for base tributable calculation above
+  descuentos.push({ nombre: `Salud ${salud.nombre}`, monto: saludResult.total, tipo: "legal" });
 
   if (afcResult.trabajador > 0) {
     descuentos.push({ nombre: "Seguro de Cesantía (0.6%)", monto: afcResult.trabajador, tipo: "legal" });
@@ -153,7 +152,11 @@ export function calcularLiquidacion(
   );
 
   // ── 11. LÍQUIDO A PAGAR ─────────────────────────────────────
-  const liquidoAPagar = totalHaberes - totalDescuentos + asigFamiliar.monto;
+  // Art. 58 CT: descuentos voluntarios no pueden exceder el 15% del total haberes
+  const limiteVoluntarios = Math.round(totalHaberes * LIMITE_DESCUENTOS_VOLUNTARIOS);
+  const voluntariosEfectivos = Math.min(totalDescuentosVoluntarios, limiteVoluntarios);
+  const totalDescuentosEfectivos = totalDescuentosLegales + voluntariosEfectivos;
+  const liquidoAPagar = Math.max(0, totalHaberes - totalDescuentosEfectivos + asigFamiliar.monto);
 
   // ── RESULTADO ───────────────────────────────────────────────
   return {

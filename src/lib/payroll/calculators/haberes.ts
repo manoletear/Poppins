@@ -66,9 +66,10 @@ export function construirHaberes(
 ): { haberes: DetalleHaber[]; totalImponible: number; totalNoImponible: number; totalTributable: number } {
   const haberes: DetalleHaber[] = [];
 
-  // 1. Sueldo base (proporcional a días trabajados si corresponde)
-  const sueldoProporcional = variables.dias_trabajados < 30
-    ? Math.round(contrato.sueldo_base * variables.dias_trabajados / DIAS_MES)
+  // 1. Sueldo base (proporcional). Art. 198 CT: días de licencia médica no reducen base imponible.
+  const diasEfectivos = Math.min(DIAS_MES, variables.dias_trabajados + variables.dias_licencia);
+  const sueldoProporcional = diasEfectivos < DIAS_MES
+    ? Math.round(contrato.sueldo_base * diasEfectivos / DIAS_MES)
     : contrato.sueldo_base;
 
   haberes.push({

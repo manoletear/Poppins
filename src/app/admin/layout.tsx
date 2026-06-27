@@ -172,6 +172,12 @@ function SidebarContent({ pathname, onNavigate }: { pathname: string; onNavigate
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { profile, loading } = useAuth();
+
+  if (!loading && profile?.rol !== 'admin') {
+    if (typeof window !== 'undefined') window.location.replace('/hogar');
+    return null;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden">

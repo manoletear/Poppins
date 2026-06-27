@@ -15,7 +15,8 @@ export async function GET() {
     supabase
       .from('user_empleadores')
       .select('empleador_id, rol, empleadores:empleador_id (id, rut, nombre)')
-      .eq('auth_user_id', user.id),
+      .eq('auth_user_id', user.id)
+      .eq('estado', 'activo'),
     supabase
       .from('user_profiles')
       .select('active_empleador_id')

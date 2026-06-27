@@ -1,17 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createFlowPayment } from '@/lib/flow';
+import { createClient } from '@/lib/supabase/server';
 import { z } from 'zod';
 
 const FLOW_API_KEY = process.env.FLOW_API_KEY;
 
 const CreatePaymentSchema = z.object({
   pagoId: z.string().min(1),
-  monto: z.number().positive(),
   descripcion: z.string().optional(),
   email: z.string().email().optional(),
 });
 
 export async function POST(request: NextRequest) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   let body;
   try { body = await request.json(); } catch { return NextResponse.json({ error: 'JSON inválido' }, { status: 400 }); }
 
@@ -19,7 +23,15 @@ export async function POST(request: NextRequest) {
   if (!parsed.success) {
     return NextResponse.json({ error: 'Datos inválidos', details: parsed.error.flatten() }, { status: 400 });
   }
-  const { pagoId, monto, descripcion, email } = parsed.data;
+  const { pagoId, descripcion, email } = parsed.data;
+
+  const { data: pagoRecord, error: pagoError } = await supabase
+    .from('pagos_empleador')
+    .select('monto')
+    .eq('id', pagoId)
+    .single();
+  if (pagoError || !pagoRecord) return NextResponse.json({ error: 'Pago no encontrado' }, { status: 404 });
+  const monto = pagoRecord.monto;
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins.tooxs-fperez.workers.dev';
 

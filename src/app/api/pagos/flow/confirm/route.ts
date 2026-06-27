@@ -1,11 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getFlowPaymentStatus, FLOW_STATUS } from '@/lib/flow';
+import { getFlowPaymentStatus, FLOW_STATUS, verifyFlowSignature } from '@/lib/flow';
 import { createClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const token = formData.get('token') as string;
+    const params: Record<string, string> = {};
+    for (const [k, v] of formData.entries()) {
+      if (typeof v === 'string') params[k] = v;
+    }
+
+    if (!verifyFlowSignature(params)) {
+      return NextResponse.json({ error: 'invalid_signature' }, { status: 401 });
+    }
+
+    const token = params['token'];
 
     if (!token) {
       return NextResponse.json(

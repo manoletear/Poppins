@@ -634,7 +634,7 @@ function PagosContent() {
         pagoId: pago.id,
         monto: pago.monto,
         descripcion: alias,
-        email: 'manuel.aravenal@gmail.com',
+        email: profile?.email ?? '',
       }),
     });
 
@@ -704,7 +704,7 @@ function PagosContent() {
           pagoIds,
           monto: totalPendiente,
           descripcion: `Pago consolidado: ${descriptions.join(', ')}`,
-          email: 'manuel.aravenal@gmail.com',
+          email: profile?.email ?? '',
         }),
       });
 

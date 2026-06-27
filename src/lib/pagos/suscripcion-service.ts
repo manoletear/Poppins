@@ -188,6 +188,7 @@ export async function procesarCobroWebhook(input: {
   flowSubscriptionId: string;
   resultado: 'charged' | 'failed';
   fechaCobro?: Date;
+  flowEventId?: string;
 }) {
   const db = svc();
   const { data: s, error } = await db
@@ -197,9 +198,18 @@ export async function procesarCobroWebhook(input: {
     .single();
   if (error || !s) return { ok: false, reason: 'suscripcion_no_encontrada' };
 
+  if (input.flowEventId && s.last_flow_event_id === input.flowEventId) {
+    return { ok: true, estado: s.estado, dedup: true };
+  }
+
   if (input.resultado === 'failed') {
-    await db.from('suscripciones').update({ estado: 'past_due' }).eq('id', s.id);
+    await db.from('suscripciones').update({ estado: 'past_due', last_flow_event_id: input.flowEventId ?? null }).eq('id', s.id);
     return { ok: true, estado: 'past_due' };
+  }
+
+  const estadosReactivables = ['activa', 'past_due', 'trial'];
+  if (!estadosReactivables.includes(s.estado)) {
+    return { ok: false, reason: 'estado_no_reactivable', estado: s.estado };
   }
 
   const cobros = (s.cobros_realizados ?? 0) + 1;
@@ -212,6 +222,7 @@ export async function procesarCobroWebhook(input: {
       estado: 'activa',
       cobros_realizados: cobros,
       fecha_proximo_cobro: ISO(next.fecha),
+      last_flow_event_id: input.flowEventId ?? null,
     })
     .eq('id', s.id);
 

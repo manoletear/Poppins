@@ -138,7 +138,8 @@ export default function AdminPage() {
     const empLiqs = liquidaciones.filter(l => l.empleador_id === e.id);
     const liqEstado = empLiqs.length === 0 ? 'pendiente' : empLiqs.some(l => l.estado === 'borrador') ? 'borrador' : 'completado';
     const previred = liqEstado === 'completado' ? 'completado' : 'pendiente';
-    return { id: e.id, nombre: e.nombre || `${e.nombre}`, plan: e.plan_tipo, empleados: contratoCounts[e.id] || 0, liqEstado, previred, lre: 'pendiente', f29: 'pendiente' };
+    const lre = previred; // LRE se genera junto con Previred al cerrar el mes
+    return { id: e.id, nombre: e.nombre || `${e.nombre}`, plan: e.plan_tipo, empleados: contratoCounts[e.id] || 0, liqEstado, previred, lre, f29: 'pendiente' };
   });
 
   if (authLoading || loading) {

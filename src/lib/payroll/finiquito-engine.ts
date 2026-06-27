@@ -15,7 +15,7 @@
 // ============================================================
 
 import type { InputFiniquito, ResultadoFiniquito } from "./finiquito-types";
-import { DIAS_MES, FACTOR_GRATIFICACION_ART50, FACTOR_TOPE_GRATIFICACION_ART50 } from "./constants";
+import { DIAS_MES, FACTOR_GRATIFICACION_ART50, FACTOR_TOPE_GRATIFICACION_ART50, TCP_TOPE_INDEMNIZACION_MES_UF } from "./constants";
 
 /**
  * Calcula un finiquito completo según la legislación laboral chilena.
@@ -24,18 +24,20 @@ import { DIAS_MES, FACTOR_GRATIFICACION_ART50, FACTOR_TOPE_GRATIFICACION_ART50 }
  * @returns Finiquito con desglose de todos los conceptos
  */
 export function calcularFiniquito(input: InputFiniquito): ResultadoFiniquito {
-  const { empleado, contrato, fecha_termino, causal, ultima_remuneracion, imm } = input;
+  const { empleado, contrato, fecha_termino, causal, ultima_remuneracion, imm, uf } = input;
 
   // ── 1. DÍAS TRABAJADOS EN MES DE TÉRMINO ─────────────────
   const diaDelMes = fecha_termino.getUTCDate();
-  const valorDia = contrato.sueldo_base / DIAS_MES;
-  const remuneracionDiasTrabajados = Math.round(valorDia * diaDelMes);
+  const valorDiaSueldoBase = contrato.sueldo_base / DIAS_MES;
+  const remuneracionDiasTrabajados = Math.round(valorDiaSueldoBase * diaDelMes);
 
   // ── 2. VACACIONES PENDIENTES ACUMULADAS ──────────────────
-  const vacacionesPendientes = Math.round(input.dias_vacaciones_pendientes * valorDia);
+  // Art. 73 CT: usar última remuneración (no sueldo_base) para valorar días
+  const valorDiaUltimaRemun = ultima_remuneracion / DIAS_MES;
+  const vacacionesPendientes = Math.round(input.dias_vacaciones_pendientes * valorDiaUltimaRemun);
 
   // ── 3. VACACIONES PROPORCIONALES ─────────────────────────
-  const vacacionesProporcionales = Math.round(input.dias_vacaciones_proporcionales * valorDia);
+  const vacacionesProporcionales = Math.round(input.dias_vacaciones_proporcionales * valorDiaUltimaRemun);
 
   // ── 4. GRATIFICACIÓN PROPORCIONAL ────────────────────────
   const mesesTrabajadosAno = calcularMesesTrabajadosEnAno(contrato.fecha_inicio, fecha_termino);
@@ -71,7 +73,8 @@ export function calcularFiniquito(input: InputFiniquito): ResultadoFiniquito {
       tope11AnosAplicado = true;
     }
 
-    indemnizacionAnosServicio = Math.round(ultima_remuneracion * mesesIndemnizacion);
+    const montoMes = Math.min(ultima_remuneracion, TCP_TOPE_INDEMNIZACION_MES_UF * uf);
+    indemnizacionAnosServicio = Math.round(montoMes * mesesIndemnizacion);
   }
 
   // ── 7. TOTAL ─────────────────────────────────────────────
@@ -117,8 +120,8 @@ export function calcularFiniquito(input: InputFiniquito): ResultadoFiniquito {
 // ── Helpers ─────────────────────────────────────────────────
 
 /**
- * Calcula los años de servicio completos entre fecha_inicio y fecha_termino.
- * Se cuenta por años calendario completos (no fracciones).
+ * Calcula los años de servicio para indemnización Art. 163 CT.
+ * Fracción de año SUPERIOR a 6 meses equivale a un año completo.
  */
 function calcularAnosServicio(fechaInicio: Date, fechaTermino: Date): number {
   let anos = fechaTermino.getUTCFullYear() - fechaInicio.getUTCFullYear();
@@ -131,6 +134,15 @@ function calcularAnosServicio(fechaInicio: Date, fechaTermino: Date): number {
   ) {
     anos--;
   }
+
+  // Art. 163 CT: fracción superior a 6 meses cuenta como año completo
+  const anniversaryYear = fechaInicio.getUTCFullYear() + anos;
+  const halfAnniversary = new Date(Date.UTC(
+    anniversaryYear,
+    fechaInicio.getUTCMonth() + 6, // auto-overflow to next year
+    fechaInicio.getUTCDate(),
+  ));
+  if (fechaTermino > halfAnniversary) anos++;
 
   return Math.max(0, anos);
 }
