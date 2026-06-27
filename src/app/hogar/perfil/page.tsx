@@ -28,7 +28,7 @@ import {
   Shield,
 } from 'lucide-react';
 
-const tabs = ['Familia', 'Mascotas', 'Preferencias'] as const;
+const tabs = ['Preferencias'] as const;
 type Tab = (typeof tabs)[number];
 
 interface Empleador {
@@ -164,7 +164,7 @@ function FormField({
 export default function PerfilEmpleadorPage() {
   const { profile, loading: authLoading } = useAuth();
   const empleadorId = profile?.empleador_id || '';
-  const [activeTab, setActiveTab] = useState<Tab>('Familia');
+  const [activeTab, setActiveTab] = useState<Tab>('Preferencias');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -431,12 +431,6 @@ export default function PerfilEmpleadorPage() {
             ))}
           </div>
 
-          {activeTab === 'Familia' && (
-            <FamiliaTab conyuge={conyuge} hijos={hijos} onRefresh={fetchData} />
-          )}
-          {activeTab === 'Mascotas' && (
-            <MascotasTab mascotas={mascotas} onRefresh={fetchData} />
-          )}
           {activeTab === 'Preferencias' && (
             <PreferenciasTab preferencias={preferencias} onRefresh={fetchData} />
           )}
