@@ -63,16 +63,21 @@ export async function POST(request: NextRequest) {
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://poppins.cl';
 
-  // Verificar si el email ya existe
-  const { data: existingUsers } = await svc.auth.admin.listUsers();
-  const existingUser = existingUsers?.users?.find((u) => u.email === email);
+  // Verificar si el email ya tiene cuenta — buscar por user_profiles primero (evita paginación de listUsers)
+  const { data: existingProfile } = await svc
+    .from('user_profiles')
+    .select('auth_user_id')
+    .eq('email', email)
+    .maybeSingle();
 
-  if (existingUser) {
+  const existingAuthUserId = existingProfile?.auth_user_id ?? null;
+
+  if (existingAuthUserId) {
     // Ya tiene cuenta: agregar directo y notificar
     const { error: upsertErr } = await svc
       .from('user_empleadores')
       .upsert({
-        auth_user_id: existingUser.id,
+        auth_user_id: existingAuthUserId,
         empleador_id: empleadorId,
         rol: 'viewer',
         etiqueta,
