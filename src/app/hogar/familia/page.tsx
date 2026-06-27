@@ -39,6 +39,7 @@ interface Familiar {
 
 interface MiembroAcceso {
   auth_user_id: string;
+  rol: string;
   invitacion_email: string | null;
   estado: string;
   user_profiles: { email?: string | null } | null;
