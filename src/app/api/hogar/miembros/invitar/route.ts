@@ -89,6 +89,12 @@ export async function POST(request: NextRequest) {
 
     if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
 
+    // Setear hogar activo y marcar onboarding completo para que pueda entrar directamente
+    await svc.from('user_profiles').update({
+      active_empleador_id: empleadorId,
+      onboarding_completado: true,
+    }).eq('auth_user_id', existingAuthUserId);
+
     const tpl = emailInvitacionHogar({ nombreInvitante, etiqueta, activationUrl: `${siteUrl}/hogar` });
     const emailResult = await sendEmail({ ...tpl, to: email });
 
