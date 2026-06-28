@@ -90,9 +90,9 @@ export async function POST(request: NextRequest) {
     if (upsertErr) return NextResponse.json({ error: upsertErr.message }, { status: 500 });
 
     const tpl = emailInvitacionHogar({ nombreInvitante, etiqueta, activationUrl: `${siteUrl}/hogar` });
-    await sendEmail({ ...tpl, to: email });
+    const emailResult = await sendEmail({ ...tpl, to: email });
 
-    const res = NextResponse.json({ ok: true, modo: 'usuario_existente' });
+    const res = NextResponse.json({ ok: true, modo: 'usuario_existente', emailOk: emailResult.ok, emailError: emailResult.error });
     cookiesToSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
     return res;
   }
@@ -126,12 +126,11 @@ export async function POST(request: NextRequest) {
     created_by: user.id,
   }, { onConflict: 'auth_user_id,empleador_id' });
 
-  // Enviar email custom con Resend
   const activationUrl = linkData.properties.action_link;
   const tpl = emailInvitacionHogar({ nombreInvitante, etiqueta, activationUrl });
-  await sendEmail({ ...tpl, to: email });
+  const emailResult = await sendEmail({ ...tpl, to: email });
 
-  const res = NextResponse.json({ ok: true, modo: 'invitacion_enviada' });
+  const res = NextResponse.json({ ok: true, modo: 'invitacion_enviada', emailOk: emailResult.ok, emailError: emailResult.error });
   cookiesToSet.forEach(({ name, value, options }) => res.cookies.set(name, value, options));
   return res;
 }

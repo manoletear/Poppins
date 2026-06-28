@@ -1,17 +1,12 @@
 /**
- * Poppins Email Service
+ * Poppins Email Service — SMTP via nodemailer
  *
- * SMTP directo via nodemailer — sin proveedor externo.
- * Configuración via variables de entorno / Cloudflare secrets:
- *   SMTP_HOST          (default: smtp.gmail.com)
- *   SMTP_PORT          (default: 587)
- *   SMTP_USER          cuenta Gmail (o usuario SMTP)
- *   SMTP_PASSWORD      app password de Gmail (o contraseña SMTP)
- *   SMTP_FROM_EMAIL    From header, ej: "Poppins <noreply@tooxs.com>"
- *   SMTP_USE_TLS       "false" para deshabilitar STARTTLS (default: true)
- *
- * Para Gmail: habilitar 2FA + generar App Password en myaccount.google.com/apppasswords.
- * Si falta cualquier variable requerida, el email se omite con un warning — nunca rompe el flujo.
+ * Secrets (Cloudflare):
+ *   SMTP_HOST        default: smtp.gmail.com
+ *   SMTP_PORT        default: 587
+ *   SMTP_USER        cuenta Gmail
+ *   SMTP_PASSWORD    app password
+ *   SMTP_FROM_EMAIL  From header
  */
 
 import nodemailer from 'nodemailer';
@@ -29,36 +24,34 @@ interface EmailPayload {
   attachments?: EmailAttachment[];
 }
 
-export async function sendEmail({ to, subject, html, attachments }: EmailPayload): Promise<boolean> {
-  const host     = (process.env.SMTP_HOST     || 'smtp.gmail.com').trim();
-  const port     = parseInt(process.env.SMTP_PORT || '587', 10);
-  const user     = (process.env.SMTP_USER     || '').trim();
-  const pass     = (process.env.SMTP_PASSWORD  || '').trim();
-  const from     = (process.env.SMTP_FROM_EMAIL || '').trim() || `Poppins <${user}>`;
-  const useTls   = (process.env.SMTP_USE_TLS ?? 'true') !== 'false';
+export async function sendEmail({ to, subject, html, attachments }: EmailPayload): Promise<{ ok: boolean; error?: string }> {
+  const host   = (process.env.SMTP_HOST || 'smtp.gmail.com').trim();
+  const port   = parseInt(process.env.SMTP_PORT || '587', 10);
+  const user   = (process.env.SMTP_USER || '').trim();
+  const pass   = (process.env.SMTP_PASSWORD || '').trim();
+  const from   = (process.env.SMTP_FROM_EMAIL || '').trim() || `Poppins <${user}>`;
 
   if (!user || !pass) {
-    console.warn('[Email] SMTP_USER o SMTP_PASSWORD no configurados — email no enviado');
-    return false;
+    console.warn('[Email] SMTP_USER o SMTP_PASSWORD no configurados');
+    return { ok: false, error: 'SMTP no configurado' };
   }
+
+  console.log(`[Email] Enviando a ${to} via ${host}:${port} (user=${user})`);
 
   try {
     const transporter = nodemailer.createTransport({
       host,
       port,
-      secure: port === 465,   // SSL directo en 465; STARTTLS en 587
-      requireTLS: port !== 465 && useTls,
+      secure: port === 465,
+      requireTLS: port !== 465,
       auth: { user, pass },
       tls: { rejectUnauthorized: false },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 15000,
     });
 
-    const mail: nodemailer.SendMailOptions = {
-      from,
-      to,
-      subject,
-      html,
-    };
-
+    const mail: nodemailer.SendMailOptions = { from, to, subject, html };
     if (attachments?.length) {
       mail.attachments = attachments.map((a) => ({
         filename: a.filename,
@@ -67,11 +60,13 @@ export async function sendEmail({ to, subject, html, attachments }: EmailPayload
       }));
     }
 
-    await transporter.sendMail(mail);
-    return true;
+    const info = await transporter.sendMail(mail);
+    console.log('[Email] Enviado:', info.messageId);
+    return { ok: true };
   } catch (err) {
-    console.error('[Email] Error SMTP:', err);
-    return false;
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[Email] Error SMTP:', msg);
+    return { ok: false, error: msg };
   }
 }
 
