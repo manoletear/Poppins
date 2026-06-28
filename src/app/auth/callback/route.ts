@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
       // Asegurarse de que active_empleador_id está set para que el hogar cargue
       await svc
         .from('user_profiles')
-        .update({ active_empleador_id: invEmpleadorId })
+        .update({ active_empleador_id: invEmpleadorId, onboarding_completado: true })
         .eq('auth_user_id', data.user.id)
         .is('active_empleador_id', null);
     }
