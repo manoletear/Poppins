@@ -45,7 +45,7 @@ export async function sendEmail({ to, subject, html, attachments }: EmailPayload
       secure: port === 465,
       requireTLS: port !== 465,
       auth: { user, pass },
-      tls: { rejectUnauthorized: false },
+      tls: {},
       connectionTimeout: 10000,
       greetingTimeout: 10000,
       socketTimeout: 15000,
